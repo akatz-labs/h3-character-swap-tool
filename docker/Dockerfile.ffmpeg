@@ -1,0 +1,51 @@
+# Sources and hashes are supplied by ffmpeg-sources.json in the build context.
+# The complete source archives and this build recipe accompany the release.
+FROM python:3.12.12-slim-bookworm@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c AS build
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends build-essential nasm pkg-config ninja-build ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY sources /build/sources
+RUN python -c "import hashlib,json,pathlib; p=pathlib.Path('sources'); m=json.loads((p/'ffmpeg-sources.json').read_text()); [(lambda f,i: f.stat().st_size==i['bytes'] and hashlib.file_digest(f.open('rb'),'sha256').hexdigest()==i['sha256'] or (_ for _ in ()).throw(ValueError(i['name'])))(p/i['name'],i) for i in m['files']]"
+RUN python -m pip install --no-index --no-deps sources/meson-1.12.1-py3-none-any.whl
+RUN tar xf sources/zlib-1.3.1.tar.gz \
+    && cd zlib-1.3.1 && ./configure --static --prefix=/out/deps \
+    && make -j$(nproc) && make install
+RUN tar xf sources/x264-31e19f92f00c7003fa115047ce50978bc98c3a0d.tar.gz \
+    && cd x264-31e19f92f00c7003fa115047ce50978bc98c3a0d \
+    && ./configure --prefix=/out/deps --enable-static --enable-pic --disable-cli \
+    && make -j$(nproc) && make install
+ENV PKG_CONFIG_PATH=/out/deps/lib/pkgconfig
+RUN tar xf sources/freetype-2.15.0.tar.xz \
+    && cd freetype-2.15.0 \
+    && CFLAGS=-I/out/deps/include LDFLAGS=-L/out/deps/lib ./configure \
+       --prefix=/out/deps --enable-static --disable-shared --with-harfbuzz=no \
+       --without-bzip2 --without-brotli --without-png --with-zlib=yes \
+    && make -j$(nproc) && make install
+RUN tar xf sources/harfbuzz-14.6.0.tar.xz \
+    && cd harfbuzz-14.6.0 \
+    && meson setup build --prefix=/out/deps --libdir=lib --default-library=static \
+       -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dicu=disabled \
+       -Dgraphite2=disabled -Dfreetype=enabled -Dtests=disabled -Ddocs=disabled \
+       -Dutilities=disabled -Dintrospection=disabled -Draster=disabled \
+       -Dvector=disabled -Dgpu=disabled -Dgpu_demo=disabled -Dsubset=disabled \
+    && meson compile -C build && meson install -C build
+RUN tar xf sources/ffmpeg-7.1.5.tar.xz \
+    && cd ffmpeg-7.1.5 \
+    && ./configure --prefix=/out --disable-shared --enable-static \
+       --disable-doc --disable-debug --disable-autodetect --disable-ffplay \
+       --disable-network --enable-gpl --enable-version3 --enable-libx264 --enable-zlib \
+       --enable-libfreetype --enable-libharfbuzz \
+       --enable-pthreads --pkg-config-flags=--static \
+       --extra-cflags=-I/out/deps/include --extra-ldflags=-L/out/deps/lib \
+    && make -j$(nproc) && make install
+RUN mkdir -p /out/notices \
+    && cp ffmpeg-7.1.5/COPYING.GPLv3 /out/notices/FFmpeg-GPLv3.txt \
+    && cp x264-31e19f92f00c7003fa115047ce50978bc98c3a0d/COPYING /out/notices/x264-COPYING \
+    && cp zlib-1.3.1/README /out/notices/zlib-README \
+    && cp freetype-2.15.0/docs/FTL.TXT /out/notices/FreeType-FTL.txt \
+    && cp harfbuzz-14.6.0/COPYING /out/notices/HarfBuzz-COPYING \
+    && cp ffmpeg-7.1.5/ffbuild/config.log /out/notices/FFmpeg-config.log \
+    && cp sources/ffmpeg-sources.json /out/notices/ffmpeg-sources.json \
+    && /out/bin/ffmpeg -version > /out/notices/ffmpeg-version.txt \
+    && /out/bin/ffmpeg -buildconf > /out/notices/ffmpeg-buildconf.txt 2>&1

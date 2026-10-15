@@ -1,0 +1,54 @@
+name: h3-workbench
+services:
+  worker:
+    image: ${H3_WORKER_IMAGE:?Use the matched release images.env}
+    init: true
+    pid: host
+    ipc: host
+    cgroup: host
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:${H3_PORT:-8898}:8080"
+    volumes:
+      - worker-state:/var/lib/akatz
+      - models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: [CMD, /opt/h3-worker/runtime-node/node, /opt/h3-worker/dist/runtime/container/worker-health.js]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    stop_grace_period: 2m
+  app:
+    image: ${H3_APP_IMAGE:?Use the matched release images.env}
+    init: true
+    # SDK library ownership locks must observe real, non-reused process IDs
+    # across container recreation, including recovery after an app crash.
+    pid: host
+    network_mode: service:worker
+    depends_on:
+      worker:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - app-data:/data
+      - models:/models
+    environment:
+      H3_WORKBENCH_TRUSTED_ORIGINS: ${H3_TRUSTED_ORIGINS:-}
+    healthcheck:
+      test: [CMD, /opt/h3-workbench/runtime/node/node, -e, "fetch('http://127.0.0.1:8080/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    stop_grace_period: 30s
+volumes:
+  app-data:
+  worker-state:
+  models:

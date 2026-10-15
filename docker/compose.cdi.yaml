@@ -1,0 +1,9 @@
+# Linux Docker hosts already configured with NVIDIA CDI instead of the runtime.
+services:
+  worker:
+    deploy:
+      resources:
+        reservations:
+          devices: !reset []
+    devices:
+      - nvidia.com/gpu=all

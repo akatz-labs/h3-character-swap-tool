@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "appId": "h3-workbench",
+  "title": "H3 Workbench",
+  "description": "Seven required models for SAM 3.1 masking and V1 character swaps. Existing model files are reused.",
+  "models": [
+    {
+      "id": "model-0",
+      "name": "sam3.1_multiplex_fp16.safetensors",
+      "relativePath": "checkpoints/sam3.1_multiplex_fp16.safetensors",
+      "sizeBytes": 1745546848,
+      "sha256": "9ba99c92703c2e8b4f47de2d34a539bb8e18923049e238b780d70dbe6368eb03",
+      "shortHash": "2dcf1a348965ff7e",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "sam-frame",
+        "sam-track",
+        "sam-recover"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors"
+    },
+    {
+      "id": "model-3",
+      "name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "relativePath": "diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "sizeBytes": 20970379616,
+      "sha256": "9255f52b6677845ad238f20dfaafa94727053694127ab7f255c048f0f9365779",
+      "shortHash": "7b215765d8096a3a",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "h3-render",
+        "h3-render-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+    },
+    {
+      "id": "model-4",
+      "name": "h3_character_swap_pro4500_1000.safetensors",
+      "relativePath": "loras/h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
+      "sizeBytes": 155110320,
+      "sha256": "4b2a3f420ae804c0aa3422761ff84dbd1bf52eef6900ffab6d2e66df63cb4e79",
+      "shortHash": "8799c890745aaa0f",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "h3-render-v1"
+      ],
+      "url": "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/a665bb7e3bb9804e487d2925f67744f554c8ad49/h3_character_swap_pro4500_1000.safetensors"
+    },
+    {
+      "id": "model-8",
+      "name": "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
+      "relativePath": "loras/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
+      "sizeBytes": 1956193000,
+      "sha256": "08cfe946033af7d27719b964b6e0a0e50c32138daabbd6ce4137e23df6bf9980",
+      "shortHash": "1ed6aac3e2731abe",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "h3-render",
+        "h3-render-v1"
+      ],
+      "url": "https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/3ec17a324ced54151364f24f8b5fb6bf7e26414f/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors"
+    },
+    {
+      "id": "model-10",
+      "name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "relativePath": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "sizeBytes": 15687142551,
+      "sha256": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6",
+      "shortHash": "a4cf1cbacc4d48be",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "h3-render",
+        "h3-render-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+    },
+    {
+      "id": "model-13",
+      "name": "minimax_h3_audio_vae_fp32.safetensors",
+      "relativePath": "vae/minimax_h3_audio_vae_fp32.safetensors",
+      "sizeBytes": 605254808,
+      "sha256": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+      "shortHash": "07e4b8bf3c3bf35a",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "h3-render",
+        "h3-render-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_audio_vae_fp32.safetensors"
+    },
+    {
+      "id": "model-14",
+      "name": "minimax_h3_video_vae_fp16.safetensors",
+      "relativePath": "vae/minimax_h3_video_vae_fp16.safetensors",
+      "sizeBytes": 5207808496,
+      "sha256": "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522",
+      "shortHash": "b14d650b0a0e9d3a",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
+      "stages": [
+        "h3-render",
+        "h3-render-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_fp16.safetensors"
+    }
+  ],
+  "features": [
+    {
+      "id": "sam-frame",
+      "label": "Correct a mask frame",
+      "optional": false,
+      "models": [
+        "model-0"
+      ]
+    },
+    {
+      "id": "sam-track",
+      "label": "Track masks",
+      "optional": false,
+      "models": [
+        "model-0"
+      ]
+    },
+    {
+      "id": "sam-recover",
+      "label": "Recover missing masks",
+      "optional": false,
+      "models": [
+        "model-0"
+      ]
+    },
+    {
+      "id": "h3-render",
+      "label": "H3 render \u00b7 no character LoRA",
+      "optional": false,
+      "models": [
+        "model-3",
+        "model-8",
+        "model-10",
+        "model-13",
+        "model-14"
+      ]
+    },
+    {
+      "id": "h3-render-v1",
+      "label": "H3 render \u00b7 character swap V1",
+      "optional": false,
+      "models": [
+        "model-10",
+        "model-13",
+        "model-14",
+        "model-3",
+        "model-4",
+        "model-8"
+      ]
+    }
+  ],
+  "requiredNodes": []
+}

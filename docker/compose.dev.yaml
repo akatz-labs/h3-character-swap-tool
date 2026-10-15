@@ -1,0 +1,23 @@
+# Overlay on the normal Compose file. Paths are on the Docker host.
+services:
+  app:
+    entrypoint: [/opt/h3-workbench/runtime/node/node, /workspace/scripts/dev_container.mjs]
+    working_dir: /workspace
+    volumes:
+      - type: bind
+        source: ${H3_DEV_SOURCE:?Set the source directory on the Docker host}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${H3_DEV_NODE_MODULES:?Set the installed dependency directory}
+        target: /workspace/node_modules
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      H3_DEV_PUBLIC_ORIGIN: ${H3_DEV_PUBLIC_ORIGIN:-}
+      H3_DEV_HOST: 0.0.0.0
+      H3_DEV_PORT: '8080'
+      H3_DEV_BACKEND_PORT: '8081'
+    stop_grace_period: 45s

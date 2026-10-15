@@ -1,0 +1,17 @@
+# Reuse a host ComfyUI model directory, with no copying into a Docker volume.
+# Add: -f compose.yaml -f compose.models.yaml (and the CDI override if needed).
+services:
+  worker:
+    volumes:
+      - type: bind
+        source: ${H3_MODELS_DIR:?Set H3_MODELS_DIR to your existing models directory}
+        target: /models
+        bind:
+          create_host_path: false
+  app:
+    volumes:
+      - type: bind
+        source: ${H3_MODELS_DIR:?Set H3_MODELS_DIR to your existing models directory}
+        target: /models
+        bind:
+          create_host_path: false

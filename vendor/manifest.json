@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "name": "@akatz/app-config",
+      "version": "0.11.0-alpha.10-source.3",
+      "license": "MIT",
+      "archive": "akatz-app-config-0.11.0-alpha.10-source.3.tgz",
+      "sha256": "969f2bec023370f2c73c3f6975bafc33563169bc4e3e7c44526b5524728625f8",
+      "sourceArchive": "akatz-app-config-0.11.0-alpha.10-source.3-source.tar.gz",
+      "sourceSha256": "7e810007bcf65ff06de5ccdaef5b9814a1f9b2e360ec2c9803368e8760904ffc",
+      "upstreamBaseCommit": "446277254ad3d42b27c04056f9db4d61dfeba678",
+      "provenance": "Prior reviewed source.1 snapshot plus shared ecosystem paths, completed-installation discovery, existing service reuse, independent systemd user units and cross-process Hugging Face cache coordination. Focused integration tests included. Unrelated upstream changes excluded.",
+      "build": "npm ci --ignore-scripts && npm run build"
+    },
+    {
+      "name": "@akatz/app-kit",
+      "version": "0.1.0-alpha.9-source.4",
+      "license": "MIT",
+      "archive": "akatz-app-kit-0.1.0-alpha.9-source.4.tgz",
+      "sha256": "ef89660e12a258af2aa453bd692c0695f0eae2bb0ed767e26d7dd7ee66c7b505",
+      "sourceArchive": "akatz-app-kit-0.1.0-alpha.9-source.4-source.tar.gz",
+      "sourceSha256": "1fafa235c4b30b4c57d02906dcca744f19ad693f2953d6aaa968cb25feae2b3f",
+      "upstreamBaseCommit": "2a33646e4ed1b4efe6ab9ee076bb17c24b7d0712",
+      "provenance": "Prior reviewed source.3 snapshot plus pinned Lucide React 1.57.0, upstream license notices and the shared refresh icon adoption. Unrelated upstream changes excluded.",
+      "build": "npm ci --ignore-scripts && npm run build"
+    }
+  ]
+}

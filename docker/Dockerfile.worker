@@ -1,0 +1,28 @@
+# All ComfyUI/Python setup occurs while building this image. No model weights.
+FROM python:3.12.12-slim-bookworm@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c
+LABEL org.opencontainers.image.title="H3 Workbench GPU worker" \
+      org.opencontainers.image.version="0.1.0-alpha.2" \
+      org.opencontainers.image.licenses="MIT"
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+    git ca-certificates libgl1 libglib2.0-0 libgomp1 build-essential procps fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 h3 && useradd --uid 1000 --gid 1000 --create-home h3 \
+    && mkdir -p /opt/h3-worker /var/lib/akatz /models \
+    && chown h3:h3 /opt/h3-worker /var/lib/akatz /models
+COPY tooling-wheels /opt/tooling-wheels
+COPY payload/runtime/ffmpeg/bin /usr/local/bin
+COPY release-notices /usr/share/doc/h3-release
+RUN python -m pip install --no-cache-dir --constraint /opt/tooling-wheels/constraints.txt /opt/tooling-wheels/*.whl
+COPY --chown=1000:1000 worker /opt/h3-worker
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_LINK_MODE=copy \
+    COMFYGIT_HOME=/opt/h3-worker/workspace XDG_DATA_HOME=/var/lib/akatz/user-data \
+    XDG_CACHE_HOME=/var/lib/akatz/cache HOME=/home/h3
+USER 1000:1000
+WORKDIR /opt/h3-worker
+RUN python scripts/install_recipe.py recipe workspace h3-docker /models \
+    --package-root /opt/h3-worker/runtime --cg /usr/local/bin/cg \
+    --controller /opt/h3-worker/tools/managed-comfy-session.py --cache /opt/h3-worker/tools/managed-comfy-cache.py \
+    && python scripts/build_worker.py \
+    && rm -rf /opt/h3-worker/workspace/uv_cache
+ENTRYPOINT ["/opt/h3-worker/runtime-node/node", "/opt/h3-worker/dist/runtime/container/worker.js"]

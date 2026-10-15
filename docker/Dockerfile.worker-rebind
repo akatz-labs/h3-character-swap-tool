@@ -1,0 +1,9 @@
+# Reuse the exact qualified environment while changing only catalog/readiness.
+# The caller must supply the inspected local image ID, not a mutable base tag.
+ARG H3_RUNTIME_IMAGE
+FROM ${H3_RUNTIME_IMAGE}
+COPY --chown=1000:1000 configure_installation.py /opt/h3-worker/scripts/configure_installation.py
+COPY --chown=1000:1000 build_worker.py /opt/h3-worker/scripts/build_worker.py
+COPY --chown=1000:1000 resource-catalog.json /opt/h3-worker/resource-catalog.json
+RUN mv /opt/h3-worker/binding /opt/h3-worker/base-binding \
+    && python /opt/h3-worker/scripts/build_worker.py

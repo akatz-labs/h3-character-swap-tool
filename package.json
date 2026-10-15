@@ -1,0 +1,40 @@
+{
+  "name": "@akatz/h3-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.16"
+  },
+  "scripts": {
+    "build:runtime": "tsc -p tsconfig.runtime.json && esbuild runtime/h3-adapter.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/worker/h3-adapter.mjs",
+    "check:runtime": "npm run build:runtime && node --test tests/shared-runtime.test.mjs",
+    "build:web": "node scripts/build_legacy_bridge.mjs && tsc -p tsconfig.web.json && vite build --config web/vite.config.ts",
+    "check:web": "npm run build:web",
+    "dev:web": "vite --config web/vite.config.ts --configLoader runner",
+    "verify:vendor": "uv run --no-project --python 3.12 python scripts/verify_vendor.py",
+    "source:build": "npm run verify:vendor && npm run build:runtime && npm run build:web",
+    "source:start": "node dist/runtime/source-app.js",
+    "source:worker": "node scripts/start_source_worker.mjs",
+    "source:paths": "node scripts/ecosystem_paths.mjs",
+    "source:setup": "uv run --project runtime/tooling --locked python scripts/setup_source_worker.py"
+  },
+  "dependencies": {
+    "@akatz/app-config": "file:vendor/akatz-app-config-0.11.0-alpha.10-source.3.tgz",
+    "@akatz/app-kit": "file:vendor/akatz-app-kit-0.1.0-alpha.9-source.4.tgz",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "vite": "8.2.2",
+    "postcss": "8.5.30",
+    "@vitejs/plugin-react": "6.0.2"
+  },
+  "license": "MIT"
+}

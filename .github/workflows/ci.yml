@@ -1,0 +1,35 @@
+name: Source checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Install CPU tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pipx install uv==0.11.28
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          uv sync --locked --extra test --python 3.12
+      - name: Build and test
+        run: |
+          npm run source:build
+          npm run check:runtime
+          uv run --locked --extra test pytest
+          python3 scripts/check_source.py --tracked
+          uv run --no-project --python 3.12 python scripts/verify_vendor.py --rebuild
+          test -z "$(git status --porcelain)"

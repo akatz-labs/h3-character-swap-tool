@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "qualifiedRecipeRevision": "e98cf0bcc9f7f37d7091cc824224ee62f7c92940a67fc5ff92d7e90164eac8e8",
+  "license": "GPL-3.0",
+  "note": "Focused derivative of the qualified H3 Relay and H3 Performance source. Files are modified for the body-only release; source hashes identify the original inputs. No upstream example workflows or model weights are included.",
+  "files": [
+    {
+      "file": "video.py",
+      "source": "h3-performance/core/video_prep.py",
+      "sourceSha256": "56605aaaae2b3460da2d1f2b53e8c2027aa499e1ab2c457604063669336ed544",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "mask_geometry.py",
+      "source": "h3-performance/core/vendor/mask_geometry.py",
+      "sourceSha256": "3ac5f5840712c23019a74385b28032d4b8a7dafb730a3e1da1df8e737d14da14",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "masked_latent.py",
+      "source": "h3-performance/core/vendor/mask_nodes.py",
+      "sourceSha256": "73699d56173fc268dad293b2edb5541b16e451f2a9441d9042bd58c74cb69647",
+      "selectedDefinitions": [
+        "video_latent",
+        "MaskedRegeneration"
+      ]
+    },
+    {
+      "file": "sampling.py",
+      "source": "h3-performance/staging.py",
+      "sourceSha256": "77106c6d225d5741b2c383e1ff846e36b6d4e9dcffd64095c12a15e635553396",
+      "selectedDefinitions": [
+        "stage_handoff",
+        "StagedReference",
+        "SamplingWorkspace"
+      ]
+    },
+    {
+      "file": "identity.py",
+      "source": "h3-relay/h3_relay/removal_cache.py",
+      "sourceSha256": "76ec3b9ae1760c6cc52778b25b9f35a8037a0ff6af2a134d2adafeb6f6b9a233",
+      "selectedDefinitions": [
+        "tensor_hash",
+        "is_graph_link",
+        "configuration_key"
+      ]
+    },
+    {
+      "file": "planning.py",
+      "source": "h3-relay/h3_relay/windowed_edit.py",
+      "sourceSha256": "1cd00f0edf41517f2369d0eb296e2521152905cda21194093459d43d70856fc6",
+      "selectedDefinitions": [
+        "validate_settings",
+        "plan_windows"
+      ]
+    },
+    {
+      "file": "relay/inputs.py",
+      "source": "h3-relay/h3_relay/performance/inputs.py",
+      "sourceSha256": "c96bae6802cea3da2f7df57f4edb27bed6d25bb3f48b5180013a3c3e4c54030a",
+      "selectedDefinitions": [
+        "pad",
+        "audio_slice",
+        "track_slice",
+        "Shot",
+        "WindowInputs"
+      ]
+    },
+    {
+      "file": "relay/passes.py",
+      "source": "h3-relay/h3_relay/performance/passes.py",
+      "sourceSha256": "03969bb4c943cfee64e540fce8bef49394340e9ffd8c2ec27378101059c3490a",
+      "selectedDefinitions": [
+        "History",
+        "reference",
+        "sample",
+        "BodyWindow"
+      ]
+    },
+    {
+      "file": "relay/records.py",
+      "source": "h3-relay/h3_relay/performance/records.py",
+      "sourceSha256": "2a973b99ec60abdf029a7e9b148fad5d55126c94bd68197323c73e891d415d5c",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "relay/runner.py",
+      "source": "h3-relay/h3_relay/performance/runner.py",
+      "sourceSha256": "41e5250db188cc3a815ce6adff4969e340d4108f686ae14e1c134f5bfa62fc7e",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "masks.py",
+      "source": "h3_saved_masks/__init__.py",
+      "sourceSha256": "2e329a4bf928911511969ca05d99cefe08975327bbe24e645761fbcc81d46028",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "correction.py",
+      "source": "h3_workbench_masks/__init__.py",
+      "sourceSha256": "3bd1c48459a68085873f030d8a9ec6a16fc51e25f066550c3eaf33b9cfc0577c",
+      "selectedDefinitions": [
+        "RefinePersonMask"
+      ]
+    },
+    {
+      "file": "session.py",
+      "source": "h3_workbench_masks/session.py",
+      "sourceSha256": "d199aa0e755aea591934e530a03cf7ef23ae36f7c142d292d3126189861fc872",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "session_cleanup.py",
+      "source": "h3_workbench_masks/session_cleanup.py",
+      "sourceSha256": "b11f513474e8e8f67193f00eb6e60fac323565a52d1f53e92c6df80ec7af513f",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "triton_int8_large.py",
+      "source": "h3_1mp_pilots/triton_int8_large.py",
+      "sourceSha256": "c28f91a52ae20e5ea62499b7c513f40e9faefcc553740d62e3e44f5f5f3b30fa",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/nodes.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/nodes.py",
+      "sourceSha256": "5a7d15605b07674a4dab87fddb26ba015940f5a90765cb0f28e3c1d50067514d",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/sliding_context.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/sliding_context.py",
+      "sourceSha256": "cbbf879432efc89db1075b492dde39f36e891c8d83a9925db017bc967bbfcc8d",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/history_layout.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/history_layout.py",
+      "sourceSha256": "6dd81d96e5d3a99b630430cde364f00f326daeb05047deda1a715a4cbcd35870",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/patch_layout.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/patch_layout.py",
+      "sourceSha256": "6c73f569837621d36bf744f6b89ac7405fc0f0e87ccd167c13a07617645576d2",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/patch_payload.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/patch_payload.py",
+      "sourceSha256": "db8a4e8a5d7c4f1bea046ead0baa09d2561f8b2cef765e6f91f3f00256497466",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/h3_mask_compat.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/h3_mask_compat.py",
+      "sourceSha256": "0d57ec238a799238fc0469371c3d43b00f36f431c0271608ef2e29bdc120fe4d",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/h3_mask_payload_compat.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/h3_mask_payload_compat.py",
+      "sourceSha256": "401162236a8759a709e873e660218ddc825a311a8c6aeef4e6be8f988c877a75",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/h3_mask_static.py",
+      "source": "h3-relay/h3_relay/vendor/context_loop/h3_mask_static.py",
+      "sourceSha256": "0c339633b8eeb25794049d1141d8ffee72c71f98222483f66352994925fd0832",
+      "selectedDefinitions": null
+    },
+    {
+      "file": "vendor/context_loop/LICENSE",
+      "source": "h3-relay/h3_relay/vendor/context_loop/LICENSE",
+      "sourceSha256": "ca7e33c5bd9b43b42e075f33271452aefd3d61da005738fac21127a55f878d90",
+      "selectedDefinitions": null
+    }
+  ]
+}
