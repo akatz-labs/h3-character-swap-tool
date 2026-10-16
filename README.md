@@ -4,6 +4,8 @@ A local video workbench for preparing performances, correcting masks and
 rendering character swaps. Build and run the browser UI and GPU worker directly from source on a Linux
 x86-64 NVIDIA machine. Docker images are the prebuilt alternative.
 
+https://github.com/user-attachments/assets/e9ed875e-bfe9-42b9-8667-c895ae79f9bc
+
 ## Shots and generation segments
 
 Each shot contains editable segments, with one diffusion pass per segment.
