@@ -20,15 +20,17 @@ Ubuntu, the system packages include `git ffmpeg build-essential libgl1 libglib2.
 libgomp1`. Node/npm and uv are separate prerequisites. The browser UI needs no
 Rust or desktop WebKit development packages.
 
-Allow about 43.2 GiB for the seven models, plus ComfyUI, Python/CUDA dependencies,
+Allow about 43.3 GiB for the eight required models, plus ComfyUI, Python/CUDA dependencies,
 package caches and media. Existing matching model files can be reused directly.
 Use a drive with adequate free space; setup does not download models automatically.
 
 ## Install and build
 
-Run these commands from the repository root:
+Clone the repository, then build from its root:
 
 ```sh
+git clone https://github.com/akatz-labs/h3-character-swap.git
+cd h3-character-swap
 uv run --no-project --python 3.12 python scripts/verify_vendor.py
 npm ci
 uv sync --locked --python 3.12

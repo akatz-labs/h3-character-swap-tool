@@ -1377,3 +1377,17 @@ button.worker { cursor:pointer;font:inherit; }
 .h3-playback-options { gap:10px;font-size:11px;white-space:nowrap; }
 .h3-playback-options .check { display:inline-flex;align-items:center;gap:5px; }
 .shots-transport,.mask-transport,.compare-transport { justify-content:space-between; }
+
+/* Brand and community links stay with the project navigation. */
+.h3-brand-logo { object-fit:cover;object-position:center;border-radius:9px; }
+a.h3-community-link { display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text);border:1px solid var(--line);border-radius:6px;background:var(--panel); }
+a.h3-community-link:hover { border-color:var(--accent);background:var(--bg); }
+.h3-heart { color:#ff526f;flex:none; }
+.h3-support-link .h3-heart { filter:drop-shadow(0 0 5px #ff355d99) drop-shadow(0 0 10px #ff355d55); }
+.h3-support-link:hover .h3-heart { filter:drop-shadow(0 0 6px #ff355dcc) drop-shadow(0 0 13px #ff355d88); }
+.h3-sidebar-footer { display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px;color:var(--muted);font-size:10px;line-height:1.5;white-space:nowrap; }
+.h3-maker { display:inline-flex;align-items:center;gap:3px; }
+.h3-credit-heart { display:inline-flex; }
+.h3-maker .h3-heart { width:10px;height:10px; }
+.h3-maker a { color:inherit;text-decoration:none; }
+.h3-maker a:hover { color:var(--accent);text-decoration:underline; }

@@ -1,5 +1,31 @@
 # Source release qualification — 2026-10-15
 
+## Public source candidate v0.1.0 — 2026-10-16
+
+This candidate includes independent segment queueing, exact queued prompts,
+predecessor-output dependencies, segment-specific progress, the compact generation
+popover, and the Akatz Labs logo and community footer. The displayed version
+comes from `package.json` at build time (and from the same file for the legacy
+Python page); it is not a separately maintained label.
+
+The two worker controllers preserve the exact admitted graph bytes when recording
+a stage. This keeps Unicode prompts and JSON formatting compatible with the
+admission digest during recovery, including a graph already in its stage folder.
+
+Validation includes 314 Python tests, 11 Node runtime tests, source UI/runtime
+builds, and byte-for-byte rebuilds of both bundled libraries. The 203-file public
+allowlist includes the logo and recovery regression test. Desktop and mobile
+browser checks cover the logo, version, links and footer placement; the queue
+checks cover sequential dependencies, failure propagation, saved prompts, reload,
+partial-shot progress and the popover. No new GPU quality claim is made here.
+
+A bounded review of the seven existing `main` commits inspected 255 unique blobs
+without finding the checker's credential or private-host/path patterns. Only
+public noreply author addresses occur on `main`; other local branches are not
+part of this source release. This is a bounded scan, not a comprehensive audit.
+The source release does not publish container images or model weights.
+
+
 ## LoRA naming and acquisition — 2026-10-16
 
 The interface identifies the adapters as Character Swap LoRA V1 and V1.5 on

@@ -1016,4 +1016,5 @@ def index():
         (ROOT / "static/index.html")
         .read_text()
         .replace('href="/h3-workbench/"', f'href="{BASE_PATH}/"')
+        .replace('{{APP_VERSION}}', json.loads((ROOT / 'package.json').read_text())['version'])
     )

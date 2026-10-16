@@ -63,7 +63,8 @@ await writeChanged(join(directory,'legacy-adapter.d.ts'),`import type {ClipHeade
 export interface LegacyOptions {projectId:string;page:string;instanceId:string;onLocation?:(value:{projectId:string;page:string})=>void;onClip?:(value:ClipHeader|null)=>void;onWorker?:(worker:string)=>void}
 export interface LegacyView {ready:Promise<void>;snapshot():{projectId:string;clipId:string|null;shotId:string|null;page:string;dirty:boolean};update(value:Partial<LegacyOptions>):Promise<boolean>;canLeave():Promise<boolean>;openQueue(worker:string):void;selectWorker(worker:string):void;dispose():void}
 export function mountLegacy(root:HTMLElement,options:LegacyOptions):LegacyView;\n`);
-const html=await readFile(join(root,'static/index.html'),'utf8');
+const version=JSON.parse(await readFile(join(root,'package.json'),'utf8')).version;
+const html=(await readFile(join(root,'static/index.html'),'utf8')).replaceAll('{{APP_VERSION}}',version);
 const body=html.split('<body>')[1].split('<script')[0].replace('<main id="main">','<main id="h3-content">').replace('<aside>','<aside id="h3-clip-browser" aria-label="Clips">');
 await writeChanged(join(directory,'legacy-template.ts'),'export const legacyTemplate = '+JSON.stringify(body)+';\n');
 let css=await readFile(join(root,'static/style.css'),'utf8');

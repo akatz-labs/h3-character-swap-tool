@@ -13,7 +13,7 @@ export function WorkbenchHeader({location,projects,resources,selectedWorker,runn
     <a className="ak-skip" href="#main" onClick={event=>{event.preventDefault();document.getElementById('main')?.focus();}}>Skip to content</a>
     <header className="ak-header h3-header">
       <button className="ak-brand" aria-label="H3 Character Swap home" onClick={()=>onNavigate({scope:'home',page:'projects'})}>
-        <span className="ak-brand-mark h3-mark" aria-hidden="true">H3</span><span className="ak-brand-copy"><strong>H3 Character Swap</strong><small>Character performance</small></span>
+        <img className="ak-brand-mark h3-brand-logo" src="static/akatz-labs.png" alt="Akatz Labs"/><span className="ak-brand-copy"><strong>H3 Character Swap</strong><small>Character performance</small></span>
       </button>
       <div className="h3-project-picker">
         <button className="ak-link" onClick={()=>onNavigate({scope:'home',page:'projects'})}><Icon name="folder"/>Projects</button>

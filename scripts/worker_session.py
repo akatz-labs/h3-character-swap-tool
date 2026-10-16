@@ -414,7 +414,11 @@ class Session:
         save(attempt, {**packet, "time": time.time(), "session": str(self.root),
                        "runtime_pid": self.runtime_pid, "profile": packet["profile"],
                        "runtime_contract": self.contract})
-        save(directory / "api.json", graph)
+        # The admission digest identifies bytes, including JSON formatting.
+        # Reserializing Unicode changes that digest and blocks crash recovery.
+        stage_graph = directory / "api.json"
+        if stage_graph.resolve() != graphfile.resolve():
+            shutil.copyfile(graphfile, stage_graph)
         save(directory / "preflight.json", {**self.preflight, "stage_placement": packet["placement"]})
         save(directory / "schemas.json", {n["class_type"]: self.schemas[n["class_type"]] for n in graph.values()})
         cancellation = directory / "cancel.json"

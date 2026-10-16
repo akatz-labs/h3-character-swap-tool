@@ -539,3 +539,7 @@
 .h3-legacy .segment-generate-menu .note { padding:6px;margin:0;line-height:1.5; }
 
 .h3-legacy .generation-panel:has(.segment-generate-menu:not([hidden])) { overflow:visible; }
+
+.h3-header .h3-brand-logo { background:transparent;object-fit:cover;flex:none; }
+.h3-legacy a.h3-community-link { flex-shrink:0;justify-content:flex-start; }
+.h3-legacy .h3-sidebar-footer { flex-shrink:0; }
