@@ -65,3 +65,10 @@
 html[data-input-mode="pointer"] .h3-shell :is(button,select,input[type="range"],[tabindex]):focus{outline:none;box-shadow:none}
 .h3-shell :is(button,select,input[type="range"],svg,canvas){-webkit-tap-highlight-color:transparent}
 .h3-shell :is(button,[role="button"],svg,canvas){user-select:none;-webkit-user-select:none}
+
+/* Icon-only app menu retains the shared dropdown's accessible label and keyboard controls. */
+.h3-header .h3-app-menu { width:44px;flex:none; }
+.h3-header .h3-app-menu .ak-select-trigger { width:44px;height:44px;min-width:0;padding:12px;justify-content:center; }
+.h3-app-menu .ak-select-trigger > .ak-select-value,
+.h3-app-menu .ak-select-trigger > .ak-icon { display:none; }
+.h3-app-menu .ak-select-trigger::before { content:"";display:block;width:20px;height:16px;flex:none;background:linear-gradient(currentColor,currentColor) top / 100% 2px no-repeat,linear-gradient(currentColor,currentColor) center / 100% 2px no-repeat,linear-gradient(currentColor,currentColor) bottom / 100% 2px no-repeat; }
