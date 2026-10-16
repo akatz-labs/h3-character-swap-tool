@@ -427,3 +427,55 @@
 .h3-legacy .render-window-controls .field { display:grid;gap:6px; }
 .h3-legacy .render-window-controls select { width:100%;min-width:0;max-width:none; }
 .h3-legacy .render-window-controls p { margin:0; }
+
+/* Visible generation segments, with the selected segment's editor in place. */
+.h3-legacy .segment-timeline { padding:14px;border-top:1px solid var(--ak-border);border-bottom:1px solid var(--ak-border);background:var(--ak-surface); }
+.h3-legacy .segment-timeline>.row { margin-bottom:10px; }
+.h3-legacy .segment-strip { display:flex;gap:5px;overflow-x:auto;padding-bottom:4px; }
+.h3-legacy .segment-chip { flex-basis:0;min-width:102px;text-align:left;padding:10px 12px;border-radius:6px;background:var(--ak-bg); }
+.h3-legacy .segment-chip span,.h3-legacy .segment-chip small { display:block;white-space:nowrap; }
+.h3-legacy .segment-chip small { color:var(--ak-muted);font-size:11px;margin-top:4px;font-variant-numeric:tabular-nums; }
+.h3-legacy .segment-chip.active { border-color:var(--ak-accent);background:color-mix(in srgb,var(--ak-accent) 12%,var(--ak-bg)); }
+.h3-legacy .segment-dot { display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--ak-muted); }
+.h3-legacy .segment-dot.state-ready { background:var(--ak-accent); }
+.h3-legacy .segment-dot.state-stale { background:#dba86d; }
+.h3-legacy .segment-controls { display:grid;gap:12px;padding-top:14px;border-top:1px solid var(--ak-border); }
+.h3-legacy .segment-controls .field { gap:6px; }
+.h3-legacy .segment-controls .field[hidden] { display:none; }
+.h3-legacy .segment-controls select { max-width:none;width:100%; }
+.h3-legacy .segment-controls textarea { min-height:84px;resize:vertical; }
+.h3-legacy .segment-controls p { margin:0;font-size:12px;line-height:1.5; }
+.h3-legacy .segment-dialogue p { margin-top:5px;color:var(--ak-fg); }
+.h3-legacy .segment-anchor-row { display:flex;gap:8px; }
+.h3-legacy .segment-anchor-row select { flex:1;min-width:0; }
+.h3-legacy .segment-effective summary { font-size:11px;color:var(--ak-muted); }
+.h3-legacy .segment-effective pre { white-space:pre-wrap;font:inherit;font-size:12px;line-height:1.5; }
+.h3-legacy .segment-arrange { position:relative;font-size:12px; }
+.h3-legacy .segment-arrange-menu { position:absolute;right:0;top:24px;z-index:20;min-width:210px;padding:10px;display:grid;gap:4px;background:var(--ak-surface);border:1px solid var(--ak-border);border-radius:8px;box-shadow:0 8px 24px #0005; }
+.h3-legacy .segment-arrange-menu button { text-align:left; }
+.h3-legacy .segment-layout-preview { display:grid;gap:8px;max-height:50vh;overflow:auto; }
+.h3-legacy .segment-layout-preview>div { padding:12px;border:1px solid var(--ak-border);border-radius:6px; }
+.h3-legacy .segment-layout-preview span { float:right;font-variant-numeric:tabular-nums; }
+.h3-legacy .segment-layout-preview p { margin:6px 0 0; }
+.h3-legacy .segment-reference-preview { display:flex;gap:12px; }
+.h3-legacy .segment-reference-preview figure { margin:0;flex:1;min-width:0; }
+.h3-legacy .segment-reference-preview img { width:100%;max-height:50vh;object-fit:contain; }
+.h3-legacy .segment-reference-preview figcaption { color:var(--ak-muted);font-size:12px;margin:6px 0; }
+.h3-legacy .segment-selected { border-color:var(--ak-accent); }
+.h3-legacy .segment-take-player { width:100%;max-height:65vh;background:#080a0c; }
+.h3-legacy .segment-previous { padding:12px 0;border-bottom:1px solid var(--ak-border); }
+.h3-legacy .segment-shared-settings { display:grid;gap:10px; }
+.h3-legacy .segment-shared-settings:not([open])>*:not(summary) { display:none; }
+.h3-legacy #segment-generate-more { flex:0 0 38px;min-height:46px; }
+.h3-legacy .render-actions #queue-shot { flex:1; }
+.h3-legacy [data-whole-take] img { width:100%;max-height:180px;object-fit:contain; }
+@media(max-width:650px){
+ .h3-legacy .segment-timeline { padding:12px; }
+ .h3-legacy .segment-chip { min-width:110px; }
+ .h3-legacy .segment-reference-preview { flex-wrap:wrap; }
+}
+
+.h3-legacy .segment-continuity-row { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px; }
+.h3-legacy .segment-continuity-row:has([hidden]) { grid-template-columns:1fr; }
+.h3-legacy .render-actions:has(#segment-generate-more) { flex-direction:row;gap:8px; }
+.h3-legacy .render-actions:has(#segment-generate-more) .primary { width:auto; }

@@ -22,7 +22,7 @@ interface H3Configuration {
   modelNames?: string[];
   operationModels?: Partial<Record<H3Operation, string[]>>;
 }
-export type H3Operation = 'sam-frame' | 'sam-track' | 'sam-recover' | 'h3-render';
+export type H3Operation = 'sam-frame' | 'sam-track' | 'sam-recover' | 'h3-render' | 'h3-render-segments-v1';
 interface H3Input {
   version: 1;
   operation: H3Operation;
@@ -48,12 +48,13 @@ interface AdapterContext {
 }
 const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms));
 const terminal = (message: string, cancelled = false): Error => Object.assign(new Error(message), {terminal: true, cancelled});
-const operations: H3Operation[] = ['sam-frame','sam-track','sam-recover','h3-render'];
+const operations: H3Operation[] = ['sam-frame','sam-track','sam-recover','h3-render','h3-render-segments-v1'];
 const roots: Record<H3Operation, string[]> = {
   'sam-frame': ['H3CharacterSwapRefineMask','H3CharacterSwapSaveMask'],
   'sam-track': ['SAM3_VideoTrack','H3CharacterSwapSaveMask'],
   'sam-recover': ['H3CharacterSwapSaveMask'],
   'h3-render': ['H3CharacterSwapAssemble','H3CharacterSwapWindowPlan'],
+  'h3-render-segments-v1': ['H3CharacterSwapAssemble','H3CharacterSwapWindowPlan'],
 };
 function absolute(value: unknown, label: string): string {
   const path = text(value, label);
@@ -142,7 +143,8 @@ export function validateGraph(value: unknown, input: H3Input, allowedNodes: stri
     classes.push(type);
   }
   for (const required of roots[input.operation]) if (!classes.includes(required)) throw new Error('Graph differs from the named operation contract: ' + required);
-  if (input.operation === 'h3-render' && !classes.includes('H3CharacterSwapController')) throw new Error('H3 operation has no declared generation controller');
+  if (input.operation.startsWith('h3-render') && !classes.includes('H3CharacterSwapController')) throw new Error('H3 operation has no declared generation controller');
+  if(input.operation === 'h3-render-segments-v1' && !Object.values(graph).some(n => record(n).class_type === 'H3CharacterSwapShot' && record(record(n).inputs).segment_mode === true)) throw new Error('Segment operation requires an explicit single-pass shot');
   return graph;
 }
 /** Give each accepted SDK stage its own input names, including multi-stage jobs.

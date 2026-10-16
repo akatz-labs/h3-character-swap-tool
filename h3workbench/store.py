@@ -276,7 +276,7 @@ def job_get(id):
 
 
 PUBLIC_JOB_FIELDS = ("phase", "error", "worker", "requested_worker", "auto_placement", "execution_resource", "gpu_waiting", "options", "runtime_status",
-                     "progress", "capacity_failure", "render_spec", "generation", "lora", "execution_backend", "shared_phase", "shared_job_id")
+                     "progress", "segment_progress", "capacity_failure", "render_spec", "generation", "lora", "execution_backend", "shared_phase", "shared_job_id")
 PUBLIC_FOREGROUND_FIELDS = ("mask_points", "face", "gate_px", "core_px", "mask_text",
                             "selection", "subject_index", "alpha_seed", "auto_face")
 

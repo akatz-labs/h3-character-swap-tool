@@ -35,3 +35,19 @@ def plan_windows(count, window_frames=124, history_frames=18):
         covered = end
     return result
 
+
+
+def plan_segment(source_frames, history_frames=0):
+    """One explicit pass, with prior generated/source context prepended."""
+    if type(source_frames) is not int or type(history_frames) is not int or history_frames not in HISTORY:
+        raise ValueError('Invalid segment frame counts')
+    target = source_frames - history_frames
+    needed = target + bool(history_frames)
+    sizes = [v for v in WINDOWS if v >= needed and v > history_frames]
+    if target < 1 or not sizes:
+        raise ValueError('The explicit segment must fit a single diffusion pass')
+    h, size = history_frames, sizes[0]
+    return [{'index':0, 'source_start':h-1 if h else 0, 'source_end_exclusive':source_frames,
+        'window_frames':size, 'padded_tail_frames':size-needed, 'history_frames':h,
+        'history_start':0 if h else None, 'history_end_exclusive':h if h else None,
+        'discarded_overlap':int(bool(h)), 'delivered_frames':target}]

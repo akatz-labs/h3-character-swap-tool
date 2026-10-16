@@ -36,6 +36,26 @@ def preview(frames, audio, filename):
     return {"filename": filename, "subfolder": "H3-Character-Swap", "type": "output"}
 
 
+def continuation_master(frames, filename):
+    import folder_paths
+    import numpy as np
+    destination = Path(folder_paths.get_output_directory()) / 'H3-Character-Swap' / filename
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    args = ['ffmpeg','-v','error','-nostdin','-y','-f','rawvideo','-pix_fmt','rgb48le',
+            '-s',f'{frames.shape[2]}x{frames.shape[1]}','-r','24','-i','pipe:0',
+            '-an','-c:v','ffv1','-level','3','-pix_fmt','gbrp16le',str(destination)]
+    proc = subprocess.Popen(args, stdin=subprocess.PIPE)
+    try:
+        for frame in frames:
+            pixels = frame.clamp(0,1).mul(65535).round().cpu().numpy().astype('<u2')
+            proc.stdin.write(pixels.tobytes())
+    finally:
+        proc.stdin.close()
+        if proc.wait() != 0:
+            raise RuntimeError('Continuation master encoding failed')
+    return {'filename':filename,'subfolder':'H3-Character-Swap','type':'output','pixel_format':'rgb48le'}
+
+
 class Checkpoint:
     @classmethod
     def INPUT_TYPES(cls):
@@ -120,13 +140,13 @@ class Controller:
     def run(self, models, shot, plan):
         entries = records.dependency_keys(shot["key"], models["key"], plan["windows"], plan["body"])
         records.begin(shot["key"], {entry["body_key"] for entry in entries})
-        if len(entries) > 1 and entries[1]["history_frames"] >= 18:
+        if any(entry["history_frames"] >= 18 for entry in entries):
             from ..vendor.context_loop.sliding_context import require_sliding_history_support
             require_sliding_history_support()
         status = {"source_frames": shot["source_frames"], "planned_windows": len(entries),
             "reference_history_version": records.REFERENCE_HISTORY_VERSION,
             "windows": [dict(entry, cached=records.exists(entry["body_key"])) for entry in entries]}
-        state = {"body": shot["source"][:0], "records": [], "status": status}
+        state = {"body": shot["source"][:0] if shot.get("history") is None else shot["history"], "records": [], "status": status}
         graph = GraphBuilder()
         run = graph.node("H3CharacterSwapRun", models=models, shot=shot, entries=entries, state=state, index=0)
         return {"result": (run.out(0), shot, json.dumps(status, indent=2)),
@@ -151,13 +171,18 @@ class Assemble:
         frames = state["body"]
         if len(frames) != shot["source_frames"]:
             raise ValueError("Completed video does not cover the exact source timeline")
-        audio = audio_slice(shot["source_audio"], 0, len(frames))
+        history_count = 0 if shot.get('history') is None else len(shot['history'])
+        audio = audio_slice(shot["source_audio"], history_count, len(frames))
+        frames = frames[history_count:]
         identity = records.digest([entry["body_key"] for entry in state["records"]])[:16]
         file = preview(frames, audio, filename_prefix + "-" + identity + ".mp4")
         report = {"version": records.VERSION, "body_output_version": records.BODY_OUTPUT_VERSION,
-            "body_composited": False, "source_frames": shot["source_frames"], "delivered_frames": len(frames),
+            "body_composited": False, "source_frames": shot["source_frames"] - history_count, "delivered_frames": len(frames),
             "fps": 24, "complete": True, "output": file, "generation": shot["generation"],
             "windows": state["records"], "status": state["status"]}
+        if shot.get('segment_mode'):
+            report['continuation_master'] = continuation_master(frames, filename_prefix + '-' + identity + '-continuation.mkv')
+            report['history_frames'] = history_count
         path = Path(folder_paths.get_output_directory()) / file["subfolder"] / (Path(file["filename"]).stem + ".json")
         path.write_text(json.dumps(report, indent=2))
         return {"result": (frames, audio, json.dumps(report, indent=2)),

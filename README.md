@@ -4,6 +4,32 @@ A local video workbench for preparing performances, correcting masks and
 rendering character swaps. Build and run the browser UI and GPU worker directly from source on a Linux
 x86-64 NVIDIA machine. Docker images are the prebuilt alternative.
 
+## Shots and generation segments
+
+Each shot contains editable segments, with one diffusion pass per segment.
+Choose 5-, 10- or 15-second segments, split at the playhead, move a boundary,
+or merge adjacent segments. Preview a new layout before applying it; previous
+layouts retain their directions and takes.
+
+Select a segment to edit its performance directions, seed and scene reference.
+Timestamped dialogue follows that segment's source range. Shared instructions
+and the full compiled prompt are available in Advanced settings. Continue a
+previous segment with a chosen amount of generated history, or start fresh at
+a cut. A continuation can also use an additional reference image.
+
+Generate one segment, regenerate from the selected segment to the end, or
+generate the whole shot. Selecting a different preceding take marks dependent
+continuations as needing refresh. Once every selected take is current, the app
+assembles the shot with the original source audio. Lossless continuation masters
+preserve history across application and worker restarts. Existing whole-shot
+takes remain available.
+
+New shots default to CharacterSwap Pro V1.5, the checkpoint previously labeled
+V2-1000. Existing shots keep their saved model. V1.5's exact identity is in the
+[resource catalog](docker/resource-catalog.json); its weights currently require
+manual installation. This source change does not publish new model weights or
+Docker images. V1 remains selectable in Advanced settings.
+
 ## ComfyUI workflow
 
 The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the V1 character LoRA. It uses one focused node package and the app’s generation core.

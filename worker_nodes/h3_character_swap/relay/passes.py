@@ -38,8 +38,9 @@ class History:
         return positive,latent
 
 
-def reference(graph,models,prompt,width,height,length,identity,character,source,audio,use_audio):
+def reference(graph,models,prompt,width,height,length,identity,character,source,audio,use_audio,extra=None):
     kwargs={'ref_images.ref_image_0':identity,'ref_images.ref_image_1':character,'ref_videos.ref_video_0':source}
+    if extra is not None: kwargs['ref_images.ref_image_2']=extra
     if use_audio: kwargs['ref_audios.ref_audio_0']=audio
     return graph.node('H3CharacterSwapReference',clip=models['clip'],vae=models['video_vae'],audio_vae=models['audio_vae'],
         prompt=prompt,width=width,height=height,length=length,ref_image_size='match',**kwargs)
@@ -81,7 +82,7 @@ class BodyWindow:
         # Keep the original body prompt's Picture 1 character / Picture 2 scene ordering.
         scene=shot['anchor'] if not hist else state['body'][entry['source_start']:entry['source_start']+1]
         ref=reference(g,models,s['prompt'],shot['source'].shape[2],shot['source'].shape[1],size+max(0,hist-1),
-            shot['reference'],scene,part.out(5),part.out(6),s['audio'])
+            shot['reference'],scene,part.out(5),part.out(6),s['audio'],shot.get('segment_reference'))
         frames=sample(g,models,s,ref,part.out(0),part.out(1),part.out(3),part.out(2),part.out(4),hist)
         trimmed=g.node('H3CharacterSwapTrim',images=frames,source_frames=size)
         # Dataset beauty output: decoded generation, never pasted onto source RGB.

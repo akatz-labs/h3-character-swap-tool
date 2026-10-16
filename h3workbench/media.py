@@ -248,7 +248,7 @@ def set_cuts(clip, cuts, modes=None, reviewed=False):
             "dialogue": dialogue(clip, a, b),
             "seed": 194729,
             "render_mp": 1.0,
-            "lora_id": "v1-1000",
+            "lora_id": "v2-1000",
             "use_anchor": True,
             "use_mask": True,
             "expansion": 64,

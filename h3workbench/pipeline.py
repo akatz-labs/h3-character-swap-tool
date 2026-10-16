@@ -10,6 +10,7 @@ KINDS = {
     "anchor",
     "mask",
     "render",
+    "segment_assemble",
     "assemble",
     "prompts",
     "mask_edit",
@@ -57,6 +58,10 @@ def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_rend
                 )
     if kind == "anchor" and not c.get("reference"):
         raise ValueError("Add a reference image first")
+    if kind == 'anchor' and options:
+        from . import segments
+        if set(options) != {'segment_id'} or not any(x['id']==options['segment_id'] for x in segments.current(s)):
+            raise ValueError('Choose a current segment for the anchor')
     if kind == "mask_edit":
         options = options or {}
         if set(options) != {"mode", "frame"} or options["mode"] not in {
@@ -73,9 +78,9 @@ def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_rend
         if not s.get("mask") and not s.get("mask_points"):
             raise ValueError("Add an include point or track the person first")
     if kind == "render":
-        if options is not None and (not isinstance(options, dict) or set(options) - {"model_offloading"}):
+        if options is not None and (not isinstance(options, dict) or set(options) - {"model_offloading", "segments"}):
             raise ValueError("Unknown render execution option")
-        options = {"model_offloading": (options or {}).get("model_offloading", True)}
+        options = {**(options or {}), "model_offloading": (options or {}).get("model_offloading", True)}
         if type(options["model_offloading"]) is not bool:
             raise ValueError("Model offloading must be true or false")
         config = render_models.settings(s)
@@ -92,15 +97,23 @@ def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_rend
                 raise store.Conflict("Generation settings changed before submission; review your saved settings")
         if not c.get("reference"):
             raise ValueError("Add a character reference before rendering")
-        if config["use_anchor"] and not s.get("anchor"):
+        if "segments" not in options and config["use_anchor"] and not s.get("anchor"):
             raise ValueError("Select an anchor or disable anchor conditioning")
-        if config["use_mask"]:
+        if "segments" not in options and config["use_mask"]:
             if masks.pending_frames(s):
                 raise ValueError("Apply your point corrections before rendering")
             if not s.get("mask"):
                 raise ValueError("Create a mask or disable masked diffusion")
             if s.get("mask_empty_frames"):
                 raise ValueError("Correct missing mask frames before rendering")
+    segment_plan = None
+    if kind == 'render' and 'segments' in options:
+        from . import segment_jobs
+        segment_plan = segment_jobs.freeze(c,s,options['segments'])
+    if kind == 'segment_assemble':
+        from . import segments
+        if not s or not all(v['current'] for v in segments.states(c,s)):
+            raise ValueError('Choose current takes for every segment before assembling')
     if kind == "assemble":
         for x in c["shots"]:
             if x["mode"] == "generate" and not x.get("selected_render"):
@@ -129,6 +142,7 @@ def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_rend
         shot_id,
         {
             "options": options,
+            **({"segment_plan": segment_plan} if segment_plan else {}),
             "snapshot": c,
             "shot": s,
             "worker": worker,
@@ -486,6 +500,13 @@ def execute(id):
                 refine_jobs.attach_frame(job, result, d)
             else:
                 attach(job, lambda v, sh, ok: refine_jobs.attach(v, sh, job, result))
+        elif kind == 'render' and job['data'].get('segment_plan'):
+            from . import segment_jobs
+            result = segment_jobs.execute(job,d)
+        elif kind == 'segment_assemble':
+            from . import segment_jobs
+            result = segment_jobs.assemble(c,s,d)
+            segment_jobs.attach_assembly(job,c,s,result)
         elif kind == "cuts":
             cuts = media.detect_cuts(c)
             attach(job, lambda v, _, ok: v.update(suggested_cuts=cuts))
@@ -510,6 +531,9 @@ def execute(id):
                             sh["prompt"] = media.prompt(v, sh)
 
             attach(job, update)
+        elif kind == 'anchor' and (job['data'].get('options') or {}).get('segment_id'):
+            from . import segment_jobs
+            result=segment_jobs.generate_anchor(job,d)
         elif kind == "anchor":
             result = anchors.generate(c, s, d)
 

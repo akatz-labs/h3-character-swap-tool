@@ -3,7 +3,7 @@ import json
 import torch
 
 from ..identity import configuration_key
-from ..planning import WINDOWS, HISTORY, plan_windows
+from ..planning import WINDOWS, HISTORY, plan_windows, plan_segment
 
 
 class Models:
@@ -59,6 +59,10 @@ class WindowPlan:
     CATEGORY = "H3 Character Swap"
 
     def plan(self, shot, settings, window_frames, history_frames):
-        windows = plan_windows(shot["source_frames"], int(window_frames), int(history_frames))
+        if shot.get('segment_mode'):
+            h = 0 if shot.get('history') is None else len(shot['history'])
+            windows = plan_segment(shot['source_frames'],h)
+        else:
+            windows = plan_windows(shot["source_frames"], int(window_frames), int(history_frames))
         summary = json.dumps(windows, indent=2)
         return {"result": ({"windows": windows, "body": settings}, summary), "ui": {"text": [summary]}}

@@ -145,10 +145,16 @@ def test_still_previews_preserve_alpha_cache_and_master(scene):
     assert store.sha(original["path"]) == original["sha256"]
 
 
-def test_offload_retry_requires_capacity_receipt_and_preserves_failed_inputs(scene, monkeypatch):
-    from h3workbench import refinement
+@pytest.mark.parametrize('segmented', [False, True])
+def test_offload_retry_requires_capacity_receipt_and_preserves_failed_inputs(scene, monkeypatch, segmented):
+    from h3workbench import refinement, segments
 
-    id = pipeline.queue("render", "c", "s")
+    shot=store.clip_get('c')['shots'][0]
+    options={'model_offloading':False}
+    if segmented:
+        options['segments']={'mode':'all','segment_id':segments.current(shot)[0]['id'],'plan_revision':segments.plan_revision(shot)}
+    id = pipeline.queue("render", "c", "s", options=options)
+    original=store.job_get(id)
     with pytest.raises(ValueError, match="recorded"):
         render_models.retry_offload(id)
     store.job_update(id, "failed")
@@ -157,7 +163,8 @@ def test_offload_retry_requires_capacity_receipt_and_preserves_failed_inputs(sce
     retry = store.job_get(render_models.retry_offload(id))
     assert retry["data"]["shot"]["seed"] == 42
     assert retry["data"]["generation"]["lora_id"] == "v1-1000"
-    assert retry["data"]["options"] == {"offload_after": id}
+    assert retry["data"]["options"] == {**options,"model_offloading":True,"offload_after":id}
+    assert retry['data'].get('segment_plan') == original['data'].get('segment_plan')
     assert store.job_get(id)["state"] == "failed"
     assert store.clip_get("c")["shots"][0]["seed"] == 99
 

@@ -1,5 +1,50 @@
 # Source release qualification — 2026-10-15
 
+## Segments and CharacterSwap Pro V1.5 — 2026-10-15
+
+Shots now contain editable segments, each corresponding to one diffusion pass.
+Each segment saves its directions, timestamp-derived dialogue, seed, connection,
+optional reference and takes. Continuations use selected predecessor masters;
+fresh starts end the dependency chain. Layout changes retain previous layouts
+and their takes. CharacterSwap Pro V1.5 names the existing V2-1000 checkpoint and
+is the default for new shots; existing shot model selections are preserved.
+
+Validation for this update includes:
+
+- 295 Python tests, 11 Node runtime tests, frontend and runtime builds, and the
+  201-file source allowlist check. Tests cover revision conflicts, partitioning,
+  split/merge/boundary edits, frozen plans, dependency invalidation, source/mask
+  crop alignment, continuation inputs and offload retry preservation.
+- Browser checks cover 5/10/15-second layout controls, independent segment
+  editing, autosave/reload, reference import, take playback and downloads,
+  desktop and 390 px layouts. Dismissing the running-job stop confirmation
+  sends no cancellation request. Switching old/new takes restores their saved
+  settings. Editing the first segment invalidates its continuation but leaves
+  a later fresh start current; restoring the saved take recovers the chain.
+  Immediate take changes and edits after assembly refresh the clip revision
+  while preserving plan and field conflict checks.
+- A real V1.5 render produced three 40-frame segments at 1344 × 736, 24 fps.
+  Every segment used one diffusion pass. Their history lengths were 0, 18 and
+  0 frames; the middle segment also used an additional reference image.
+  Its 18 history frames exactly matched the selected predecessor's final
+  decoded RGB48 frames. The assembled 120-frame master exactly matched the
+  concatenated selected masters, and source-audio correlation was 0.999626.
+- Restarting the shared executor preserved its identity and ledger. A new
+  middle-segment take completed after restart using byte-identical persisted
+  history from the original predecessor, and its new assembly again matched
+  all 120 selected master frames exactly.
+- Full residency on the 24 GB RTX 4090 exhausted physical VRAM: 22.03 GiB was
+  allocated, 22.50 MiB was free, and the next allocation requested 220.50 MiB.
+  CPU, RAM and swap were unrestricted, with zero VRAM reservation. The failure
+  was reported before retrying with explicit model offloading; resolution,
+  duration, model, prompt and seed were retained.
+
+This is short functional qualification. Full-length 10/15-second diffusion
+passes and broader character-consistency comparisons remain unqualified. V1.5
+weights require the exact manually supplied checkpoint; this update does not
+publish model weights or container images. A matched container rebuild remains
+separate.
+
 ## Automatic ecosystem integration — 2026-10-15
 
 The source installer now defaults to the shared Akatz namespace and saves the

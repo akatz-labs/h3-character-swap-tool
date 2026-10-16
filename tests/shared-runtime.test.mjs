@@ -77,6 +77,13 @@ test('two SDK stages cannot share mutable worker scratch input names',()=>{
   assert.equal(first['2'].inputs.text,graph['2'].inputs.text);
   assert.deepEqual(graph,original);assert.throws(()=>transportGraph(graph,'../foreign',['frame.png']),/identifier/);
 });
+test('segments require the explicit single-pass worker operation',()=>{
+  const input=h3Input({...inputs(),operation:'h3-render-segments-v1'});
+  const graph={'1':{class_type:'H3CharacterSwapController',inputs:{}},'2':{class_type:'H3CharacterSwapShot',inputs:{segment_mode:true}},'3':{class_type:'H3CharacterSwapAssemble',inputs:{}},'4':{class_type:'H3CharacterSwapWindowPlan',inputs:{}}};
+  const nodes=Object.values(graph).map(n=>n.class_type);
+  assert.deepEqual(validateGraph(graph,input,nodes),graph);
+  assert.throws(()=>validateGraph({...graph,'2':{...graph['2'],inputs:{}}},input,nodes));
+});
 test('a mismatched named graph is terminal before any runtime enqueue',async t=>{
  const root=await mkdtemp(join(tmpdir(),'h3-invalid-operation-'));t.after(()=>rm(root,{recursive:true,force:true}));
  const graph=JSON.stringify({'1':{class_type:'H3WorkbenchTrackFace',inputs:{}}}),file=join(root,'graph.json');await writeFile(file,graph);

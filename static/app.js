@@ -651,7 +651,7 @@ function renderStatus(r) {
     }[r.state] || r.state
   );
 }
-function loRALabel(id) {return {'v1-1000':'CharacterSwap Pro','v2-1000':'Character swap V2 · step 1000',none:'No character-swap LoRA'}[id||'v1-1000'] || 'Unknown character LoRA';}
+function loRALabel(id) {return {'v1-1000':'CharacterSwap Pro','v2-1000':'CharacterSwap Pro V1.5',none:'No character-swap LoRA'}[id||'v1-1000'] || 'Unknown character LoRA';}
 function generationSettings(s) {return {lora_id:s.lora_id||'v1-1000',use_anchor:s.use_anchor??true,use_mask:s.use_mask??true,window_frames:s.window_frames??124,history_frames:s.history_frames??18};}
 function renderLoRALabel(r) {return r.lora?.label || loRALabel(r.lora_id);}
 function renderConditionLabel(r) {return [r.use_anchor===false?'Anchor off':'',r.use_mask===false?'Mask off':''].filter(Boolean).join(' · ');}
@@ -668,6 +668,7 @@ function renderCard(r, s, picking = false) {
     ${['queued','waiting'].includes(r.state)?`<button data-cancel-render="${esc(r.id)}">Cancel queued take</button>`:''}</div></article>`;
 }
 function updateRenderHistory(force = false) {
+  if(segmentActive())return updateSegmentHistory();
   const host = $("#render-history-cards");
   if (!host || S.tab !== "render") return;
   const c = clip(),
@@ -741,6 +742,11 @@ async function openRender(id, contextShot = shot(), returnTo = null) {
     );
     const host = $("#render-modal-settings");
     if (!host || S.openRender !== id) return;
+    if(saved.segment_chain){
+      const items=saved.settings?.segments||[];
+      host.innerHTML=`<p>${saved.dimensions.join(' × ')} · assembled from ${items.length} selected segments</p><p class="label">Shared instructions</p><pre class="saved-prompt">${esc(saved.prompt)}</pre>${items.map((seg,i)=>`<details><summary>Segment ${i+1} · ${segmentTime(seg.start)}–${segmentTime(seg.end)}</summary><p class="note">Seed ${seg.seed} · ${seg.connection==='continue'?seg.history_frames+' history frames':'Fresh start'}</p><pre class="saved-prompt">${esc(seg.prompt||'No additional performance directions.')}</pre></details>`).join('')}`;
+      return;
+    }
     host.innerHTML = `${saved.dimensions?`<p>${saved.dimensions.join(" × ")} · ${(saved.actual_mp??saved.dimensions[0]*saved.dimensions[1]/1000000).toFixed(3)} MP actual${saved.render_mp?` / ${saved.render_mp} MP budget`:''}</p>`:""}<p>Seed <strong>${esc(saved.seed)}</strong></p><p class="note">Diffusion window ${((saved.window_frames??124)/24).toFixed(2)}s · history ${saved.history_frames??18} frames</p><pre class="saved-prompt">${esc(saved.prompt || "Prompt unavailable for this imported render")}</pre><button id="reuse-render-settings" ${saved.prompt === undefined ? "disabled" : ""}>Copy settings to next render</button>`;
     $("#reuse-render-settings").onclick = guarded(async () => {
       await flushShotAutosave();
@@ -863,6 +869,7 @@ async function syncRenderWindowPlan() {
 const renderFields=['#render-seed','#render-prompt','#render-mp','#render-lora','#render-use-anchor','#render-use-mask','#render-window','#render-history'];
 function readGenerationControls(){return {lora_id:$('#render-lora').value,use_anchor:$('#render-use-anchor').checked,use_mask:$('#render-use-mask').checked,window_frames:Number($('#render-window').value),history_frames:Number($('#render-history').value)};}
 function syncRenderFields(s) {
+  if(segmentActive())return syncSegmentWorkspace(s);
   if(S.tab!=='render'||!$('#render-seed'))return;
   const conflicts=[syncEditableField('#render-seed',s.seed),syncEditableField('#render-prompt',s.prompt),syncEditableField('#render-mp',s.render_mp??1),syncEditableField('#render-lora',s.lora_id||'v1-1000'),syncEditableField('#render-use-anchor',s.use_anchor??true),syncEditableField('#render-use-mask',s.use_mask??true),syncEditableField('#render-window',s.window_frames??124),syncEditableField('#render-history',s.history_frames??18)];
   $('#render-sync-conflict').hidden=!conflicts.some(Boolean);
@@ -875,7 +882,7 @@ async function saveRenderSettings() {
   if(changes.use_mask)await saveMaskEdits();
   return changes;
 }
-function drawRender(c, s) {
+function drawLegacyRender(c, s) {
   S.renderDraftDirty = false;
   $("#workspace").innerHTML =
     `<div class="render-layout"><section class="panel render-controls"><div class="panel-title">Actor mask <span class="note h3-coverage" id="mask-coverage"></span></div>${maskEditorHtml(c, s)}</section><section class="panel generation-panel"><div class="panel-title">Generation</div><div class="panel-body stack"><div class="render-generation"><strong class="generation-model">${esc(loRALabel(s.lora_id))} · Turbo 8</strong><div class="row"><div class="field"><label for="worker">Worker</label>${workerSelect()}</div><div class="field"><label for="render-seed">Seed</label><div class="h3-seed-control"><input id="render-seed" type="number" min="0" value="${s.seed}"><button id="render-seed-random" class="h3-icon-button" aria-label="Randomize seed" title="Randomize seed">${uiIcon("refresh")}</button></div></div></div><div class="field"><label for="render-mp">Resolution (MP)</label><select id="render-mp" aria-label="Resolution (MP)">${[0.5,0.6,0.7,0.8,0.9,1].map(mp=>`<option value="${mp}" ${Number(s.render_mp??1)===mp?'selected':''}>${mp.toFixed(1)}</option>`).join('')}${![0.5,0.6,0.7,0.8,0.9,1].includes(Number(s.render_mp??1))?`<option value="${s.render_mp}" selected>${s.render_mp} (saved)</option>`:''}</select><span id="render-size-output" class="note" role="status"></span></div><p class="note">Fits the shot to H3’s 32-pixel grid. Final clip canvas: ${c.dimensions.join(" × ")}.</p><span id="mask-review-state" class="h3-sr-only">${s.mask ? "Available" : "Missing"}</span><input id="render-lora" type="hidden" value="${esc(s.lora_id||'v1-1000')}"><label class="conditioning-toggle"><input id="render-use-anchor" type="checkbox" ${s.anchor && s.use_anchor!==false?'checked':''} ${s.anchor?'':'disabled'}> Use shot anchor</label><label class="conditioning-toggle"><input id="render-use-mask" type="checkbox" ${s.use_mask===false?'':'checked'}> Use mask</label><p class="note">Turning masking off regenerates the whole frame. Source video and audio guides stay active. With the anchor off, remove any Picture 2 instructions from your prompt.</p><label class="conditioning-toggle"><input id="render-model-offloading" type="checkbox" ${S.modelOffloading?'checked':''}> Model offloading</label><p class="note">Enabled by default to reduce GPU memory use. Applies to the next render.</p><details><summary>Performance prompt</summary><textarea id="render-prompt" rows="7" aria-label="Next performance prompt">${esc(optionalAnchorPrompt(s.prompt,!!s.anchor && s.use_anchor!==false))}</textarea></details><p id="render-sync-conflict" class="error-text" role="alert" hidden>Render settings changed elsewhere. Reload saved settings before saving.</p>${shotAutosaveHtml()}<div class="row render-actions"><button id="queue-shot" class="primary" ${s.mode === "preserve" ? "disabled" : ""}>Queue shot</button></div><p id="render-queue-reason" class="note" role="status"></p></div></div></section><section class="panel render-results"><div class="panel-title"><h2>Your takes <span id="render-count" class="note"></span></h2><select id="render-filter" aria-label="Filter renders"><option value="all">All takes</option><option value="favorites">Favorites</option><option value="active">In progress</option><option value="completed">Completed</option><option value="failed">Failed / cancelled</option></select></div><div id="render-history-cards" class="render-grid"></div></section></div>`;
@@ -1031,9 +1038,10 @@ $("#import").onclick = () => {
 $("#batch-actions").onclick = () => {
   dialog(
     "Batch actions",
-    `<div class="dialog-form"><p class="note">Each clip keeps separate progress. Save shot boundaries first. Renders use each shot’s saved LoRA, anchor and masking settings.</p><select id="batch-kind"><option value="cuts">Detect edits</option><option value="transcribe">Transcribe audio</option><option value="prompts">Build shot prompts</option><option value="mask">Track missing masks</option><option value="render">Render missing shots</option><option value="assemble">Assemble clips & reports</option></select><select id="batch-worker">${(S.data.auto_placement_supported??S.data.unified_workers)?'<option value="auto">Auto · prefer warm worker</option>':''}<option value="both" selected>All configured workers</option>${S.data.workers.map(worker=>`<option value="${esc(worker)}">${esc(worker)}</option>`).join('')}</select><button id="run-batch" class="primary">Queue batch</button><div id="batch-response" class="note"></div></div>`,
+    `<div class="dialog-form"><p class="note">Each clip keeps separate progress. Save shot boundaries first. Renders use the saved segments, directions, references, model and masking settings.</p><select id="batch-kind"><option value="cuts">Detect edits</option><option value="transcribe">Transcribe audio</option><option value="prompts">Build shot prompts</option><option value="mask">Track missing masks</option><option value="render">Render missing shots</option><option value="assemble">Assemble clips & reports</option></select><select id="batch-worker">${(S.data.auto_placement_supported??S.data.unified_workers)?'<option value="auto">Auto · prefer warm worker</option>':''}<option value="both" selected>All configured workers</option>${S.data.workers.map(worker=>`<option value="${esc(worker)}">${esc(worker)}</option>`).join('')}</select><button id="run-batch" class="primary">Queue batch</button><div id="batch-response" class="note"></div></div>`,
   );
   $("#run-batch").onclick = guarded(async () => {
+    await flushShotAutosave();
     const x = await api(`batches/${S.batch}/queue`, "POST", {
       kind: $("#batch-kind").value,
       worker: $("#batch-worker").value,

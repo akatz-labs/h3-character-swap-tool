@@ -35,6 +35,8 @@ async def life(app):
 
 
 app = FastAPI(lifespan=life)
+from .segment_api import router as segment_router
+app.include_router(segment_router)
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
 
 
@@ -705,12 +707,19 @@ def batch_queue(id: str, body: dict):
             ):
                 continue
             try:
+                options = None
+                if kind == 'render':
+                    from . import segments
+                    items = segments.current(s)
+                    options = {'model_offloading': body.get('model_offloading', True), 'segments': {
+                        'mode':'all', 'segment_id':items[0]['id'], 'plan_revision':segments.plan_revision(s)}}
                 ids.append(
                     pipeline.queue(
                         kind,
                         c["id"],
                         s["id"] if s else None,
                         workers[len(ids) % len(workers)],
+                        options=options,
                     )
                 )
             except ValueError as e:

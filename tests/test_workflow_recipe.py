@@ -23,7 +23,8 @@ def test_focused_recipe_has_exact_node_and_model_inventory(tmp_path):
         assert len(data) == expected['bytes']
         assert hashlib.sha256(data).hexdigest() == expected['sha256']
     models = json.loads((target / 'model-identities.json').read_text())
-    assert len(models['models']) == 7
+    assert len(models['models']) == 8
+    assert models['models']['loras/h3-v2-challenge-eval-20261013/v2-1000.safetensors']['sha256'] == '8f2c3c3eba161df8d0c6099598b4730f641f5ce01e04cd16d2427cff8a35218f'
     assert models['comfy_revision'] == receipt['comfy_revision']
     assert not any('ltx' in name.lower() or 'onnx' in name.lower() for name in models['models'])
     before = (target / 'capture-receipt.json').read_bytes()

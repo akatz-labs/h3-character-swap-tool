@@ -129,18 +129,24 @@ class Shot:
             "reference": ("IMAGE",), "use_anchor": ("BOOLEAN", {"default": False}),
             "use_mask": ("BOOLEAN", {"default": True}),
             "shot_id": ("STRING", {"default": "character-swap"})},
-            "optional": {"anchor": ("IMAGE",), "body_mask": ("MASK",)}}
+            "optional": {"anchor": ("IMAGE",), "body_mask": ("MASK",),
+                "segment_mode": ("BOOLEAN", {"default": False}),
+                "history_file": ("STRING", {"default": ""}),
+                "segment_reference": ("IMAGE",)}}
 
     RETURN_TYPES = ("H3_RELAY_SHOT",)
     FUNCTION = "prepare"
     CATEGORY = "H3 Character Swap"
 
-    def prepare(self, shot_id, use_anchor, use_mask, **kwargs):
+    def prepare(self, shot_id, use_anchor, use_mask, segment_mode=False, history_file="", segment_reference=None, **kwargs):
         from .relay.inputs import Shot as RelayShot
         from .relay.records import digest
         import comfy.utils
         if use_anchor and kwargs.get("anchor") is None:
-            raise ValueError("Anchor conditioning requires an anchor image.")
+            if segment_mode and history_file:
+                kwargs['anchor'] = kwargs['source'][:1]  # replaced by generated history in the pass
+            else:
+                raise ValueError("Anchor conditioning requires an anchor image.")
         if use_mask and kwargs.get("body_mask") is None:
             raise ValueError("Masked generation requires a person mask.")
         if use_anchor:
@@ -156,6 +162,32 @@ class Shot:
         shot["generation"] = {"use_anchor": use_anchor, "use_mask": use_mask}
         shot["key"] = digest(["character-swap-conditioning-v1", shot["key"], shot["generation"]])
         shot["shot_id"] = shot_id
+        shot["segment_mode"] = segment_mode
+        shot["history"] = None
+        shot["segment_reference"] = segment_reference
+        if history_file:
+            if not segment_mode:
+                raise ValueError("External history requires an explicit segment")
+            import numpy as np
+            import folder_paths
+            from pathlib import Path
+            from .identity import tensor_hash
+            base = Path(folder_paths.get_input_directory()).resolve()
+            path = (base / history_file).resolve()
+            if not path.is_relative_to(base) or path.suffix != '.npz' or not path.is_file():
+                raise ValueError("Invalid continuation history input")
+            with np.load(path, allow_pickle=False) as data:
+                frames = data['frames']
+            if (frames.ndim != 4 or frames.shape[1:] != tuple(shot['source'].shape[1:])
+                    or len(frames) not in (1, *range(18,342,17))
+                    or frames.dtype != np.float32 or not np.isfinite(frames).all()
+                    or frames.min() < 0 or frames.max() > 1):
+                raise ValueError("Continuation history must be matching finite RGB frames")
+            shot['history'] = torch.from_numpy(frames.copy())
+            shot['key'] = digest([shot['key'], 'durable-segment-history-v1', tensor_hash(shot['history'])])
+        if segment_reference is not None:
+            from .identity import tensor_hash
+            shot['key'] = digest([shot['key'], tensor_hash(segment_reference)])
         return (shot,)
 
 

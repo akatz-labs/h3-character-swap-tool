@@ -17,7 +17,7 @@ async function writeChanged(path, content) {
 const refresh=renderToStaticMarkup(createElement(Icon,{name:'refresh'})).replace('ak-icon','h3-icon');
 await writeChanged(join(root,'static/vendor/app-kit-icons.js'),'// Generated from @akatz/app-kit. See app-kit-icons.LICENSE.txt.\nconst appKitIcons = '+JSON.stringify({refresh})+';\n');
 await writeChanged(join(root,'static/vendor/app-kit-icons.LICENSE.txt'),(await readFile(new URL('../THIRD_PARTY_NOTICES.md',import.meta.resolve('@akatz/app-kit/react')),'utf8')).trimEnd()+'\n');
-const names=['vendor/app-kit-icons.js','ui-icons.js','comparison.js','review-player.js','mask-editor.js','mask-playback.js','shots-editor.js','finish-review.js','refine-editor.js','workspace-ui.js','shot-autosave.js','app.js'];
+const names=['vendor/app-kit-icons.js','ui-icons.js','comparison.js','review-player.js','mask-editor.js','mask-playback.js','shots-editor.js','finish-review.js','refine-editor.js','workspace-ui.js','shot-autosave.js','segments.js','app.js'];
 const source=await Promise.all(names.map(name=>readFile(join(root,'static',name),'utf8')));
 let app=source.at(-1);
 const opening='const $ = (s) => document.querySelector(s),\n  $$ = (s) => [...document.querySelectorAll(s)];';

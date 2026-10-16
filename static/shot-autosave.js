@@ -22,6 +22,7 @@ function autosaveStatus(message, failed = false) {
 }
 function bindShotAutosave(specs) {
   clearTimeout(shotAutosave?.timer);
+  if(shotAutosave?.schedule)shotAutosave.fields.forEach(({field})=>field.removeEventListener("input",shotAutosave.schedule));
   const form = shotAutosave = {clipId:clip().id, shotId:shot().id, fields:specs.map(([selector,key,remote]) => {
     const field = $(selector);
     field.dataset.remoteValue = String(remote ?? '');
@@ -35,6 +36,7 @@ function bindShotAutosave(specs) {
     clearTimeout(form.timer);
     form.timer = setTimeout(() => { void flushShotAutosave().catch(() => {}); }, 400);
   };
+  form.schedule=schedule;
   form.fields.forEach(({field}) => field.addEventListener('input', schedule));
   $('#shot-save-retry').onclick = guarded(flushShotAutosave);
   $('#shot-save-reload').onclick = guarded(async () => {
@@ -47,6 +49,7 @@ function bindShotAutosave(specs) {
   if (autosaveDirty(form)) schedule();
 }
 async function flushShotAutosave() {
+  await flushSegmentEdits();
   const form = shotAutosave;
   if (!form || form.clipId !== S.clip || form.shotId !== shot()?.id || !form.fields[0]?.field.isConnected) return;
   clearTimeout(form.timer);

@@ -24,7 +24,7 @@ def features_for_model(path):
         return ["h3-render-v1"]
     if "v2-1000" in path:
         return ["h3-render-v2-1000"]
-    return ["h3-render", "h3-render-v1"]
+    return ["h3-render", "h3-render-v1", "h3-render-segments-v1"]
 
 
 def configure(package, output, adapter, configuration, *, model_names=None, features=None):

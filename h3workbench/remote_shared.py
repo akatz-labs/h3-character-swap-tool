@@ -154,7 +154,7 @@ def call(value, job=None, staging_done=None):
 
 def operation(job, directory):
     if job["kind"] == "render":
-        return "h3-render"
+        return "h3-render-segments-v1" if job["data"].get("segment_plan") else "h3-render"
     if job["kind"] == "mask":
         return "sam-recover" if directory.name == "recovery" else "sam-track"
     if job["kind"] in {"mask_edit", "refine_mask"}:
