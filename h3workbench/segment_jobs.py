@@ -8,6 +8,15 @@ from . import media, masks, remote, render_models, segments, store
 from .config import MEDIA
 
 
+ACTIVE_STATES = ('queued', 'waiting', 'running', 'cancelling')
+
+
+def scope(plan):
+    return [{'id': plan['segments'][i]['id'], 'index': i,
+             'start': plan['segments'][i]['start'], 'end': plan['segments'][i]['end']}
+            for i in plan['indices']]
+
+
 def freeze(clip, shot, request):
     if not isinstance(request, dict) or set(request) != {'mode','segment_id','plan_revision'}:
         raise ValueError('Invalid segment render request')
@@ -21,6 +30,25 @@ def freeze(clip, shot, request):
     if start is None: raise ValueError('Choose a current segment')
     indices = [start] if mode == 'segment' else list(range(0 if mode == 'all' else start, len(items)))
     status = segments.states(clip,shot,items)
+    active = [j for j in store.pending_jobs(ACTIVE_STATES, full=True)
+              if j['kind'] == 'render' and j['clip_id'] == clip['id'] and j['shot_id'] == shot['id']]
+    owners = {}
+    covered = set()
+    for job in active:
+        plan = job['data'].get('segment_plan')
+        if not plan:
+            raise store.Conflict('A whole-shot render is active; wait for it before queueing segments')
+        for entry in scope(plan):
+            covered.add(entry['id'])
+            if job['id']+'-'+entry['id'] not in job['data'].get('segment_results', []):
+                owners[entry['id']] = job
+    if mode == 'segment' and items[start]['id'] in owners:
+        raise store.Conflict('This segment is already queued or generating')
+    if mode != 'segment' and active:
+        indices = [i for i in indices if items[i]['id'] not in covered and not status[i]['current']]
+    if not indices:
+        raise store.Conflict('These segments are already current, queued or generating')
+    bindings = {}
     for i in indices:
         seg = items[i]
         if seg['anchor_mode'] != 'none' and not segments.anchor(shot,seg):
@@ -35,13 +63,62 @@ def freeze(clip, shot, request):
         for predecessor, _ in segments.predecessors(items,i):
             j = items.index(predecessor)
             if j not in indices:
+                owner = owners.get(predecessor['id'])
+                if owner:
+                    parent = next(v for v in owner['data']['segment_plan']['segments'] if v['id'] == predecessor['id'])
+                    signature = segments.setting_signature(clip, shot, predecessor)
+                    if segments.setting_signature(owner['data']['snapshot'], owner['data']['shot'], parent) != signature:
+                        raise store.Conflict(f'Segment {j+1} settings changed after queueing; cancel its queued render or restore those settings first')
+                    if owner['state'] == 'cancelling':
+                        raise store.Conflict(f'Segment {j+1} is stopping; queue it again after it stops')
+                    bindings[predecessor['id']] = {'job_id': owner['id'], 'segment_id': predecessor['id'],
+                        'index': j, 'signature': signature, 'take_id': owner['id']+'-'+predecessor['id']}
+                    continue
                 selected = segments.take(predecessor)
                 if not status[j]['current'] or not selected or not selected.get('master'):
                     raise ValueError(f'Generate segment {j+1} first, or generate from an earlier segment')
                 if selected['dimensions'] != media.render_spec(clip,shot)['dimensions']:
                     raise ValueError('Continuation resolution changed; regenerate the preceding segments')
-    return {'segments':items,'indices':indices,'mode':mode,
+    return {'segments':items,'indices':indices,'mode':mode,'dependencies':list(bindings.values()),
             'original_selections':{s['id']:s.get('selected_take') for s in items}}
+
+
+def resolve_dependencies(job):
+    """Bind only the exact promised outputs, before reserving a worker/preparation slot."""
+    if not job['data'].get('segment_dependencies') or job['data'].get('segment_dependencies_resolved'):
+        return True
+    job = store.job_get(job['id'])
+    plan = copy.deepcopy(job['data']['segment_plan'])
+    for binding in job['data']['segment_dependencies']:
+        parent = store.job_get(binding['job_id'])
+        result = parent['data'].get('segment_outputs', {}).get(binding['segment_id'])
+        if not result and binding['take_id'] in parent['data'].get('segment_results', []):
+            # Jobs accepted before this release already saved their takes in the clip.
+            clip = store.clip_get(parent['clip_id'])
+            shot = next(s for s in clip['shots'] if s['id'] == parent['shot_id'])
+            layouts = [segments.current(shot), *[v['segments'] for v in shot.get('segment_layout_history', [])]]
+            result = next((t for layout in layouts for s in layout for t in s['takes'] if t['id'] == binding['take_id']), None)
+        if result:
+            if (result['id'] != binding['take_id'] or result['signature'] != binding['signature']
+                    or result.get('dimensions') != job['data']['render_spec']['dimensions'] or not result.get('master')):
+                store.job_update(job['id'], 'failed', phase='Preceding segment output does not match',
+                                 error=f"Segment {binding['index']+1} returned an incompatible continuation take")
+                return False
+            item = plan['segments'][binding['index']]
+            if not any(t['id'] == result['id'] for t in item['takes']):
+                item['takes'].append(copy.deepcopy(result))
+            item['selected_take'] = result['id']
+        else:
+            if parent['state'] not in ACTIVE_STATES:
+                store.job_update(job['id'], 'failed', phase='Preceding segment did not finish',
+                                 error=f"Segment {binding['index']+1} {parent['state']}; its required take is unavailable. Queue the predecessor and this segment again.")
+            else:
+                phase = f"Waiting for segment {binding['index']+1}"
+                if job['data'].get('phase') != phase:
+                    store.job_update(job['id'], phase=phase)
+            return False
+    store.job_update(job['id'], segment_plan=plan, segment_dependencies_resolved=True, phase='Queued')
+    return True
 
 
 def history_file(items,index,dimensions,directory):
@@ -211,7 +288,9 @@ def execute(job,directory):
         attach_take(job,result)
         if not any(t['id']==result['id'] for t in items[i]['takes']):items[i]['takes'].append(result)
         items[i]['selected_take']=result['id'];completed.append(result['id'])
-        store.job_update(job['id'],segment_results=completed,finalizing=False)
+        outputs = store.job_get(job['id'])['data'].get('segment_outputs', {})
+        outputs[items[i]['id']] = result
+        store.job_update(job['id'],segment_results=completed,segment_outputs=outputs,finalizing=False)
     current_clip=store.clip_get(job['clip_id']);current_shot=pipeline.shot_of(current_clip,job['shot_id'])
     result=assemble(current_clip,current_shot,directory/'assembly')
     attach_assembly(job,current_clip,current_shot,result)

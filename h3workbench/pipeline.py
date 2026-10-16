@@ -31,6 +31,13 @@ def fingerprint(value):
 
 
 def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_render=None):
+    # Serialize admission with clip edits and job creation. Disjoint segment jobs
+    # may coexist; each dependency refers to an already admitted immutable job.
+    with store.LOCK:
+        return _queue(kind, clip_id, shot_id, worker, options, expected_render)
+
+
+def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_render=None):
     if kind not in KINDS:
         raise ValueError("Unknown stage")
     if kind not in remote_shared.GPU_KINDS:
@@ -142,7 +149,8 @@ def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_rend
         shot_id,
         {
             "options": options,
-            **({"segment_plan": segment_plan} if segment_plan else {}),
+            **({"segment_plan": segment_plan, "segment_scope": segment_jobs.scope(segment_plan),
+                "segment_dependencies": segment_plan['dependencies']} if segment_plan else {}),
             "snapshot": c,
             "shot": s,
             "worker": worker,
@@ -821,6 +829,9 @@ def scheduler():
                 continue
             busy = {resource(store.job_get(id)) for id in ACTIVE}
             for j in pending:
+                from . import segment_jobs
+                if not segment_jobs.resolve_dependencies(j):
+                    continue
                 r = resource(j)
                 if r == "auto":
                     from . import session_policy
@@ -859,6 +870,14 @@ def scheduler():
 
 
 def start():
+    # Backfill lightweight public coverage for existing segment jobs, including
+    # historical failures and in-flight batches accepted by an older app.
+    from . import segment_jobs
+    existing = {j['id']: j for j in store.jobs()}
+    existing.update({j['id']: j for j in store.pending_jobs(segment_jobs.ACTIVE_STATES, full=True)})
+    for j in existing.values():
+        if j['data'].get('segment_plan') and not j['data'].get('segment_scope'):
+            store.job_update(j['id'], segment_scope=segment_jobs.scope(j['data']['segment_plan']))
     # A restart cannot safely infer completion of a remote GPU/image action.
     for j in store.pending_jobs(("running", "cancelling")):
         from . import remote_shared

@@ -242,7 +242,7 @@ def pending_jobs(states=("queued", "waiting"), full=False):
     """Dispatch/recovery cannot be bounded by browser history pagination."""
     placeholders = ",".join("?" for _ in states)
     fields = ("worker", "requested_worker", "execution_resource", "gpu_waiting", "retry_after",
-              "phase", "runtime", "cancel_requested", "lora", "options", "execution_backend", "shared_stages")
+              "phase", "runtime", "cancel_requested", "lora", "options", "execution_backend", "shared_stages", "segment_dependencies", "segment_dependencies_resolved")
     pairs = ",".join(f"'$.{k}',json_extract(data,'$.{k}')" for k in fields)
     columns = "*" if full else f"id,kind,clip_id,shot_id,state,created,updated,json_set('{{}}',{pairs}) AS data"
     with db() as c:
@@ -276,7 +276,7 @@ def job_get(id):
 
 
 PUBLIC_JOB_FIELDS = ("phase", "error", "worker", "requested_worker", "auto_placement", "execution_resource", "gpu_waiting", "options", "runtime_status",
-                     "progress", "segment_progress", "capacity_failure", "render_spec", "generation", "lora", "execution_backend", "shared_phase", "shared_job_id")
+                     "progress", "segment_progress", "segment_scope", "segment_results", "segment_dependencies", "capacity_failure", "render_spec", "generation", "lora", "execution_backend", "shared_phase", "shared_job_id")
 PUBLIC_FOREGROUND_FIELDS = ("mask_points", "face", "gate_px", "core_px", "mask_text",
                             "selection", "subject_index", "alpha_seed", "auto_face")
 
@@ -317,6 +317,13 @@ def job_create(kind, clip_id=None, shot_id=None, data=None):
         ).fetchall()
         for row in rows:
             previous = json.loads(row["data"])
+            if kind == 'render' and (data or {}).get('segment_plan') and previous.get('segment_plan'):
+                incoming = {data['segment_plan']['segments'][i]['id'] for i in data['segment_plan']['indices']}
+                occupied = {previous['segment_plan']['segments'][i]['id'] for i in previous['segment_plan']['indices']
+                            if row['id']+'-'+previous['segment_plan']['segments'][i]['id'] not in previous.get('segment_results', [])}
+                if incoming & occupied:
+                    raise Conflict('This segment is already queued or generating')
+                continue
             # Source and character extraction are independent jobs. Identical
             # clicks remain idempotent while their stage is active.
             frame_edit = (

@@ -152,24 +152,59 @@ function segmentTakeButton(seg,t,state){
   const label=!selected?'Use this take':state.current?'Selected':changed?'Restore saved settings':'Selected · needs refresh';
   return `<button data-select-segment-take="${esc(t.id)}" ${selected&&(state.current||!changed)?'disabled':''}>${label}</button>`;
 }
+function segmentJobScope(job){
+  if(job.data.segment_scope)return job.data.segment_scope;
+  const request=job.data.options?.segments,items=segmentEditor.plan.segments;
+  if(!request)return [];
+  const start=items.findIndex(s=>s.id===request.segment_id);
+  return items.map((s,index)=>({...s,index})).filter(s=>request.mode==='all'||(request.mode==='segment'?s.index===start:s.index>=start));
+}
+function segmentJobPending(job,id){
+  return segmentJobScope(job).some(s=>s.id===id)&&!(job.data.segment_results||[]).includes(job.id+'-'+id);
+}
+function segmentJobState(job,id){
+  if(job.state==='running'&&job.data.segment_progress?.segment_id!==id)return 'queued';
+  return job.state;
+}
+function closeSegmentGenerateMenu(focus=false){
+  const menu=$('#segment-generate-menu'),button=$('#segment-generate-more');
+  if(menu)menu.hidden=true;if(button){button.setAttribute('aria-expanded','false');if(focus)button.focus();}
+}
+document.addEventListener('pointerdown',event=>{
+  if(!event.target.closest('.render-actions'))closeSegmentGenerateMenu();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&$('#segment-generate-menu')&&!$('#segment-generate-menu').hidden){event.preventDefault();closeSegmentGenerateMenu(true);}
+});
 function updateSegmentHistory(){
   if(!segmentActive()||!segmentEditor.plan)return;
   const e=segmentEditor,seg=segmentSelected(),state=segmentStatus(),s=shot(),c=clip();
   const jobs=S.data.jobs.filter(j=>j.clip_id===c.id&&j.shot_id===s.id&&j.kind==='render');
-  const active=jobs.find(j=>['submitting','queued','waiting','running','cancelling'].includes(j.state));
+  const activeJobs=jobs.filter(j=>['submitting','queued','waiting','running','cancelling'].includes(j.state));
+  const active=activeJobs.find(j=>segmentJobPending(j,seg.id));
+  const legacyActive=activeJobs.find(j=>!j.data.options?.segments);
+  const awaiting=state.dependencies.filter(d=>!e.plan.states.find(v=>v.id===d.segment_id)?.current);
+  const canWait=awaiting.every(d=>activeJobs.some(j=>j.state!=='cancelling'&&segmentJobPending(j,d.segment_id)));
+  const blocked=state.blocked&&!canWait;
   const selectedIndex=e.plan.segments.indexOf(seg);
   const entries=seg.takes.map((t,i)=>({key:t.id,html:`<article class="render-card ${t.id===seg.selected_take?'segment-selected':''}"><button class="render-thumb" data-open-segment-take="${esc(t.id)}"><img src="${asset(t.asset)}/thumbnail" alt="Segment ${selectedIndex+1}, take ${i+1}" loading="lazy"><span class="play-mark" aria-hidden="true">▶</span><span class="take-duration">${((seg.end-seg.start)/24).toFixed(1)}s</span></button><div class="render-card-body"><div class="row spread"><strong>Take ${i+1}</strong><a href="${asset(t.asset,true)}" aria-label="Download take ${i+1}">${uiIcon('download')}</a></div><p class="note">${esc(renderLoRALabel(t))} · Seed ${t.seed}</p>${segmentTakeButton(seg,t,state)}</div></article>`}));
-  for(const j of jobs.filter(j=>['submitting','queued','waiting','running','failed','cancelled','interrupted','unconfirmed'].includes(j.state))){
-    const r=j.data.options?.segments;if(r&&r.mode==='segment'&&r.segment_id!==seg.id)continue;
-    entries.push({key:j.id,html:`<article class="render-card"><div class="render-placeholder"><strong>${esc(renderStatus(j))}${j.data.segment_progress?` · Segment ${j.data.segment_progress.number} of ${j.data.segment_progress.total}`:''}</strong><span>${esc(j.data.phase||'')}</span></div><div class="render-card-body">${j.data.error?`<details><summary>Details</summary><p>${esc(j.data.error)}</p></details>`:''}${j.state==='failed'&&j.data.capacity_failure?.offloading===false?`<button data-segment-offload="${esc(j.id)}" ${active?'disabled':''}>Retry with model offloading</button>`:''}${['queued','waiting','running'].includes(j.state)?`<button data-cancel-segment-job="${esc(j.id)}">${j.state==='running'?'Stop generation':'Cancel queued generation'}</button>`:''}</div></article>`});
+  for(const j of jobs.filter(j=>['submitting','queued','waiting','running','cancelling','failed','cancelled','interrupted','unconfirmed'].includes(j.state))){
+    if(!segmentJobPending(j,seg.id))continue;
+    const displayState=segmentJobState(j,seg.id),isFuture=displayState==='queued'&&j.state==='running';
+    const phase=isFuture?`Waiting for segment ${j.data.segment_progress?.number||selectedIndex+1}`:j.data.phase||'';
+    entries.push({key:j.id,html:`<article class="render-card"><div class="render-placeholder"><strong>${esc(renderStatus({...j,state:displayState}))} · Segment ${selectedIndex+1}</strong><span>${esc(phase)}</span></div><div class="render-card-body">${j.data.error?`<details><summary>Details</summary><p>${esc(j.data.error)}</p></details>`:''}${j.state==='failed'&&j.data.capacity_failure?.offloading===false?`<button data-segment-offload="${esc(j.id)}" ${active?'disabled':''}>Retry with model offloading</button>`:''}${['queued','waiting','running'].includes(j.state)?`<button data-cancel-segment-job="${esc(j.id)}">${j.state==='running'?(segmentJobScope(j).length>1?'Stop remaining segments':'Stop generation'):'Cancel queued generation'}</button>`:''}</div></article>`});
   }
   $('#render-count').textContent=`Segment ${selectedIndex+1} · ${seg.takes.length}`;
   reconcileItems($('#render-history-cards'),entries.length?entries:[{key:'empty',html:'<div class="render-empty"><strong>No takes for this segment yet</strong><p>Review its directions and generate a take.</p></div>'}]);
-  const reason=s.mode==='preserve'?'This shot keeps the original source.':active?'This shot has an active generation.':!c.reference?'Add a character reference in Anchors.':state.blocked?'Generate the preceding segment first, or generate from an earlier segment.':state.status==='stale'?'Settings or the preceding take changed. This segment needs a new take.':'';
+  const reason=s.mode==='preserve'?'Set this shot to Generate to render segments.':!c.reference?'Add a character reference.':legacyActive?'Wait for the whole-shot render to finish.':active?'This segment is already queued or generating. Edits apply to your next take.':blocked?'Generate or queue the preceding segment first.':awaiting.length?'Queue this segment now; it will start when its preceding take is ready.':state.status==='stale'?'Settings or the preceding take changed. This segment needs a new take.':'';
   $('#render-queue-reason').textContent=reason;
-  $('#queue-shot').disabled=!!active||s.mode==='preserve'||!c.reference||state.blocked;
-  uiButton($('#queue-shot'),active?'Generating…':'Generate segment','play');
-  $('#segment-generate-more').disabled=!!active||s.mode==='preserve'||!c.reference;
+  $('#queue-shot').disabled=!!active||!!legacyActive||s.mode==='preserve'||!c.reference||blocked;
+  uiButton($('#queue-shot'),active?(segmentJobState(active,seg.id)==='running'?'Generating…':'Queued'):activeJobs.length?'Queue segment':'Generate segment','play');
+  $('#segment-generate-more').disabled=!!legacyActive||s.mode==='preserve'||!c.reference;
+  for(const [id,from] of [['segment-all',0],['segment-from',selectedIndex]]){
+    const eligible=e.plan.segments.some((v,i)=>i>=from&&(!activeJobs.length||(!e.plan.states[i].current&&!activeJobs.some(j=>segmentJobScope(j).some(entry=>entry.id===v.id)))));
+    $('#'+id).disabled=!eligible;
+  }
   $('#segment-whole-takes').textContent=`Whole-shot takes${s.renders.length?' · '+s.renders.length:''}`;
   $$('[data-open-segment-take]').forEach(b=>b.onclick=()=>{
     const t=seg.takes.find(t=>t.id===b.dataset.openSegmentTake);
@@ -216,16 +251,18 @@ function drawRender(c,s){
   advanced.insertAdjacentHTML('beforebegin','<div id="segment-controls" class="segment-controls"><p class="note">Loading segments…</p></div>');
   $('#mask-resize').insertAdjacentHTML('afterend',`<div class="segment-timeline"><div class="row spread"><strong id="segment-count">Segments</strong><details class="segment-arrange"><summary>Arrange segments</summary><div class="segment-arrange-menu"><span class="note">Split into</span>${[5,10,15].map(n=>`<button data-segment-partition="${n*24}">${n}-second segments</button>`).join('')}<button id="segment-split">Split at playhead</button><button id="segment-boundary">Move selected boundary…</button><button id="segment-merge">Merge with next</button><button id="segment-previous">Previous layouts</button></div></details></div><div id="segment-strip" class="segment-strip" role="group" aria-label="Generation segments"></div></div>`);
   $('#render-filter').hidden=true;
-  $('#queue-shot').insertAdjacentHTML('afterend',`<button id="segment-generate-more" class="h3-icon-button" title="More generation options" aria-label="More generation options">⌄</button>`);
+  $('#queue-shot').insertAdjacentHTML('afterend',`<button id="segment-generate-more" class="h3-icon-button" title="More generation options" aria-label="More generation options" aria-expanded="false" aria-controls="segment-generate-menu">⌄</button><div id="segment-generate-menu" class="segment-generate-menu" hidden><button id="segment-all">Queue all segments</button><button id="segment-from">Queue from here</button><p class="note">Runs in order. While rendering, skips current and already queued segments.</p></div>`);
   $('#render-history-cards').insertAdjacentHTML('afterend','<button id="segment-whole-takes" class="quiet">Whole-shot takes</button>');
   bindShotAutosave([['#render-mp','render_mp',s.render_mp??1],['#render-lora','lora_id',s.lora_id||'v1-1000'],['#render-use-mask','use_mask',s.use_mask??true]]);
   $('#render-seed').oninput=null;
   $('#queue-shot').onclick=guarded(()=>generateSegments('segment'));
   $('#segment-generate-more').onclick=()=>{
-    dialog('Generate segments','<div class="stack"><button id="segment-from">Generate from this segment to the end</button><button id="segment-all">Generate the whole shot</button></div><p class="note">New takes are kept alongside your existing takes. Continuations use the newly generated preceding take.</p>');
-    $('#segment-from').onclick=guarded(async()=>{$('#dialog').close();await generateSegments('from');});
-    $('#segment-all').onclick=guarded(async()=>{$('#dialog').close();await generateSegments('all');});
+    const menu=$('#segment-generate-menu');menu.hidden=!menu.hidden;
+    $('#segment-generate-more').setAttribute('aria-expanded',String(!menu.hidden));
+    if(!menu.hidden)menu.querySelector('button:not(:disabled)')?.focus();
   };
+  $('#segment-from').onclick=guarded(async()=>{closeSegmentGenerateMenu();await generateSegments('from');});
+  $('#segment-all').onclick=guarded(async()=>{closeSegmentGenerateMenu();await generateSegments('all');});
   $$('[data-segment-partition]').forEach(b=>b.onclick=guarded(()=>segmentLayoutPreview({operation:'partition',frames:Number(b.dataset.segmentPartition)})));
   $('#segment-split').onclick=guarded(()=>segmentLayoutPreview({operation:'split',frame:maskEditState?.frame??0}));
   $('#segment-boundary').onclick=guarded(segmentBoundary);

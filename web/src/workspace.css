@@ -531,3 +531,11 @@
  .h3-legacy .mask-adjustments { align-items:stretch;flex-direction:column;gap:10px; }
  .h3-legacy .mask-adjustments>.mask-padding-row { flex-wrap:wrap; }
 }
+
+.h3-legacy .render-actions { position:relative; }
+.h3-legacy .segment-generate-menu { position:absolute;top:calc(100% + 6px);right:0;z-index:30;width:min(320px,100%);padding:8px;background:var(--ak-surface);border:1px solid var(--ak-border);border-radius:8px;box-shadow:0 10px 30px #0005; }
+.h3-legacy .segment-generate-menu[hidden] { display:none; }
+.h3-legacy .segment-generate-menu button { display:block;width:100%;text-align:left;margin-bottom:4px; }
+.h3-legacy .segment-generate-menu .note { padding:6px;margin:0;line-height:1.5; }
+
+.h3-legacy .generation-panel:has(.segment-generate-menu:not([hidden])) { overflow:visible; }

@@ -308,3 +308,148 @@ def test_restore_legacy_take_clears_new_prompt_override(scene):
     s=restored['shots'][0]
     assert s['segments'][0]['performance_prompt'] is None
     assert segments.states(restored,s)[0]['current']
+
+
+def queued_segment(index,mode='segment',worker='arch'):
+    c=store.clip_get('c');s=c['shots'][0];items=segments.current(s)
+    key=pipeline.queue('render','c','s',worker,{'segments':{'mode':mode,'segment_id':items[index]['id'],
+        'plan_revision':segments.plan_revision(s)}})
+    return store.job_get(key)
+
+
+def completed_segment(job,index):
+    c=job['data']['snapshot'];s=job['data']['shot'];items=job['data']['segment_plan']['segments']
+    result=ready(c,s,items,index)
+    result.update(id=job['id']+'-'+items[index]['id'],segment_id=items[index]['id'],start=items[index]['start'],end=items[index]['end'])
+    return result
+
+
+def test_independent_queue_binds_exact_outputs_and_keeps_prompts(scene):
+    c,s,_=scene
+    first=queued_segment(0)
+    store.job_update(first['id'],'running')
+    items=segments.current(s);items[1]['performance_prompt']='Exact second prompt at queue time'
+    store.clip_mutate('c',lambda c:c['shots'][0].update(segments=items))
+    second=queued_segment(1,worker='fey')
+    third=queued_segment(2)
+    assert len({first['id'],second['id'],third['id']})==3
+    assert second['data']['segment_dependencies'][0]['job_id']==first['id']
+    assert third['data']['segment_dependencies'][0]['job_id']==second['id']
+    assert not segment_jobs.resolve_dependencies(second)
+    assert store.job_get(second['id'])['data']['phase']=='Waiting for segment 1'
+    with pytest.raises(store.Conflict,match='already queued'):queued_segment(1)
+    store.clip_mutate('c',lambda c:c['shots'][0]['segments'][1].update(performance_prompt='Later prompt edit'))
+    result=completed_segment(first,0)
+    store.job_update(first['id'],segment_results=[result['id']],segment_outputs={result['segment_id']:result})
+    assert segment_jobs.resolve_dependencies(store.job_get(second['id']))
+    frozen=store.job_get(second['id'])['data']['segment_plan']['segments']
+    assert frozen[0]['selected_take']==result['id']
+    assert frozen[1]['performance_prompt']=='Exact second prompt at queue time'
+    # Resolution survives a fresh database read and never substitutes a newer take.
+    newer={**result,'id':'some-other-take'}
+    store.job_update(first['id'],segment_outputs={result['segment_id']:newer})
+    assert segment_jobs.resolve_dependencies(store.job_get(second['id']))
+    assert store.job_get(second['id'])['data']['segment_plan']['segments'][0]['selected_take']==result['id']
+    public=next(j for j in store.public_jobs() if j['id']==third['id'])
+    assert public['data']['segment_scope']==[{'id':items[2]['id'],'index':2,'start':247,'end':370}]
+    assert 'segment_plan' not in public['data']
+    assert next(j for j in store.pending_jobs() if j['id']==third['id'])['data']['segment_dependencies']
+
+
+@pytest.mark.parametrize('terminal',['failed','cancelled','interrupted'])
+def test_unfinished_predecessor_fails_dependents_without_dispatch(scene,terminal):
+    first=queued_segment(0);second=queued_segment(1);third=queued_segment(2)
+    store.job_update(first['id'],terminal)
+    assert not segment_jobs.resolve_dependencies(second)
+    assert store.job_get(second['id'])['state']=='failed'
+    assert terminal in store.job_get(second['id'])['data']['error']
+    assert not segment_jobs.resolve_dependencies(third)
+    assert store.job_get(third['id'])['state']=='failed'
+
+
+def test_queue_all_skips_active_coverage_and_uses_its_promised_take(scene):
+    first=queued_segment(0);rest=queued_segment(0,'all')
+    assert rest['data']['segment_plan']['indices']==[1,2,3]
+    assert rest['data']['segment_dependencies'][0]['job_id']==first['id']
+    with pytest.raises(store.Conflict,match='already current'):queued_segment(0,'all')
+
+
+def test_from_scope_and_future_parent_settings_conflict(scene):
+    c,s,_=scene;items=segments.current(s)
+    ready(c,s,items,0);ready(c,s,items,1)
+    store.clip_mutate('c',lambda c:c['shots'][0].update(segments=items))
+    job=queued_segment(2,'from')
+    assert [v['index'] for v in store.public_job(job)['data']['segment_scope']]==[2,3]
+    store.job_update(job['id'],'cancelled')
+    first=queued_segment(0)
+    store.clip_mutate('c',lambda c:c['shots'][0]['segments'][0].update(performance_prompt='changed since enqueue'))
+    with pytest.raises(store.Conflict,match='settings changed after queueing'):queued_segment(1)
+
+
+def test_scheduler_runs_frozen_chain_in_order_across_workers(scene,monkeypatch):
+    import threading,time
+    from concurrent.futures import ThreadPoolExecutor
+    from h3workbench import remote_sessions
+    c,s,d=scene
+    first=queued_segment(0);second=queued_segment(1,worker='fey');third=queued_segment(2)
+    order=[];seen=[]
+    monkeypatch.setattr(remote_sessions,'enabled',lambda:False)
+    monkeypatch.setattr(pipeline,'STOP',threading.Event())
+    monkeypatch.setattr(pipeline,'ACTIVE',{})
+    executor=ThreadPoolExecutor(max_workers=3);monkeypatch.setattr(pipeline,'EXEC',executor)
+    monkeypatch.setattr(segment_jobs,'assemble',lambda *args:None)
+    monkeypatch.setattr(segment_jobs,'graph',lambda c,s,items,i,j,d: (seen.append((i,copy.deepcopy(segments.dependencies(items,i)))) or {},{},j))
+    monkeypatch.setattr(segment_jobs.remote,'execute',lambda *args,**kw:d)
+    def collect(job,c,s,items,index,*args):
+        result=completed_segment(job,index);result['dependencies']=segments.dependencies(items,index)
+        return result
+    monkeypatch.setattr(segment_jobs,'collect',collect)
+    def run(id):
+        job=store.job_get(id);order.append(id)
+        directory=d/id;directory.mkdir()
+        result=segment_jobs.execute(job,directory)
+        store.job_update(id,'success',result=result)
+    monkeypatch.setattr(pipeline,'execute',run)
+    scheduler=threading.Thread(target=pipeline.scheduler);scheduler.start()
+    try:
+        limit=time.monotonic()+8
+        while store.job_get(third['id'])['state']!='success' and time.monotonic()<limit:time.sleep(.05)
+        assert order==[first['id'],second['id'],third['id']]
+        assert store.job_get(third['id'])['state']=='success'
+        assert seen[1][1][0]['take_id']==first['id']+'-'+segments.current(s)[0]['id']
+        assert seen[2][1][0]['take_id']==second['id']+'-'+segments.current(s)[1]['id']
+        current=segments.current(store.clip_get('c')['shots'][0])
+        assert all(v['selected_take'] for v in current[:3])
+        assert all(v['current'] for v in segments.states(store.clip_get('c'),store.clip_get('c')['shots'][0])[:3])
+    finally:
+        pipeline.STOP.set();scheduler.join(3);executor.shutdown()
+
+
+def test_completed_predecessor_survives_later_batch_failure_and_legacy_receipt(scene):
+    c,s,_=scene
+    first=queued_segment(0)
+    second=queued_segment(1)
+    result=completed_segment(first,0)
+    segment_jobs.attach_take(first,result)
+    store.job_update(first['id'],'failed',segment_results=[result['id']])
+    assert segment_jobs.resolve_dependencies(second)
+    assert store.job_get(second['id'])['data']['segment_plan']['segments'][0]['selected_take']==result['id']
+
+
+def test_incompatible_promised_master_never_dispatches(scene):
+    first=queued_segment(0);second=queued_segment(1)
+    result=completed_segment(first,0);result['dimensions']=[32,32]
+    store.job_update(first['id'],'success',segment_results=[result['id']],segment_outputs={result['segment_id']:result})
+    assert not segment_jobs.resolve_dependencies(second)
+    assert store.job_get(second['id'])['state']=='failed'
+    assert 'incompatible' in store.job_get(second['id'])['data']['error']
+
+
+def test_concurrent_clicks_only_admit_one_segment_job(scene):
+    from concurrent.futures import ThreadPoolExecutor
+    def submit():
+        try:return queued_segment(0)['id']
+        except store.Conflict:return 'conflict'
+    with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(lambda _:submit(),range(2)))
+    assert results.count('conflict')==1
+    assert len(store.pending_jobs())==1

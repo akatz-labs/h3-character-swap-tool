@@ -25,8 +25,15 @@ space for expansion save messages.
 Continue a previous segment with a chosen amount of generated history, or start
 fresh at a cut. A continuation can also use an additional reference image.
 
-Generate one segment, regenerate from the selected segment to the end, or
-generate the whole shot. Selecting a different preceding take marks dependent
+Generate one segment, or queue it while its predecessor is still rendering.
+Queueing freezes that segment’s saved prompt and settings; it automatically
+starts with the exact preceding take when ready, even after navigating away.
+The popover below Generate offers Queue all segments and Queue from here.
+While a render is active, these add the remaining segments without duplicating
+active work or current takes. A failed or cancelled predecessor stops dependent
+jobs with an explanation. Progress cards appear only for unfinished segments
+covered by that job, with future segments shown as queued.
+Selecting a different preceding take marks dependent
 continuations as needing refresh. Once every selected take is current, the app
 assembles the shot with the original source audio. Lossless continuation masters
 preserve history across application and worker restarts. Existing whole-shot
