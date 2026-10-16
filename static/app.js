@@ -977,50 +977,84 @@ $("#new-batch").onclick = () => {
 $("#import").onclick = () => {
   dialog(
     "Import clips",
-    `<div class="dialog-form"><p class="note">Upload videos or a folder from this device. Originals are retained in the configured media folder; working clips use 24 fps.</p><div class="row"><input id="clip-files" type="file" multiple accept="video/*"><button id="choose-folder">Choose folder</button><input id="folder-files" type="file" webkitdirectory multiple hidden></div><button id="upload-files" class="primary">Import selected files</button><hr style="border:0;border-top:1px solid #e5e8ed;width:100%"><label class="label">Or import an existing media folder</label><input id="folder-path" placeholder="Absolute folder path inside your media directory"><button id="import-path">Import media folder</button><div id="import-status" class="note"></div></div>`,
+    `<div class="dialog-form h3-import-form">
+      <p class="note">Select videos from this device.</p>
+      <div class="row"><button id="choose-videos">Choose videos</button><button id="choose-folder">Choose folder</button></div>
+      <input id="clip-files" type="file" multiple accept=".mp4,.mov,.mkv,.webm,.avi" hidden>
+      <input id="folder-files" type="file" webkitdirectory multiple hidden>
+      <div id="import-selection" class="note" role="status">No videos selected</div>
+      <button id="upload-files" class="primary" disabled>Import clips</button>
+      <details class="h3-import-advanced"><summary>Advanced: import from server folder</summary>
+        <div class="dialog-form"><p class="note">Use videos already on the machine running H3. Enter a folder within its configured media or shared drive. This is not a folder on the device you’re browsing from.</p>
+          <label for="folder-path">Server folder path</label>
+          <input id="folder-path" placeholder="Absolute path on the H3 server" autocomplete="off" spellcheck="false">
+          <button id="import-path" disabled>Import from server folder</button>
+        </div>
+      </details>
+      <div id="import-status" class="note" role="status"></div>
+    </div>`,
   );
-  $("#choose-folder").onclick = () => $("#folder-files").click();
-  $("#folder-files").onchange = () =>
-    ($("#import-status").textContent =
-      `${$("#folder-files").files.length} files selected`);
+  const form = $(".h3-import-form"), fileInput = $("#clip-files"), folderInput = $("#folder-files");
+  const upload = $("#upload-files"), serverImport = $("#import-path"), pathInput = $("#folder-path");
+  const selection = $("#import-selection"), status = $("#import-status");
+  let selectedFiles = [], importing = false;
+  function updateButtons() {
+    upload.disabled = importing || !selectedFiles.length;
+    serverImport.disabled = importing || !pathInput.value.trim();
+    for (const el of form.querySelectorAll("input, #choose-videos, #choose-folder")) el.disabled = importing;
+  }
+  function selectFiles(input, other) {
+    const files = Array.from(input.files);
+    if (!files.length) return;
+    other.value = "";
+    selectedFiles = files.filter(file => /\.(mp4|mov|mkv|webm|avi)$/i.test(file.name));
+    const skipped = files.length - selectedFiles.length;
+    selection.textContent = selectedFiles.length
+      ? `${selectedFiles.length} video${selectedFiles.length === 1 ? "" : "s"} selected: ${selectedFiles.slice(0, 3).map(file => file.name).join(", ")}${selectedFiles.length > 3 ? ` and ${selectedFiles.length - 3} more` : ""}`
+      : "No supported videos found";
+    if (skipped) selection.textContent += ` · ${skipped} unsupported file${skipped === 1 ? "" : "s"} skipped`;
+    status.textContent = "";
+    updateButtons();
+  }
+  $("#choose-videos").onclick = () => fileInput.click();
+  $("#choose-folder").onclick = () => folderInput.click();
+  fileInput.onchange = () => selectFiles(fileInput, folderInput);
+  folderInput.onchange = () => selectFiles(folderInput, fileInput);
+  pathInput.oninput = updateButtons;
   async function finish(x) {
-    toast(
-      `${x.clips.length} clips imported${x.errors.length ? "; " + x.errors.map((e) => e.file + ": " + e.error).join(" | ") : ""}`,
-    );
+    if (!x.clips.length) throw Error(x.errors.length
+      ? x.errors.map(e => e.file + ": " + e.error).join(" | ")
+      : "No supported videos were imported. Choose MP4, MOV, MKV, WebM or AVI files.");
+    toast(`${x.clips.length} clips imported${x.errors.length ? "; " + x.errors.map(e => e.file + ": " + e.error).join(" | ") : ""}`);
     $("#dialog").close();
     S.clip = x.clips[0]?.id || S.clip;
     S.dirty = false;
     await refresh();
   }
-  $("#upload-files").onclick = guarded(async () => {
-    if (!S.batch)
-      S.batch = (await api("batches", "POST", { name: "New clips" })).id;
-    const files = $("#folder-files").files.length
-      ? $("#folder-files").files
-      : $("#clip-files").files;
-    if (!files.length) throw Error("Select video files first");
-    $("#import-status").textContent = "Importing and preparing previews…";
-    $("#upload-files").disabled = true;
-    const f = new FormData();
-    f.append("batch_id", S.batch);
-    for (const file of files) f.append("files", file);
+  async function runImport(fromServer) {
+    if (importing || (fromServer ? !pathInput.value.trim() : !selectedFiles.length)) return;
+    importing = true;
+    updateButtons();
+    status.textContent = "Importing and preparing previews…";
     try {
-      await finish(await api("import", "POST", f));
+      if (!S.batch) S.batch = (await api("batches", "POST", { name: "New clips" })).id;
+      if (fromServer) {
+        await finish(await api("import-folder", "POST", { batch_id: S.batch, path: pathInput.value.trim() }));
+      } else {
+        const data = new FormData();
+        data.append("batch_id", S.batch);
+        for (const file of selectedFiles) data.append("files", file);
+        await finish(await api("import", "POST", data));
+      }
+    } catch (error) {
+      status.textContent = error.message;
     } finally {
-      if ($("#upload-files")) $("#upload-files").disabled = false;
+      importing = false;
+      updateButtons();
     }
-  });
-  $("#import-path").onclick = guarded(async () => {
-    if (!S.batch)
-      S.batch = (await api("batches", "POST", { name: "New clips" })).id;
-    $("#import-status").textContent = "Importing shared files…";
-    await finish(
-      await api("import-folder", "POST", {
-        batch_id: S.batch,
-        path: $("#folder-path").value,
-      }),
-    );
-  });
+  }
+  upload.onclick = () => runImport(false);
+  serverImport.onclick = () => runImport(true);
 };
 $("#batch-actions").onclick = () => {
   dialog(
