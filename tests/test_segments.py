@@ -233,3 +233,78 @@ def test_take_metadata_records_actual_pass_not_legacy_shot_defaults(scene,monkey
     assert result['history_frames']==0
     assert result['window_frames']==56
     assert result['use_anchor'] is False
+
+
+def test_segment_dialogue_and_speaker_do_not_silently_change_prompt(scene):
+    c,s,_=scene;items=segments.current(s);key=items[1]['id']
+    original=segments.prompt(c,s,items[1])
+    with TestClient(app) as client:
+        response=client.patch(f'/api/clips/c/shots/s/segments/{key}',json={
+            'revision':c['revision'],'changes':{'dialogue':'Corrected second line.','speaker':'offscreen'}})
+        assert response.status_code==200,response.text
+        c=response.json();s=c['shots'][0];seg=s['segments'][1]
+        assert segments.dialogue(c,s,seg)=='Corrected second line.'
+        assert segments.speaker(s,seg)=='offscreen'
+        assert segments.prompt(c,s,seg)==original
+        assert segments.dialogue(c,s,s['segments'][0])=='Hello'
+        assert s['dialogue']=='Hello world'
+        revision=c['revision']
+        updated=client.post(f'/api/clips/c/shots/s/segments/{key}/prompt',json={'revision':revision})
+        assert updated.status_code==200,updated.text
+        c=updated.json();s=c['shots'][0];text=segments.prompt(c,s,s['segments'][1])
+        assert 'Current segment dialogue: "Corrected second line."' in text
+        assert 'Speech is offscreen' in text
+        assert 'generated boundary' in text
+        assert 'exact first-frame scene' not in text
+        stale=client.post(f'/api/clips/c/shots/s/segments/{key}/prompt',json={'revision':revision})
+        assert stale.status_code==409
+
+
+def test_exact_segment_prompt_reaches_frozen_graph_unchanged(scene,monkeypatch):
+    c,s,d=scene;key=segments.current(s)[0]['id']
+    exact='  Replace only her.\nKeep <Picture 1> exactly.\n\nShe whispers: "Wait."  '
+    c=segments.edit('c','s',key,c['revision'],{'performance_prompt':exact,'anchor_mode':'none'})
+    s=c['shots'][0]
+    request={'mode':'segment','segment_id':key,'plan_revision':segments.plan_revision(s)}
+    job_id=pipeline.queue('render','c','s',options={'segments':request});job=store.job_get(job_id)
+    # A later edit must not change the queued model input.
+    segments.edit('c','s',key,c['revision'],{'performance_prompt':'Later prompt'})
+    monkeypatch.setattr(media,'shot_media',lambda c,s,d,**kw:store.path(c['source']))
+    graph,_,_=segment_jobs.graph(job['data']['snapshot'],job['data']['shot'],job['data']['segment_plan']['segments'],0,job,d)
+    assert graph['801']['inputs']['prompt']==exact
+    assert segments.prompt(c,s,s['segments'][0])==exact
+    assert segments.prompt(c,{**s,'prompt':'Different old shared instructions'},s['segments'][0])==exact
+
+
+def test_blank_segment_dialogue_is_preserved_after_transcription(scene):
+    c,s,_=scene;items=segments.current(s);key=items[0]['id']
+    c=segments.edit('c','s',key,c['revision'],{'dialogue':'','performance_prompt':'My exact prompt'})
+    c['transcript']['words']=[{'word':' New transcription','start':0,'end':2}]
+    s=c['shots'][0];assert segments.dialogue(c,s,s['segments'][0])==''
+    assert segments.prompt(c,s,s['segments'][0])=='My exact prompt'
+
+
+def test_new_layout_retains_exact_text_and_archives_previous(scene):
+    c,s,_=scene;key=segments.current(s)[0]['id']
+    c=segments.edit('c','s',key,c['revision'],{'performance_prompt':'Custom prompt','dialogue':'Custom words','speaker':'other'})
+    c=segments.apply_layout('c','s',c['revision'],{'operation':'split','frame':60})
+    s=c['shots'][0]
+    for seg in s['segments'][:2]:
+        assert seg['performance_prompt']=='Custom prompt'
+        assert seg['dialogue']=='Custom words'
+        assert seg['speaker']=='other'
+        assert seg['needs_review']
+    assert s['segment_layout_history'][-1]['segments'][0]['performance_prompt']=='Custom prompt'
+
+
+def test_restore_legacy_take_clears_new_prompt_override(scene):
+    from h3workbench.segment_api import select
+    c,s,_=scene;items=segments.current(s);s['segments']=items
+    chosen=ready(c,s,items,0)
+    chosen['settings']={k:copy.deepcopy(items[0][k]) for k in segments.EDITABLE-segments.PROMPT_FIELDS}
+    items[0]['performance_prompt']='A new exact prompt';items[0]['dialogue']='Changed words'
+    c=store.clip_mutate('c',lambda c:c['shots'][0].update(segments=items))
+    restored=select('c','s',items[0]['id'],{'revision':c['revision'],'take_id':chosen['id']})['clip']
+    s=restored['shots'][0]
+    assert s['segments'][0]['performance_prompt'] is None
+    assert segments.states(restored,s)[0]['current']

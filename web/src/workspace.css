@@ -475,7 +475,18 @@
  .h3-legacy .segment-reference-preview { flex-wrap:wrap; }
 }
 
-.h3-legacy .segment-continuity-row { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px; }
+.h3-legacy .segment-continuity-row { align-items:end;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px; }
 .h3-legacy .segment-continuity-row:has([hidden]) { grid-template-columns:1fr; }
 .h3-legacy .render-actions:has(#segment-generate-more) { flex-direction:row;gap:8px; }
 .h3-legacy .render-actions:has(#segment-generate-more) .primary { width:auto; }
+
+.h3-legacy .segment-controls .panel { margin:0;min-width:0; }
+.h3-legacy .segment-controls .panel-title { display:flex;flex-wrap:wrap;gap:8px;padding:12px; }
+.h3-legacy .segment-controls .panel-title label { font:inherit;color:inherit;margin:0; }
+.h3-legacy .segment-controls .panel-body { padding:12px; }
+.h3-legacy .segment-controls .panel-title button { margin-left:auto;font-size:11px; }
+.h3-legacy .segment-dialogue-actions { display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px; }
+.h3-legacy .segment-dialogue-actions select { flex:1;min-width:140px;width:auto; }
+.h3-legacy .segment-dialogue-actions button { margin-left:auto; }
+.h3-legacy .segment-prompt-panel textarea { min-height:210px; }
+.h3-legacy .segment-prompt-panel p.note { margin-top:8px; }

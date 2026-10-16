@@ -492,6 +492,14 @@ function anchorInstructionsDialog(generate = false) {
   };
   $('#anchor-instructions').focus();
 }
+async function transcribeClip(){
+  await flushShotAutosave();
+  const resource=await api('transcription-resource');
+  if(resource.model.state!=='installed'){
+    dialog('Install transcription model', '<p>Transcription uses the optional Whisper Medium.en model (about 1.5 GB), running on CPU.</p><p>Install it from Resources before transcribing.</p><a href="#/resources">Open Resources</a>');return;
+  }
+  await queue('transcribe');
+}
 function updateTranscriptionStatus(c) {
   const jobs=S.data.jobs.filter(j=>j.kind==='transcribe'&&j.clip_id===c.id).sort((a,b)=>b.created-a.created);
   const busy=j=>['submitting','queued','waiting','running','cancelling'].includes(j.state);
@@ -515,41 +523,19 @@ function syncAnchors(c,s) {
   const variants=$('#anchor-variants'),markup=anchorVariantsHtml(s);
   variants.hidden=s.anchors.length<=1;
   if(variants.dataset.markup!==markup){variants.innerHTML=markup;variants.dataset.markup=markup;bindAnchorVariants();}
-  const conflicts=[syncEditableField('#dialogue',s.dialogue),syncEditableField('#speaker',s.speaker),syncEditableField('#prompt',s.prompt),false];
-  $('#anchor-sync-conflict').hidden=!conflicts.some(Boolean);
+
 }
 function drawAnchors(c, s) {
   $("#workspace").innerHTML =
-    `<div class="triptych">${imagePanel("Source frame", s.source_frame, "", `<span class="h3-numeric">Frame ${s.start}</span><a class="h3-icon-link" href="${asset(s.source_frame, true)}">${uiIcon("download")}Download</a>`)}${imagePanel("Character reference", c.reference, "", `<button class="quiet" id="reference-upload">${uiIcon("image")}Change image</button><button class="quiet" id="character-edit">${uiIcon("text")}Description</button>`)}${imagePanel("Shot anchor · optional", s.anchor, "anchor-panel", `<button id="anchor-chat-prompt" class="quiet">${uiIcon("text")}Anchor prompt</button><button id="anchor-upload" class="quiet">${uiIcon("upload")}Upload</button>`)}</div><div id="anchor-variants" class="variants" ${s.anchors.length > 1 ? "" : "hidden"}>${anchorVariantsHtml(s)}</div><div class="two-col"><section class="panel"><div class="panel-title">Shot dialogue <button id="transcribe" class="quiet">${uiIcon("audio")}Transcribe clip</button></div><div class="panel-body"><p id="transcribe-status" role="status" aria-live="polite" hidden></p><textarea id="dialogue" rows="4" placeholder="Words spoken during this shot">${esc(s.dialogue)}</textarea><div class="row" style="margin-top:12px"><label class="label" for="speaker">Speaker</label><select id="speaker">${[
-      ["target", "Selected character"],
-      ["other", "Another person"],
-      ["offscreen", "Offscreen voice"],
-      ["none", "No dialogue"],
-    ]
-      .map(
-        ([v, n]) =>
-          `<option value="${v}" ${s.speaker === v ? "selected" : ""}>${n}</option>`,
-      )
-      .join(
-        "",
-      )}</select><button id="prompt-refresh" class="quiet">${uiIcon("refresh")}Update prompt</button></div></div></section><section class="panel"><div class="panel-title">Performance prompt</div><div class="panel-body"><textarea id="prompt" rows="7">${esc(optionalAnchorPrompt(s.prompt,!!s.anchor && s.use_anchor!==false))}</textarea></div></section></div><div class="anchor-actions">${shotAutosaveHtml()}<div class="row"><button id="go-render" class="primary">Set up mask & render ${uiIcon("arrow")}</button></div></div><p id="anchor-sync-conflict" class="error-text" role="alert" hidden>A field you edited also changed elsewhere. Reload saved settings before saving.</p>`;
+    `<div class="triptych">${imagePanel("Source frame", s.source_frame, "", `<span class="h3-numeric">Frame ${s.start}</span><a class="h3-icon-link" href="${asset(s.source_frame, true)}">${uiIcon("download")}Download</a>`)}${imagePanel("Character reference", c.reference, "", `<button class="quiet" id="reference-upload">${uiIcon("image")}Change image</button><button class="quiet" id="character-edit">${uiIcon("text")}Description</button>`)}${imagePanel("Shot anchor · optional", s.anchor, "anchor-panel", `<button id="anchor-chat-prompt" class="quiet">${uiIcon("text")}Anchor prompt</button><button id="anchor-upload" class="quiet">${uiIcon("upload")}Upload</button>`)}</div><div id="anchor-variants" class="variants" ${s.anchors.length > 1 ? "" : "hidden"}>${anchorVariantsHtml(s)}</div><div class="anchor-actions">${shotAutosaveHtml()}<div class="row"><button id="go-render" class="primary">Set up mask & render ${uiIcon("arrow")}</button></div></div><p id="anchor-sync-conflict" class="error-text" role="alert" hidden>A field you edited also changed elsewhere. Reload saved settings before saving.</p>`;
   $('#anchor-variants').dataset.markup=anchorVariantsHtml(s);
-  for(const [selector,value] of [['#dialogue',s.dialogue],['#speaker',s.speaker],['#prompt',s.prompt]])$(selector).dataset.remoteValue=String(value??'');
   $("#reference-upload").onclick = () => uploadImage("reference");
   $("#anchor-upload").onclick = () => uploadImage("anchor");
   $("#anchor-chat-prompt").onclick = showAnchorChatPrompt;
-  $("#transcribe").onclick = guarded(async () => {await flushShotAutosave();const resource=await api('transcription-resource');if(resource.model.state!=='installed'){dialog('Install transcription model', '<p>Transcription uses the optional Whisper Medium.en model (about 1.5 GB), running on CPU.</p><p>Install it from Resources before transcribing.</p><a href="#/resources">Open Resources</a>');return;}await queue("transcribe");});
-  updateTranscriptionStatus(c);
   $("#go-render").onclick = guarded(async () => {
     await saveFields();
     S.tab = "render";
     draw();
-  });
-  $("#prompt-refresh").onclick = guarded(async () => {
-    await saveFields();
-    await api(`clips/${c.id}/prompts`, "POST", { revision: clip().revision });
-    await refresh();
-    toast("Prompts updated from shot dialogue");
   });
   $("#character-edit").onclick = () => {
     dialog(
@@ -562,7 +548,7 @@ function drawAnchors(c, s) {
       toast("Description saved");
     });
   };
-  bindShotAutosave([['#dialogue','dialogue',s.dialogue],['#speaker','speaker',s.speaker],['#prompt','prompt',s.prompt]]);
+  bindShotAutosave([]);
   bindAnchorVariants();
 }
 async function saveFields() { await flushShotAutosave(); }

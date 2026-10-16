@@ -8,7 +8,8 @@ import json
 import re
 from . import media, render_models, store
 
-EDITABLE = {'prompt', 'seed', 'connection', 'history_frames', 'anchor_mode', 'anchor'}
+PROMPT_FIELDS = {'performance_prompt', 'dialogue', 'speaker'}
+EDITABLE = {'prompt', 'seed', 'connection', 'history_frames', 'anchor_mode', 'anchor'} | PROMPT_FIELDS
 FIELDS = EDITABLE | {'id', 'start', 'end', 'anchors', 'takes', 'selected_take', 'needs_review'}
 
 
@@ -18,7 +19,11 @@ def digest(value):
 
 def current(shot):
     if shot.get('segments') is not None:
-        return copy.deepcopy(shot['segments'])
+        items = copy.deepcopy(shot['segments'])
+        for item in items:
+            for key in PROMPT_FIELDS:
+                item.setdefault(key, None)
+        return items
     result = []
     for w in render_models.window_plan(shot)['windows']:
         a, b = w['source_start'] + w['discarded_overlap'], w['source_end_exclusive']
@@ -30,6 +35,7 @@ def new(shot, start, end, index, key=None):
     return {'id': key or store.uid('segment-'), 'start': start, 'end': end,
             'connection': 'continue' if index else 'start',
             'history_frames': shot.get('history_frames', 18), 'prompt': '',
+            'performance_prompt': None, 'dialogue': None, 'speaker': None,
             'seed': (shot.get('seed', 194729) + index) % (2**63),
             'anchor_mode': 'shot' if not index and shot.get('use_anchor', True) else 'none', 'anchor': None,
             'anchors': [], 'takes': [], 'selected_take': None, 'needs_review': False}
@@ -66,6 +72,12 @@ def validate(shot, items):
             raise ValueError('Choose the shot anchor, a segment reference, or no anchor')
         if not isinstance(item.get('prompt'), str) or len(item['prompt']) > 20000:
             raise ValueError('Segment directions must be text of at most 20,000 characters')
+        for field in ('performance_prompt', 'dialogue'):
+            value = item.get(field)
+            if value is not None and (not isinstance(value, str) or len(value) > 20000):
+                raise ValueError(f'Segment {field} must be text of at most 20,000 characters')
+        if item.get('speaker') not in (None, 'target', 'other', 'offscreen', 'none'):
+            raise ValueError('Choose a supported segment speaker')
         if type(item.get('seed')) is not int or not 0 <= item['seed'] < 2**63:
             raise ValueError('Enter a whole-number seed of 0 or greater')
         if item['anchor_mode'] == 'custom' and item.get('anchor') not in [a['asset'] for a in item.get('anchors', [])]:
@@ -85,19 +97,41 @@ def anchor(shot, segment):
 
 
 def dialogue(clip, shot, segment):
+    if segment.get('dialogue') is not None:
+        return segment['dialogue']
     return media.dialogue(clip, shot['start'] + segment['start'], shot['start'] + segment['end'])
 
 
-def prompt(clip, shot, segment):
-    shared = shot.get('prompt', '')
-    # Only remove our own generated full-shot dialogue and anchor boilerplate.
-    old = f'Current shot dialogue: "{shot.get("dialogue", "")}".'
-    shared = shared.replace(old, '').replace('<Picture 2> is the exact first-frame scene and pose anchor.', '').strip()
+def speaker(shot, segment):
+    return segment.get('speaker') or shot.get('speaker', 'target')
+
+
+def reference_prompt(shot, segment):
     h, ref = effective_history(segment), anchor(shot, segment)
     context = '<Picture 2> is the generated boundary from the preceding segment. Continue its motion and appearance.' if h else (
         '<Picture 2> is the exact first-frame scene and pose anchor.' if ref else '')
     if h and ref:
         context += ' <Picture 3> is an additional scene and performance reference for this segment; preserve continuity with the generated boundary.'
+    return context
+
+
+def build_prompt(clip, shot, segment):
+    """Explicit Update prompt action: create the complete, editable model text."""
+    virtual = {**shot, 'dialogue': dialogue(clip, shot, segment), 'speaker': speaker(shot, segment)}
+    text = media.prompt(clip, virtual).replace(
+        '<Picture 2> is the exact first-frame scene and pose anchor.', reference_prompt(shot, segment))
+    text = text.replace('Current shot dialogue:', 'Current segment dialogue:')
+    return '\n\n'.join(p for p in [text, segment['prompt'].strip()] if p)
+
+
+def prompt(clip, shot, segment):
+    if segment.get('performance_prompt') is not None:
+        return segment['performance_prompt']
+    # Preserve the exact effective text of legacy takes until explicitly edited.
+    shared = shot.get('prompt', '')
+    old = f'Current shot dialogue: "{shot.get("dialogue", "")}".'
+    shared = shared.replace(old, '').replace('<Picture 2> is the exact first-frame scene and pose anchor.', '').strip()
+    context = reference_prompt(shot, segment)
     words = dialogue(clip, shot, segment)
     return '\n\n'.join(p for p in [shared, context, f'Current segment dialogue: "{words}". Follow source audio timing. Earlier reference dialogue is context only; do not repeat it.', segment['prompt'].strip()] if p)
 
@@ -147,7 +181,7 @@ def states(clip, shot, items=None):
                      and chosen.get('dependencies', []) == deps and not stale_parent)
         result.append({'id': seg['id'], 'current': ready, 'status': 'ready' if ready else 'stale' if chosen else 'empty',
             'blocked': blocked or stale_parent, 'dialogue': dialogue(clip, shot, seg),
-            'prompt': prompt(clip, shot, seg), 'dependencies': deps,
+            'prompt': prompt(clip, shot, seg), 'speaker': speaker(shot, seg), 'dependencies': deps,
             'window_frames': next(v for v in render_models.WINDOW_FRAMES if v >= seg['end']-seg['start']+bool(effective_history(seg)) and v > effective_history(seg))})
     return result
 
@@ -202,7 +236,12 @@ def layout(shot, operation):
             if a == first['start']:
                 seg.update({k:copy.deepcopy(first[k]) for k in ['connection','anchor_mode','anchor','anchors']})
             seg['prompt'] = '\n\n'.join(dict.fromkeys(s['prompt'] for s in overlaps if s['prompt'].strip()))
-            seg['needs_review'] = bool(seg['prompt'])
+            for key in ('performance_prompt', 'dialogue'):
+                values = list(dict.fromkeys(s[key] for s in overlaps if s.get(key) is not None))
+                if values:
+                    seg[key] = '\n\n'.join(values)
+            seg['speaker'] = first.get('speaker')
+            seg['needs_review'] = bool(seg['prompt']) or any(seg[k] is not None for k in PROMPT_FIELDS)
         result.append(seg)
     # A split cannot invent history before the sequence. Keep a supported amount.
     chain = 0
@@ -238,6 +277,21 @@ def edit(clip_id, shot_id, segment_id, revision, changes):
         shot = shot_of(c,shot_id); items = current(shot)
         seg = next((s for s in items if s['id'] == segment_id),None)
         if seg is None: raise ValueError('Segment no longer exists')
+        if {'dialogue', 'speaker'} & changes.keys() and 'performance_prompt' not in changes:
+            # Dialogue edits never silently rewrite a prompt. Update prompt is explicit.
+            seg['performance_prompt'] = prompt(c, shot, seg)
         seg.update(changes); seg['needs_review'] = False
         validate(shot,items); shot['segments'] = items
     return store.clip_mutate(clip_id,change,revision)
+
+
+def update_prompt(clip_id, shot_id, segment_id, revision):
+    from .pipeline import shot_of
+    def change(c):
+        shot = shot_of(c, shot_id); items = current(shot)
+        seg = next((s for s in items if s['id'] == segment_id), None)
+        if seg is None: raise ValueError('Segment no longer exists')
+        seg['performance_prompt'] = build_prompt(c, shot, seg)
+        seg['needs_review'] = False
+        validate(shot, items); shot['segments'] = items
+    return store.clip_mutate(clip_id, change, revision)

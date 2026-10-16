@@ -119,7 +119,7 @@ def collect(job, clip, shot, items,index,directory,output,graph):
         'anchor':segments.anchor(shot,seg),'history_frames':segments.effective_history(seg),
         'window_frames':report['windows'][0]['window_frames'],
         'use_anchor':bool(segments.effective_history(seg) or segments.anchor(shot,seg)),
-        'settings':{k:copy.deepcopy(seg[k]) for k in segments.EDITABLE|{'id','start','end'}},'created':store.now(),
+        'settings':{k:copy.deepcopy(seg.get(k)) for k in segments.EDITABLE|{'id','start','end'}},'created':store.now(),
         'lora':render_models.identify(graph),'reference':clip['reference'],'raw_decoded':True,
         'continuation_format':'ffv1-rgb48','worker':job['data']['worker']}
 

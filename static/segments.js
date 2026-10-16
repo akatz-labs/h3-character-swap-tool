@@ -71,26 +71,39 @@ function renderSegmentStrip(){
 function renderSegmentControls(){
   const e=segmentEditor,s=segmentSelected(),state=segmentStatus();if(!s)return;
   const i=e.plan.segments.indexOf(s),continuing=s.connection==='continue';
+  const active=document.activeElement,focus=e.controlsSegment===s.id&&active?.id&&active.closest('#segment-controls')?{id:active.id,start:active.selectionStart,end:active.selectionEnd}:null;
+  e.controlsSegment=s.id;
   let chainStart=0;for(const previous of e.plan.segments.slice(0,i))if(previous.connection==='start')chainStart=previous.start;
   const choices=e.plan.history_choices.filter(n=>n<=s.start-chainStart);
   const anchorChoice=s.anchor_mode==='custom'?'asset:'+s.anchor:s.anchor_mode;
   $('#segment-controls').innerHTML=`<div class="row spread"><strong>Segment ${i+1}</strong><span class="note">${segmentTime(s.start)}–${segmentTime(s.end)}</span></div>
     <div class="segment-continuity-row"><div class="field"><label for="segment-connection">Connection</label><select id="segment-connection" ${i===0?'disabled':''}><option value="start" ${!continuing?'selected':''}>Start fresh</option><option value="continue" ${continuing?'selected':''}>Continue previous</option></select></div>
     <div class="field" ${continuing?'':'hidden'}><label for="segment-history">History from previous segment</label><select id="segment-history">${[...new Set([...choices,s.history_frames])].sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===s.history_frames?'selected':''} ${n>s.start-chainStart?'disabled':''}>${n===0?'None':n===1?'Boundary frame only':`${n} frames · ${(n/24).toFixed(2)}s`}</option>`).join('')}</select></div>
-    </div><div class="segment-dialogue"><span class="label">Dialogue in this segment</span><p>${esc(state.dialogue||'No transcribed words in this range.')}</p></div>
-    <div class="field"><label for="segment-prompt">Performance directions</label><textarea id="segment-prompt" rows="3" placeholder="Expression, gaze, movement, delivery…">${esc(s.prompt)}</textarea></div>
-    ${s.needs_review?'<p class="note">Directions were carried over from the previous layout. Review them for this range.</p>':''}
+    </div><section class="panel segment-dialogue-panel"><div class="panel-title"><span>Segment dialogue</span><button id="transcribe" class="quiet">${uiIcon('audio')}Transcribe clip</button></div>
+    <div class="panel-body"><p id="transcribe-status" role="status" aria-live="polite" hidden></p><textarea id="segment-dialogue" rows="4" aria-label="Segment dialogue" placeholder="Words spoken during this segment">${esc(state.dialogue)}</textarea>
+    <div class="segment-dialogue-actions"><label class="label" for="segment-speaker">Speaker</label><select id="segment-speaker">${[['target','Selected character'],['other','Another person'],['offscreen','Offscreen voice'],['none','No dialogue']].map(([value,label])=>`<option value="${value}" ${state.speaker===value?'selected':''}>${label}</option>`).join('')}</select><button id="segment-prompt-refresh" class="quiet" title="Rebuild the prompt from this segment's dialogue, speaker and references">${uiIcon('refresh')}Update prompt</button></div></div></section>
+    <section class="panel segment-prompt-panel"><div class="panel-title"><label for="segment-prompt">Performance prompt</label></div><div class="panel-body"><textarea id="segment-prompt" rows="9" placeholder="Exact prompt for this segment">${esc(state.prompt)}</textarea><p class="note">This is the exact text sent to H3. Update prompt rebuilds it from this segment’s dialogue, speaker and references.</p></div></section>
+    ${s.needs_review?'<p class="note">Text was carried over from the previous layout. Review it for this range.</p>':''}
     <div class="field"><label for="segment-anchor">${continuing?'Additional reference':'Scene anchor'}</label><div class="segment-anchor-row"><select id="segment-anchor"><option value="none" ${anchorChoice==='none'?'selected':''}>${continuing?'Use generated continuity':'No anchor'}</option><option value="shot" ${anchorChoice==='shot'?'selected':''} ${shot().anchor?'':'disabled'}>Use shot anchor</option>${s.anchors.map((a,j)=>`<option value="asset:${esc(a.asset)}" ${anchorChoice==='asset:'+a.asset?'selected':''}>Segment reference ${j+1}</option>`).join('')}</select><button id="segment-reference-edit" class="h3-icon-button" title="Manage segment reference" aria-label="Manage segment reference">${uiIcon('image')}</button></div></div>
 
-    <details class="segment-effective"><summary>Full generation prompt</summary><pre>${esc(state.prompt)}</pre><p class="note">${s.end-s.start} output frames · one ${state.window_frames}-frame diffusion pass${state.window_frames>s.end-s.start?'; extra boundary/padding frames are removed':''}.</p></details>`;
-  const advanced=$('.segment-shared-settings');advanced.querySelector('.segment-effective')?.remove();advanced.append($('.segment-effective'));
+    <p class="note segment-pass-summary">${s.end-s.start} output frames · one ${state.window_frames}-frame diffusion pass${state.window_frames>s.end-s.start?'; extra boundary/padding frames are removed':''}.</p>`;
   const oldSeed=$('#render-seed'),seed=oldSeed.cloneNode(true);oldSeed.replaceWith(seed);seed.value=String(s.seed);seed.dataset.remoteValue=String(s.seed);e.editBase=structuredClone(s);
-  e.fields=[['#segment-prompt','prompt'],['#segment-connection','connection'],['#segment-history','history_frames'],['#segment-anchor','anchor_choice'],['#render-seed','seed']].map(([selector,key])=>{const field=$(selector);field.dataset.remoteValue=field.value;return {field,key};});
+  e.fields=[['#segment-dialogue','dialogue'],['#segment-speaker','speaker'],['#segment-prompt','performance_prompt'],['#segment-connection','connection'],['#segment-history','history_frames'],['#segment-anchor','anchor_choice'],['#render-seed','seed']].map(([selector,key])=>{const field=$(selector);field.dataset.remoteValue=field.value;return {field,key};});
   for(const {field} of e.fields)field.addEventListener('input',()=>{
     S.dirty=true;S.renderDraftDirty=true;autosaveStatus('Saving…');clearTimeout(e.timer);
     e.timer=setTimeout(()=>{void flushSegmentEdits().catch(()=>{});},400);
   });
   $('#segment-reference-edit').onclick=guarded(openSegmentReference);
+  $('#transcribe').onclick=guarded(transcribeClip);
+  updateTranscriptionStatus(clip());
+  $('#segment-prompt-refresh').onclick=guarded(async()=>{
+    const key=e.selected;await flushShotAutosave();
+    if(e!==segmentEditor||key!==e.selected)return;
+    const result=await api(segmentPath()+'/'+key+'/prompt','POST',{revision:clip().revision});
+    mergeSegmentClip(result);await loadSegmentPlan(true);toast('Segment prompt updated');
+  });
+  if(focus){const field=$('#'+focus.id);field?.focus({preventScroll:true});if(field&&focus.start!==null)field.setSelectionRange(focus.start,focus.end);}
+
 }
 async function openSegmentReference(){
   await flushShotAutosave();const e=segmentEditor,seg=segmentSelected(),i=e.plan.segments.indexOf(seg),base=segmentPath()+'/'+seg.id;
@@ -133,7 +146,7 @@ async function generateSegments(mode){
 }
 function segmentTakeButton(seg,t,state){
   const selected=t.id===seg.selected_take;
-  const changed=Object.entries(t.settings||{}).some(([k,v])=>['prompt','seed','connection','history_frames','anchor_mode','anchor'].includes(k)&&JSON.stringify(seg[k])!==JSON.stringify(v));
+  const changed=Object.entries(t.settings||{}).some(([k,v])=>['prompt','performance_prompt','dialogue','speaker','seed','connection','history_frames','anchor_mode','anchor'].includes(k)&&JSON.stringify(seg[k])!==JSON.stringify(v));
   const label=!selected?'Use this take':state.current?'Selected':changed?'Restore saved settings':'Selected · needs refresh';
   return `<button data-select-segment-take="${esc(t.id)}" ${selected&&(state.current||!changed)?'disabled':''}>${label}</button>`;
 }
@@ -179,7 +192,8 @@ function updateSegmentHistory(){
 }
 function syncSegmentWorkspace(s){
   if(!segmentActive())return;
-  for(const [selector,value] of [['#render-mp',s.render_mp??1],['#render-lora',s.lora_id||'v1-1000'],['#render-use-mask',s.use_mask??true],['#render-prompt',s.prompt]])syncEditableField(selector,value);
+  for(const [selector,value] of [['#render-mp',s.render_mp??1],['#render-lora',s.lora_id||'v1-1000'],['#render-use-mask',s.use_mask??true]])syncEditableField(selector,value);
+  updateTranscriptionStatus(clip());
   $('.generation-model').textContent=loRALabel(s.lora_id)+' · Turbo 8';syncRenderSize();
   if(!segmentDirty()&&!segmentEditor.pending)void loadSegmentPlan();updateSegmentHistory();
 }
@@ -189,7 +203,7 @@ function drawRender(c,s){
   segmentEditor={clipId:c.id,shotId:s.id,selected:localStorage.getItem(`h3segment:${c.id}:${s.id}`),plan:null,serial:0,fields:[],pending:null,timer:null};
   $('.render-window-controls')?.remove();$('#render-window-summary')?.remove();$('#render-use-anchor').closest('label').remove();
   const advanced=$('.render-generation details');advanced.classList.add('segment-shared-settings');
-  advanced.querySelector('label[for="render-prompt"]').textContent='Shared instructions';
+  advanced.querySelector('label[for="render-prompt"]').remove();$('#render-prompt').remove();
   const offloading=$('#render-model-offloading').closest('label'),offloadingNote=offloading.nextElementSibling;advanced.append(offloading);
   if(offloadingNote?.classList.contains('note'))advanced.append(offloadingNote);
   $('label[for="render-seed"]').textContent='Segment seed';
@@ -200,7 +214,7 @@ function drawRender(c,s){
   $('#render-filter').hidden=true;
   $('#queue-shot').insertAdjacentHTML('afterend',`<button id="segment-generate-more" class="h3-icon-button" title="More generation options" aria-label="More generation options">⌄</button>`);
   $('#render-history-cards').insertAdjacentHTML('afterend','<button id="segment-whole-takes" class="quiet">Whole-shot takes</button>');
-  bindShotAutosave([['#render-prompt','prompt',s.prompt],['#render-mp','render_mp',s.render_mp??1],['#render-lora','lora_id',s.lora_id||'v1-1000'],['#render-use-mask','use_mask',s.use_mask??true]]);
+  bindShotAutosave([['#render-mp','render_mp',s.render_mp??1],['#render-lora','lora_id',s.lora_id||'v1-1000'],['#render-use-mask','use_mask',s.use_mask??true]]);
   $('#render-seed').oninput=null;
   $('#queue-shot').onclick=guarded(()=>generateSegments('segment'));
   $('#segment-generate-more').onclick=()=>{

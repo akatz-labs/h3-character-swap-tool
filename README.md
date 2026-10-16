@@ -11,11 +11,13 @@ Choose 5-, 10- or 15-second segments, split at the playhead, move a boundary,
 or merge adjacent segments. Preview a new layout before applying it; previous
 layouts retain their directions and takes.
 
-Select a segment to edit its performance directions, seed and scene reference.
-Timestamped dialogue follows that segment's source range. Shared instructions
-and the full compiled prompt are available in Advanced settings. Continue a
-previous segment with a chosen amount of generated history, or start fresh at
-a cut. A continuation can also use an additional reference image.
+Select a segment in Render to edit its dialogue, speaker, performance prompt,
+seed and scene reference. Dialogue starts from the transcript for that segment's
+source range. Update prompt rebuilds the performance prompt from the dialogue,
+speaker and references; direct edits are sent to H3 exactly as shown. Each
+segment saves its own text. Anchors contains the character and scene images.
+Continue a previous segment with a chosen amount of generated history, or start
+fresh at a cut. A continuation can also use an additional reference image.
 
 Generate one segment, regenerate from the selected segment to the end, or
 generate the whole shot. Selecting a different preceding take marks dependent

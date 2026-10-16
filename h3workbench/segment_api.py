@@ -51,6 +51,8 @@ def select(clip_id:str,shot_id:str,segment_id:str,body:dict):
         # Choosing an older take also restores its editable local directions.
         # Shared settings and predecessor choices remain explicit user choices.
         seg.update({k:copy.deepcopy(v) for k,v in chosen.get('settings',{}).items() if k in segments.EDITABLE})
+        for key in segments.PROMPT_FIELDS:
+            seg[key] = copy.deepcopy(chosen.get('settings', {}).get(key))
         seg['needs_review']=False
         segments.validate(shot,items)
         seg['selected_take']=chosen['id'];shot['segments']=items
@@ -61,6 +63,11 @@ def select(clip_id:str,shot_id:str,segment_id:str,body:dict):
     if all(v['current'] for v in segments.states(c,s)):
         queued=pipeline.queue('segment_assemble',clip_id,shot_id)
     return {'clip':c,'assembly_job':queued}
+
+
+@router.post('/{segment_id}/prompt')
+def update_prompt(clip_id:str,shot_id:str,segment_id:str,body:dict):
+    return segments.update_prompt(clip_id,shot_id,segment_id,body['revision'])
 
 
 @router.get('/{segment_id}/source-frame')
