@@ -44,6 +44,37 @@ function maskSnapshot() {
     padding: maskEditState.padding,
   };
 }
+function arrangeMaskWorkspace() {
+  const body=$('.mask-editor > .panel-body'),padding=$('.mask-padding-row'),actions=$('#mask-update').parentElement;
+  body.classList.add('mask-control-deck');
+  const adjustments=document.createElement('div');adjustments.className='mask-adjustments';padding.before(adjustments);adjustments.append(padding,actions);
+  $('.mask-advanced').append($('#mask-reload'));
+  const viewport=$('#mask-viewport');
+  viewport.insertAdjacentHTML('afterend','<div id="mask-resize" class="mask-resize" role="separator" tabindex="0" aria-label="Video canvas height" aria-orientation="horizontal" aria-controls="mask-viewport" title="Drag or use arrow keys to resize. Double-click to reset."><span class="mask-resize-grip" aria-hidden="true"></span><span aria-hidden="true">Resize video</span></div>');
+  const handle=$('#mask-resize'),key='h3-mask-canvas-height';let drag=null;
+  const limit=()=>Math.max(360,Math.min(1200,window.innerHeight-140));
+  function resize(height,persist=false){
+    const value=Math.round(Math.max(220,Math.min(limit(),height)));
+    viewport.style.height=value+'px';handle.setAttribute('aria-valuemin','220');handle.setAttribute('aria-valuemax',String(limit()));handle.setAttribute('aria-valuenow',String(value));handle.setAttribute('aria-valuetext',value+' pixels');
+    if(persist)localStorage.setItem(key,String(value));
+    maskDrawPoints();
+  }
+  const saved=Number(localStorage.getItem(key));resize(saved>0?saved:340);
+  handle.onpointerdown=event=>{
+    if(event.button!==0||drag)return;
+    event.preventDefault();handle.focus({preventScroll:true});drag={id:event.pointerId,y:event.clientY,height:viewport.getBoundingClientRect().height};handle.setPointerCapture(event.pointerId);
+  };
+  handle.onpointermove=event=>{if(drag?.id===event.pointerId)resize(drag.height+event.clientY-drag.y);};
+  handle.onpointerup=event=>{if(drag?.id!==event.pointerId)return;resize(viewport.getBoundingClientRect().height,true);drag=null;handle.releasePointerCapture(event.pointerId);};
+  handle.onpointercancel=event=>{if(drag?.id===event.pointerId){resize(drag.height);drag=null;}};
+  handle.onlostpointercapture=()=>{drag=null;};
+  handle.onkeydown=event=>{
+    const steps={ArrowUp:-24,ArrowDown:24,ArrowLeft:-24,ArrowRight:24};
+    if(!(event.key in steps)&&!['Home','End'].includes(event.key))return;
+    event.preventDefault();resize(event.key==='Home'?220:event.key==='End'?limit():viewport.getBoundingClientRect().height+steps[event.key]*(event.shiftKey?3:1),true);
+  };
+  handle.ondblclick=()=>{resize(340);localStorage.removeItem(key);};
+}
 function maskKeepDraft() {
   const e = maskEditState;
   e.dirty =

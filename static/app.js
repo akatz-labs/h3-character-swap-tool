@@ -896,6 +896,7 @@ function drawLegacyRender(c, s) {
   const tools=$(".mask-tools");if(tools)$(".mask-editor").prepend(tools);
   const paddingRow=$('#mask-padding-number')?.parentElement;
   if(paddingRow){paddingRow.classList.add('mask-padding-row');paddingRow.insertBefore($('#mask-padding'),$('#mask-padding-number'));}
+  arrangeMaskWorkspace();
   const generation=$('.render-generation'), advancedSettings=generation.querySelector('details');
   if(advancedSettings){
     advancedSettings.querySelector('summary').innerHTML='Advanced settings <span id="render-window-summary" class="note"></span>';

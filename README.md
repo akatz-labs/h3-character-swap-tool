@@ -18,6 +18,10 @@ speaker and references; direct edits are sent to H3 exactly as shown. Each
 segment saves its own text. The dialogue and prompt editors sit below the player;
 generation settings stay in the right column. Anchors contains the character and
 scene images.
+Drag the Resize video bar beneath the canvas to give playback more room. Its
+height is remembered in this browser; arrow keys also resize it, and double-click
+resets it. Playback and mask controls stay grouped on wide screens, with stable
+space for expansion save messages.
 Continue a previous segment with a chosen amount of generated history, or start
 fresh at a cut. A continuation can also use an additional reference image.
 
