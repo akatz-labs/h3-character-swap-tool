@@ -71,7 +71,7 @@ function renderSegmentStrip(){
 function renderSegmentControls(){
   const e=segmentEditor,s=segmentSelected(),state=segmentStatus();if(!s)return;
   const i=e.plan.segments.indexOf(s),continuing=s.connection==='continue';
-  const active=document.activeElement,focus=e.controlsSegment===s.id&&active?.id&&active.closest('#segment-controls')?{id:active.id,start:active.selectionStart,end:active.selectionEnd}:null;
+  const active=document.activeElement,focus=e.controlsSegment===s.id&&active?.id&&active.closest('#segment-controls, #segment-text-editors')?{id:active.id,start:active.selectionStart,end:active.selectionEnd}:null;
   e.controlsSegment=s.id;
   let chainStart=0;for(const previous of e.plan.segments.slice(0,i))if(previous.connection==='start')chainStart=previous.start;
   const choices=e.plan.history_choices.filter(n=>n<=s.start-chainStart);
@@ -87,6 +87,8 @@ function renderSegmentControls(){
     <div class="field"><label for="segment-anchor">${continuing?'Additional reference':'Scene anchor'}</label><div class="segment-anchor-row"><select id="segment-anchor"><option value="none" ${anchorChoice==='none'?'selected':''}>${continuing?'Use generated continuity':'No anchor'}</option><option value="shot" ${anchorChoice==='shot'?'selected':''} ${shot().anchor?'':'disabled'}>Use shot anchor</option>${s.anchors.map((a,j)=>`<option value="asset:${esc(a.asset)}" ${anchorChoice==='asset:'+a.asset?'selected':''}>Segment reference ${j+1}</option>`).join('')}</select><button id="segment-reference-edit" class="h3-icon-button" title="Manage segment reference" aria-label="Manage segment reference">${uiIcon('image')}</button></div></div>
 
     <p class="note segment-pass-summary">${s.end-s.start} output frames · one ${state.window_frames}-frame diffusion pass${state.window_frames>s.end-s.start?'; extra boundary/padding frames are removed':''}.</p>`;
+  $('#segment-editor-heading').textContent=`Segment ${i+1} · ${segmentTime(s.start)}–${segmentTime(s.end)}`;
+  $('#segment-editor-panels').replaceChildren($('#segment-controls .segment-dialogue-panel'),$('#segment-controls .segment-prompt-panel'));
   const oldSeed=$('#render-seed'),seed=oldSeed.cloneNode(true);oldSeed.replaceWith(seed);seed.value=String(s.seed);seed.dataset.remoteValue=String(s.seed);e.editBase=structuredClone(s);
   e.fields=[['#segment-dialogue','dialogue'],['#segment-speaker','speaker'],['#segment-prompt','performance_prompt'],['#segment-connection','connection'],['#segment-history','history_frames'],['#segment-anchor','anchor_choice'],['#render-seed','seed']].map(([selector,key])=>{const field=$(selector);field.dataset.remoteValue=field.value;return {field,key};});
   for(const {field} of e.fields)field.addEventListener('input',()=>{
@@ -200,6 +202,8 @@ function syncSegmentWorkspace(s){
 function drawRender(c,s){
   clearTimeout(segmentEditor?.timer);segmentEditor=null;
   drawLegacyRender(c,s);
+  const player=$('.render-controls'),main=document.createElement('div');main.className='render-main';player.before(main);main.append(player);
+  main.insertAdjacentHTML('beforeend','<section id="segment-text-editors" class="segment-text-editors" aria-labelledby="segment-editor-heading"><h2 id="segment-editor-heading">Segment text</h2><div id="segment-editor-panels" class="segment-editor-panels"></div></section>');
   segmentEditor={clipId:c.id,shotId:s.id,selected:localStorage.getItem(`h3segment:${c.id}:${s.id}`),plan:null,serial:0,fields:[],pending:null,timer:null};
   $('.render-window-controls')?.remove();$('#render-window-summary')?.remove();$('#render-use-anchor').closest('label').remove();
   const advanced=$('.render-generation details');advanced.classList.add('segment-shared-settings');

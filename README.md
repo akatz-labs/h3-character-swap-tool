@@ -15,7 +15,9 @@ Select a segment in Render to edit its dialogue, speaker, performance prompt,
 seed and scene reference. Dialogue starts from the transcript for that segment's
 source range. Update prompt rebuilds the performance prompt from the dialogue,
 speaker and references; direct edits are sent to H3 exactly as shown. Each
-segment saves its own text. Anchors contains the character and scene images.
+segment saves its own text. The dialogue and prompt editors sit below the player;
+generation settings stay in the right column. Anchors contains the character and
+scene images.
 Continue a previous segment with a chosen amount of generated history, or start
 fresh at a cut. A continuation can also use an additional reference image.
 
