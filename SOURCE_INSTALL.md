@@ -29,8 +29,8 @@ Use a drive with adequate free space; setup does not download models automatical
 Clone the repository, then build from its root:
 
 ```sh
-git clone https://github.com/akatz-labs/h3-character-swap.git
-cd h3-character-swap
+git clone https://github.com/akatz-labs/h3-character-swap-tool.git
+cd h3-character-swap-tool
 uv run --no-project --python 3.12 python scripts/verify_vendor.py
 npm ci
 uv sync --locked --python 3.12
