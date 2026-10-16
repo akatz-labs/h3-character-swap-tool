@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "appId": "h3-workbench",
   "title": "H3 Character Swap",
-  "description": "Shared models for SAM masking and H3 character swaps. V1.5 is the default for new shots; existing model files are reused.",
+  "description": "Models for SAM masking and MiniMax H3 character swaps. Setup downloads both character-swap LoRAs; V1.5 is the default for new shots. Existing verified files are reused.",
   "models": [
     {
       "id": "model-0",
@@ -41,7 +41,7 @@
     },
     {
       "id": "model-4",
-      "name": "h3_character_swap_pro4500_1000.safetensors",
+      "name": "Character Swap LoRA V1",
       "relativePath": "loras/h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
       "sizeBytes": 155110320,
       "sha256": "4b2a3f420ae804c0aa3422761ff84dbd1bf52eef6900ffab6d2e66df63cb4e79",
@@ -128,17 +128,19 @@
     },
     {
       "id": "model-v1-5",
-      "name": "CharacterSwap Pro V1.5",
+      "name": "Character Swap LoRA V1.5",
       "relativePath": "loras/h3-v2-challenge-eval-20261013/v2-1000.safetensors",
       "sizeBytes": 155110792,
       "sha256": "8f2c3c3eba161df8d0c6099598b4730f641f5ce01e04cd16d2427cff8a35218f",
       "shortHash": "99e924951391e9a6",
-      "requirement": "optional",
-      "acquisition": "manual",
-      "sourceNote": "Import the verified V1.5 checkpoint into this shared model path. Public model publication is pending; no replacement weights are downloaded automatically.",
+      "requirement": "required",
+      "acquisition": "download",
+      "sourceNote": "MiniMax H3 character-swap LoRA. Published checkpoint pinned by revision, size and SHA-256; uses the MiniMax H3 community license.",
       "stages": [
         "h3-render-v2-1000"
-      ]
+      ],
+      "revision": "0f409f0c2a18f123f3985041ec52982c813f5a9c",
+      "url": "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/0f409f0c2a18f123f3985041ec52982c813f5a9c/h3_character_swap_v1.5.safetensors"
     }
   ],
   "features": [
@@ -180,7 +182,7 @@
     },
     {
       "id": "h3-render-v1",
-      "label": "H3 render \u00b7 character swap V1",
+      "label": "MiniMax H3 \u00b7 Character Swap LoRA V1",
       "optional": false,
       "models": [
         "model-10",
@@ -193,8 +195,8 @@
     },
     {
       "id": "h3-render-v2-1000",
-      "label": "H3 render \u00b7 CharacterSwap Pro V1.5",
-      "optional": true,
+      "label": "MiniMax H3 \u00b7 Character Swap LoRA V1.5",
+      "optional": false,
       "models": [
         "model-3",
         "model-8",

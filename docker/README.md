@@ -11,7 +11,7 @@ chat to make one. Prompts and generation settings save automatically.
 - An NVIDIA GPU supported by the bundled runtime. The tested machine is an
   RTX 4090 (24 GB VRAM), 128 GB RAM, NVIDIA driver 610.43.02. Other GPUs/RAM
   configurations need validation; WSL2 has not been qualified yet.
-- About 43.2 GiB for the seven models, plus the images, video files and scratch
+- About 43.3 GiB for the eight models, plus the images, video files and scratch
   space. Existing matching ComfyUI model files can be reused.
 
 You do not need Python, Node, ComfyUI, Codex or an OpenAI API key on the host.
@@ -82,7 +82,7 @@ they are never silently overwritten.
    runtime is already installed; the GPU process starts when a job needs it.
    If a download stops, choose Install required again. Completed files are
    verified and reused; the interrupted file starts again.
-2. Once all seven models are ready, choose **Continue to Projects** and create
+2. Once all required models are ready, choose **Continue to Projects** and create
    a project. Import a short clip with audio and confirm its shots.
 3. Upload a character reference. Optionally upload a shot anchor made in your
    own image chat; **Get anchor prompt** provides the prompt and input downloads.
@@ -93,8 +93,8 @@ they are never silently overwritten.
 6. Play and download the output. Character consistency is experimental: the
    same inputs can succeed with one seed and drift with another.
 
-All seven GPU models are required: SAM 3.1, MiniMax H3, Qwen encoder, audio/video
-VAEs, FL2V Turbo8 and the V1 Character Swap Pro LoRA. LTX, DWPose, person-removal
+All eight GPU model files are required: SAM 3.1, MiniMax H3, Qwen encoder,
+audio/video VAEs, FL2V Turbo8, and Character Swap LoRA V1 and V1.5. LTX, DWPose, person-removal
 and V2 models are outside this MVP. See `MODEL_TERMS.md` for their upstream terms.
 
 ## Keep your work
@@ -117,7 +117,7 @@ builds are follow-up steps; a local source commit is not a published release.
 
 New builds use `python runtime/build_recipe.py DESTINATION`. It copies the tracked
 ComfyUI dependency lock and the single `h3_character_swap` node package, and derives
-model identities from the seven-file resource catalog. `prepare_context.py` rejects
+model identities from the resource catalog. `prepare_context.py` rejects
 broad legacy captures and uses `runtime/allowed_nodes.json` for the reviewed graph
 surface. The app payload carries only `templates/render.json`; experimental alpha
 workflows and face overlays are not included.

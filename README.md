@@ -32,11 +32,14 @@ assembles the shot with the original source audio. Lossless continuation masters
 preserve history across application and worker restarts. Existing whole-shot
 takes remain available.
 
-New shots default to CharacterSwap Pro V1.5, the checkpoint previously labeled
-V2-1000. Existing shots keep their saved model. V1.5's exact identity is in the
-[resource catalog](docker/resource-catalog.json); its weights currently require
-manual installation. This source change does not publish new model weights or
-Docker images. V1 remains selectable in Advanced settings.
+New shots default to Character Swap LoRA V1.5 on MiniMax H3. V1 and V1.5 are
+LoRA adapters, not separate base models. Setup offers both as required downloads
+from [Hugging Face](https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA),
+with pinned revisions, sizes and SHA-256 hashes in the
+[resource catalog](docker/resource-catalog.json). Existing verified files are
+reused, and existing shots keep their saved LoRA selection. V1 remains selectable
+in Advanced settings. Internal checkpoint IDs and paths remain compatible with
+previous installations.
 
 ## ComfyUI workflow
 
@@ -65,10 +68,11 @@ bundle; local development tags are not a public installation target.
 - [Docker architecture](docker/README.md)
 - [Validation and known limitations](docker/VALIDATION.md)
 - [Release plan](docker/ROLLOUT.md)
-- [Required model sources and checksums](docker/models-v1.json)
+- [Required model sources and checksums](docker/resource-catalog.json)
 
-The initial model profile is SAM masking plus V1 character swap with FL2V
-Turbo8: seven required model files. See the pinned catalog for exact sizes.
+The current resource catalog includes SAM masking, MiniMax H3 with FL2V Turbo8,
+and both character-swap LoRAs: eight required model files. See the pinned catalog
+for exact sizes. The original V1-only profile remains in `docker/models-v1.json`.
 The tested host is an RTX 4090 with driver 610.43.02 and 128 GB RAM. WSL2 is a
 separate qualification target. A CUDA tensor probe alone does not establish
 that the frozen native kernels work with another driver.

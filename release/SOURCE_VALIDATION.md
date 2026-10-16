@@ -1,12 +1,21 @@
 # Source release qualification — 2026-10-15
 
-## Segments and CharacterSwap Pro V1.5 — 2026-10-15
+## LoRA naming and acquisition — 2026-10-16
+
+The interface identifies the adapters as Character Swap LoRA V1 and V1.5 on
+MiniMax H3. Both are required downloadable resources; V1.5 now points to the
+published Hugging Face checkpoint at a pinned revision with size and SHA-256
+verification. V1.5 remains the default for new shots. Existing model IDs, paths
+and saved selections are retained. The manual-install limitation recorded in
+the earlier qualification below is superseded by this catalog update.
+
+## Segments and Character Swap LoRA V1.5 — 2026-10-15
 
 Shots now contain editable segments, each corresponding to one diffusion pass.
 Each segment saves its directions, timestamp-derived dialogue, seed, connection,
 optional reference and takes. Continuations use selected predecessor masters;
 fresh starts end the dependency chain. Layout changes retain previous layouts
-and their takes. CharacterSwap Pro V1.5 names the existing V2-1000 checkpoint and
+and their takes. Character Swap LoRA V1.5 names the existing V2-1000 checkpoint and
 is the default for new shots; existing shot model selections are preserved.
 
 Validation for this update includes:

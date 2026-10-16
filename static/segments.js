@@ -196,7 +196,7 @@ function syncSegmentWorkspace(s){
   if(!segmentActive())return;
   for(const [selector,value] of [['#render-mp',s.render_mp??1],['#render-lora',s.lora_id||'v1-1000'],['#render-use-mask',s.use_mask??true]])syncEditableField(selector,value);
   updateTranscriptionStatus(clip());
-  $('.generation-model').textContent=loRALabel(s.lora_id)+' · Turbo 8';syncRenderSize();
+  $('.generation-model').textContent='MiniMax H3 · '+loRALabel(s.lora_id)+' · Turbo 8';syncRenderSize();
   if(!segmentDirty()&&!segmentEditor.pending)void loadSegmentPlan();updateSegmentHistory();
 }
 function drawRender(c,s){
@@ -211,8 +211,8 @@ function drawRender(c,s){
   const offloading=$('#render-model-offloading').closest('label'),offloadingNote=offloading.nextElementSibling;advanced.append(offloading);
   if(offloadingNote?.classList.contains('note'))advanced.append(offloadingNote);
   $('label[for="render-seed"]').textContent='Segment seed';
-  const oldLora=$('#render-lora');oldLora.outerHTML=`<select id="render-lora" aria-label="Character swap model">${[['v2-1000','CharacterSwap Pro V1.5'],['v1-1000','CharacterSwap Pro V1'],['none','No character-swap LoRA']].map(([id,label])=>`<option value="${id}" ${(s.lora_id||'v1-1000')===id?'selected':''}>${label}</option>`).join('')}</select>`;
-  const lora=$('#render-lora');advanced.prepend(lora);lora.insertAdjacentHTML('beforebegin','<label class="label" for="render-lora">Model</label>');
+  const oldLora=$('#render-lora');oldLora.outerHTML=`<select id="render-lora" aria-label="Character-swap LoRA">${[['v2-1000','Character Swap LoRA V1.5'],['v1-1000','Character Swap LoRA V1'],['none','No character-swap LoRA']].map(([id,label])=>`<option value="${id}" ${(s.lora_id||'v1-1000')===id?'selected':''}>${label}</option>`).join('')}</select>`;
+  const lora=$('#render-lora');advanced.prepend(lora);lora.insertAdjacentHTML('beforebegin','<label class="label" for="render-lora">Character-swap LoRA</label>');
   advanced.insertAdjacentHTML('beforebegin','<div id="segment-controls" class="segment-controls"><p class="note">Loading segments…</p></div>');
   $('#mask-resize').insertAdjacentHTML('afterend',`<div class="segment-timeline"><div class="row spread"><strong id="segment-count">Segments</strong><details class="segment-arrange"><summary>Arrange segments</summary><div class="segment-arrange-menu"><span class="note">Split into</span>${[5,10,15].map(n=>`<button data-segment-partition="${n*24}">${n}-second segments</button>`).join('')}<button id="segment-split">Split at playhead</button><button id="segment-boundary">Move selected boundary…</button><button id="segment-merge">Merge with next</button><button id="segment-previous">Previous layouts</button></div></details></div><div id="segment-strip" class="segment-strip" role="group" aria-label="Generation segments"></div></div>`);
   $('#render-filter').hidden=true;

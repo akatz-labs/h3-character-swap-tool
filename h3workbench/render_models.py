@@ -27,13 +27,13 @@ LORAS = {
     "none": {"id": "none", "label": "No character-swap LoRA", "filename": None, "sha256": None},
     "v1-1000": {
         "id": "v1-1000",
-        "label": "V1 · step 1000",
+        "label": "Character Swap LoRA V1",
         "filename": "h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
         "sha256": "4b2a3f420ae804c0aa3422761ff84dbd1bf52eef6900ffab6d2e66df63cb4e79",
     },
     "v2-1000": {
         "id": "v2-1000",
-        "label": "CharacterSwap Pro V1.5",
+        "label": "Character Swap LoRA V1.5",
         "filename": "h3-v2-challenge-eval-20261013/v2-1000.safetensors",
         "sha256": "8f2c3c3eba161df8d0c6099598b4730f641f5ce01e04cd16d2427cff8a35218f",
     },
