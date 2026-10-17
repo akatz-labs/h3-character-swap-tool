@@ -73,3 +73,12 @@ These fixtures qualify the migration, not universal visual quality. V1 retains
 a known return-to-source-identity failure; V1.5 is the recommended new-shot
 default. Existing saved choices remain intact. Other GPUs, WSL2, new Docker
 images and public registry installation were not qualified in this run.
+
+## Final release packaging
+
+The tool now pins Relay `8c313cc6bd23298be3b475d95a3af4cde6e7f10b` (archive SHA-256
+`e61e0a8a582ae4fe9c4bd9c96e406838f84a55b455ea46977bc70f99a9ba7d38`). All runtime Python and JavaScript files are
+byte-identical to the GPU-qualified `fd9502a516d8fd7521e991b8dfe2a590bb7f0fa6` revision;
+subsequent changes add workflow organization, validation notes, CI pins and
+the 2.0.0 migration changelog. The bundled character-swap canvas matches the
+canonical Relay canvas exactly.

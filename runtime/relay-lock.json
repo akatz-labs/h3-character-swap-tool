@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "https://github.com/akatz-ai/h3-relay",
-  "commit": "fd9502a516d8fd7521e991b8dfe2a590bb7f0fa6",
-  "archive": "vendor/h3-relay-fd9502a516d8.tar.gz",
-  "sha256": "22a9e2e236db02e9cb1a1c2d0d64fe474b321a20896ad6bddbd6b5c7d5535439"
+  "commit": "8c313cc6bd23298be3b475d95a3af4cde6e7f10b",
+  "archive": "vendor/h3-relay-8c313cc6bd23.tar.gz",
+  "sha256": "e61e0a8a582ae4fe9c4bd9c96e406838f84a55b455ea46977bc70f99a9ba7d38"
 }
