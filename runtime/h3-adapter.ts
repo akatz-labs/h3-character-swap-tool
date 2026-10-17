@@ -50,11 +50,11 @@ const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done
 const terminal = (message: string, cancelled = false): Error => Object.assign(new Error(message), {terminal: true, cancelled});
 const operations: H3Operation[] = ['sam-frame','sam-track','sam-recover','h3-render','h3-render-segments-v1'];
 const roots: Record<H3Operation, string[]> = {
-  'sam-frame': ['H3CharacterSwapRefineMask','H3CharacterSwapSaveMask'],
-  'sam-track': ['SAM3_VideoTrack','H3CharacterSwapSaveMask'],
-  'sam-recover': ['H3CharacterSwapSaveMask'],
-  'h3-render': ['H3CharacterSwapAssemble','H3CharacterSwapWindowPlan'],
-  'h3-render-segments-v1': ['H3CharacterSwapAssemble','H3CharacterSwapWindowPlan'],
+  'sam-frame': ['H3RelayRefineMask','H3RelaySaveMask'],
+  'sam-track': ['SAM3_VideoTrack','H3RelaySaveMask'],
+  'sam-recover': ['H3RelaySaveMask'],
+  'h3-render': ['H3RelayFinishWindows','H3RelayWindowPlan'],
+  'h3-render-segments-v1': ['H3RelayFinishWindows','H3RelayWindowPlan'],
 };
 function absolute(value: unknown, label: string): string {
   const path = text(value, label);
@@ -143,8 +143,10 @@ export function validateGraph(value: unknown, input: H3Input, allowedNodes: stri
     classes.push(type);
   }
   for (const required of roots[input.operation]) if (!classes.includes(required)) throw new Error('Graph differs from the named operation contract: ' + required);
-  if (input.operation.startsWith('h3-render') && !classes.includes('H3CharacterSwapController')) throw new Error('H3 operation has no declared generation controller');
-  if(input.operation === 'h3-render-segments-v1' && !Object.values(graph).some(n => record(n).class_type === 'H3CharacterSwapShot' && record(record(n).inputs).segment_mode === true)) throw new Error('Segment operation requires an explicit single-pass shot');
+  if (input.operation.startsWith('h3-render')) for (const required of ['StartLoop','EndLoop','SamplerCustomAdvanced','SaveVideo']) {
+    if (!classes.includes(required)) throw new Error('H3 operation is missing its native generation graph: ' + required);
+  }
+  if(input.operation === 'h3-render-segments-v1' && !Object.values(graph).some(n => record(n).class_type === 'H3RelayWindowPlan' && record(record(n).inputs).schedule === 'segment')) throw new Error('Segment operation requires an explicit single-pass shot');
   return graph;
 }
 /** Give each accepted SDK stage its own input names, including multi-stage jobs.

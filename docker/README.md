@@ -116,7 +116,8 @@ builds are follow-up steps; a local source commit is not a published release.
 ## Focused workflow recipe
 
 New builds use `python runtime/build_recipe.py DESTINATION`. It copies the tracked
-ComfyUI dependency lock and the single `h3_character_swap` node package, and derives
+ComfyUI dependency lock, the pinned canonical `h3_relay` source archive and the
+small `h3_workbench_runtime` session integration package, and derives
 model identities from the resource catalog. `prepare_context.py` rejects
 broad legacy captures and uses `runtime/allowed_nodes.json` for the reviewed graph
 surface. The app payload carries only `templates/render.json`; experimental alpha

@@ -4,6 +4,8 @@ A local video workbench for preparing performances, correcting masks and
 rendering character swaps. Build and run the browser UI and GPU worker directly from source on a Linux
 x86-64 NVIDIA machine. Docker images are the prebuilt alternative.
 
+https://github.com/user-attachments/assets/e9ed875e-bfe9-42b9-8667-c895ae79f9bc
+
 ## Shots and generation segments
 
 Each shot contains editable segments, with one diffusion pass per segment.
@@ -50,7 +52,7 @@ previous installations.
 
 ## ComfyUI workflow
 
-The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the V1 character LoRA. It uses one focused node package and the app’s generation core.
+The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the V1 character LoRA. It uses native ComfyUI nodes and the same pinned H3 Relay toolkit as the app.
 
 ## Run from source
 
@@ -90,8 +92,8 @@ validation record before treating the example as a dependable quality demo.
 
 ## License
 
-The app and Akatz App Kit use the [MIT license](LICENSE). The focused
-ComfyUI node package under `worker_nodes/h3_character_swap` uses GPL-3.0;
+The app and Akatz App Kit use the [MIT license](LICENSE). The pinned H3 Relay
+source archive in `vendor/` uses GPL-3.0;
 its NVIDIA kernel derivative retains Apache-2.0 notices.
 Third-party components and models retain their own terms. The release bundle
 must include its exact notices and corresponding source/build information.

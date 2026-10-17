@@ -215,7 +215,7 @@ def graph(c, s, job, directory):
     g = {
         "30": node("LoadVideo", file=f"{jid}-source.mkv"),
         "31": node(
-            "H3CharacterSwapPrepareVideo",
+            "H3RelayPrepareSource",
             resolution="768",
             duration_seconds=0,
             video=["30", 0],
@@ -241,7 +241,7 @@ def graph(c, s, job, directory):
         # Do not add text conditioning: the node unions text detections with point masks,
         # which would undo exclusion clicks.
         g[detect_id] = node(
-            "H3CharacterSwapRefineMask",
+            "H3RelayRefineMask",
             model=["33", 0],
             image=[image_id, 0],
             prior_file=f"{jid}-prior.npz" if s.get("mask") else "",
@@ -251,7 +251,7 @@ def graph(c, s, job, directory):
         prefix = f"{jid}-edit-{f:04}"
         if options["mode"] == "frame":
             g[str(102 + i * 10)] = node(
-                "H3CharacterSwapSaveMask", masks=[detect_id, 0], filename_prefix=prefix, frames=1
+                "H3RelaySaveMask", masks=[detect_id, 0], filename_prefix=prefix, frames=1
             )
             segments.append({"file": prefix + ".npz", "start": f, "end": f + 1})
             continue
@@ -273,7 +273,7 @@ def graph(c, s, job, directory):
             "SAM3_TrackToMask", track_data=[track_id, 0], object_indices=""
         )
         g[save_id] = node(
-            "H3CharacterSwapSaveMask", masks=[mask_id, 0], filename_prefix=prefix, frames=end - f
+            "H3RelaySaveMask", masks=[mask_id, 0], filename_prefix=prefix, frames=end - f
         )
         segments.append({"file": prefix + ".npz", "start": f, "end": end})
         if i == 0 and f:
@@ -293,7 +293,7 @@ def graph(c, s, job, directory):
             files[f"{jid}-head.mkv"] = reverse
             g["40"] = node("LoadVideo", file=f"{jid}-head.mkv")
             g["41"] = node(
-                "H3CharacterSwapPrepareVideo",
+                "H3RelayPrepareSource",
                 resolution="768",
                 duration_seconds=0,
                 video=["40", 0],
@@ -309,7 +309,7 @@ def graph(c, s, job, directory):
             )
             g["44"] = node("SAM3_TrackToMask", track_data=["42", 0], object_indices="")
             g["45"] = node(
-                "H3CharacterSwapSaveMask",
+                "H3RelaySaveMask",
                 masks=["44", 0],
                 filename_prefix=f"{jid}-edit-head",
                 frames=f + 1,

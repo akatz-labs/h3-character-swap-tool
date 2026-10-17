@@ -95,6 +95,15 @@ def main():
         cwd=output/'payload',check=True)
     for name in ['Dockerfile.app','Dockerfile.worker','compose.yaml','compose.cdi.yaml','compose.models.yaml']:
         shutil.copy2(ROOT/'docker'/name,output/name)
+    # Add the same verified pure planner/recipe archive used by the source app.
+    import sys
+    sys.path.insert(0, str(ROOT))
+    from runtime.relay_dependency import source
+    relay, _ = source()
+    for name in ['runtime/relay_dependency.py', 'runtime/relay-lock.json', relay['archive']]:
+        target = output / 'app-relay-dependency' / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / name, target)
     worker=output/'worker';worker.mkdir();(worker/'scripts').mkdir()
     for name in ['install_recipe.py','configure_installation.py']:shutil.copy2(ROOT/'runtime'/name,worker/'scripts'/name)
     for name in ['build_worker.py','native_preflight.py']:
@@ -105,8 +114,8 @@ def main():
     for package in ['@akatz/app-config','zod']:tree(args.payload/'node_modules'/package,worker/'node_modules'/package)
     (worker/'package.json').write_text(json.dumps({'name':'@akatz/h3-container-worker','version':'0.1.0-docker.1','private':True,'type':'module'}))
     receipt=json.loads((args.recipe/'capture-receipt.json').read_text());recipe=worker/'recipe';recipe.mkdir()
-    assert receipt.get('profile') == 'h3-character-swap-v1', 'Build a focused release recipe with runtime/build_recipe.py'
-    assert {Path(p).parts[1] for p in receipt['files']} == {'h3_character_swap'}, 'Unexpected custom node package'
+    assert receipt.get('profile') == 'h3-relay-toolkit-v2', 'Build a focused release recipe with runtime/build_recipe.py'
+    assert {Path(p).parts[1] for p in receipt['files']} == {'h3_relay', 'h3_workbench_runtime'}, 'Unexpected custom node package'
     for name in ['capture-receipt.json','model-identities.json']:shutil.copy2(args.recipe/name,recipe/name)
     for name,identity in receipt['files'].items():
         source=(args.recipe/name).resolve();assert source.is_relative_to(args.recipe.resolve()) and source.is_file()

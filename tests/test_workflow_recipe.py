@@ -15,8 +15,8 @@ def test_focused_recipe_has_exact_node_and_model_inventory(tmp_path):
     target = tmp_path / 'recipe'
     recipe.build(target)
     receipt = json.loads((target / 'capture-receipt.json').read_text())
-    assert receipt['profile'] == 'h3-character-swap-v1'
-    assert {Path(p).parts[1] for p in receipt['files']} == {'h3_character_swap'}
+    assert receipt['profile'] == 'h3-relay-toolkit-v2'
+    assert {Path(p).parts[1] for p in receipt['files']} == {'h3_relay','h3_workbench_runtime'}
     assert not any('__pycache__' in p or p.endswith('.pyc') for p in receipt['files'])
     for name, expected in receipt['files'].items():
         data = (target / name).read_bytes()
@@ -36,5 +36,5 @@ def test_focused_recipe_has_exact_node_and_model_inventory(tmp_path):
 def test_focused_graph_cannot_fall_back_to_an_old_lab_worker(tmp_path, monkeypatch):
     from h3workbench import remote
     monkeypatch.setattr(remote, 'ssh', lambda *a, **k: pytest.fail('Must not touch an old worker'))
-    with pytest.raises(RuntimeError, match='matching focused worker recipe'):
-        remote.execute({'data': {}}, {'1': {'class_type': 'H3CharacterSwapShot', 'inputs': {}}}, {}, tmp_path)
+    with pytest.raises(RuntimeError, match='matching Relay worker recipe'):
+        remote.execute({'data': {}}, {'1': {'class_type': 'H3RelayWindowPlan', 'inputs': {}}}, {}, tmp_path)

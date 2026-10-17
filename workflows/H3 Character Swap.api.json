@@ -1,484 +1,750 @@
 {
-  "1": {
+  "model": {
+    "class_type": "UNETLoader",
     "inputs": {
       "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
       "weight_dtype": "default"
     },
-    "class_type": "UNETLoader",
     "_meta": {
-      "title": "H3 Ref2VA · INT8"
+      "title": "UNETLoader"
     }
   },
-  "2": {
-    "inputs": {
-      "shift_video": 12,
-      "shift_audio": 3,
-      "model": [
-        "1",
-        0
-      ]
-    },
+  "shift": {
     "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "model",
+        0
+      ],
+      "shift_video": 12.0,
+      "shift_audio": 3.0
+    },
     "_meta": {
-      "title": "H3 sampling shift"
+      "title": "MiniMaxH3SigmaShift"
     }
   },
-  "3": {
-    "inputs": {
-      "attention": "comfy kitchen attention",
-      "model": [
-        "2",
-        0
-      ]
-    },
+  "attention": {
     "class_type": "ModelAttentionBackend",
-    "_meta": {
-      "title": "Optimized attention"
-    }
-  },
-  "4": {
     "inputs": {
-      "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
-      "strength_model": 1,
       "model": [
-        "3",
+        "shift",
         0
-      ]
+      ],
+      "attention": "comfy kitchen attention"
     },
-    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "FL2V Turbo · 8-step LoRA"
+      "title": "ModelAttentionBackend"
     }
   },
-  "6": {
+  "text": {
+    "class_type": "CLIPLoader",
     "inputs": {
       "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
       "type": "minimax",
       "device": "default"
     },
-    "class_type": "CLIPLoader",
     "_meta": {
-      "title": "Qwen · H3 text encoder"
+      "title": "CLIPLoader"
     }
   },
-  "7": {
+  "text_device": {
+    "class_type": "SelectCLIPDevice",
+    "inputs": {
+      "clip": [
+        "text",
+        0
+      ],
+      "device": "gpu:0"
+    },
+    "_meta": {
+      "title": "SelectCLIPDevice"
+    }
+  },
+  "video_vae": {
+    "class_type": "VAELoader",
     "inputs": {
       "vae_name": "minimax_h3_video_vae_fp16.safetensors"
     },
-    "class_type": "VAELoader",
     "_meta": {
-      "title": "H3 video VAE"
+      "title": "VAELoader"
     }
   },
-  "8": {
+  "audio_vae": {
+    "class_type": "VAELoader",
     "inputs": {
       "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
     },
-    "class_type": "VAELoader",
     "_meta": {
-      "title": "H3 audio VAE"
+      "title": "VAELoader"
     }
   },
-  "9": {
+  "turbo": {
+    "class_type": "LoraLoaderModelOnly",
     "inputs": {
-      "image": "reference.png"
+      "model": [
+        "attention",
+        0
+      ],
+      "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
+      "strength_model": 1.0
     },
-    "class_type": "LoadImage",
     "_meta": {
-      "title": "2 · Character reference"
+      "title": "LoraLoaderModelOnly"
     }
   },
-  "30": {
+  "adapter": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "turbo",
+        0
+      ],
+      "lora_name": "h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
+      "strength_model": 1.0
+    },
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "source": {
+    "class_type": "LoadVideo",
     "inputs": {
       "file": "source.mp4"
     },
-    "class_type": "LoadVideo",
     "_meta": {
-      "title": "1 · Source performance video"
+      "title": "LoadVideo"
     }
   },
-  "31": {
+  "prepare": {
+    "class_type": "H3RelayPrepareSource",
     "inputs": {
-      "resolution": "768",
-      "duration_seconds": 0,
       "video": [
-        "30",
+        "source",
         0
-      ]
+      ],
+      "resolution": "768",
+      "duration_seconds": 0.0,
+      "missing_audio": "silence"
     },
-    "class_type": "H3CharacterSwapPrepareVideo",
     "_meta": {
-      "title": "Prepare · 24 fps / pixel budget"
+      "title": "H3RelayPrepareSource"
     }
   },
-  "58": {
+  "dimensions": {
+    "class_type": "GetImageSize",
     "inputs": {
-      "device": "gpu:0",
-      "clip": [
-        "6",
+      "image": [
+        "prepare",
         0
       ]
     },
-    "class_type": "SelectCLIPDevice",
     "_meta": {
-      "title": "Text encoder device"
+      "title": "GetImageSize"
     }
   },
-  "100": {
+  "reference": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "reference.png"
+    },
+    "_meta": {
+      "title": "LoadImage"
+    }
+  },
+  "sam": {
+    "class_type": "CheckpointLoaderSimple",
     "inputs": {
       "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
     },
-    "class_type": "CheckpointLoaderSimple",
     "_meta": {
-      "title": "SAM 3.1 · model"
+      "title": "CheckpointLoaderSimple"
     }
   },
-  "101": {
-    "inputs": {
-      "text": "person",
-      "clip": [
-        "100",
-        1
-      ]
-    },
+  "subject": {
     "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "4 · Find the subject"
-    }
-  },
-  "102": {
     "inputs": {
-      "batch_index": 0,
-      "length": 1,
-      "image": [
-        "31",
-        0
-      ]
+      "clip": [
+        "sam",
+        1
+      ],
+      "text": "person"
     },
-    "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "Detection frame · first frame"
+      "title": "CLIPTextEncode"
     }
   },
-  "103": {
+  "first_frame": {
+    "class_type": "ImageFromBatch",
     "inputs": {
-      "threshold": 0.35,
-      "refine_iterations": 2,
-      "individual_masks": true,
+      "image": [
+        "prepare",
+        0
+      ],
+      "batch_index": 0,
+      "length": 1
+    },
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "detect": {
+    "class_type": "SAM3_Detect",
+    "inputs": {
       "model": [
-        "100",
+        "sam",
         0
       ],
       "image": [
-        "102",
+        "first_frame",
         0
       ],
       "conditioning": [
-        "101",
-        0
-      ]
-    },
-    "class_type": "SAM3_Detect",
-    "_meta": {
-      "title": "Detect individual people"
-    }
-  },
-  "104": {
-    "inputs": {
-      "selection": "largest",
-      "index": 0,
-      "masks": [
-        "103",
-        0
-      ]
-    },
-    "class_type": "H3CharacterSwapSelectSubject",
-    "_meta": {
-      "title": "Select the person to replace"
-    }
-  },
-  "105": {
-    "inputs": {
-      "detection_threshold": 0.5,
-      "max_objects": 1,
-      "detect_interval": 1,
-      "images": [
-        "31",
+        "subject",
         0
       ],
+      "threshold": 0.35,
+      "refine_iterations": 2,
+      "individual_masks": true
+    },
+    "_meta": {
+      "title": "SAM3_Detect"
+    }
+  },
+  "select": {
+    "class_type": "H3RelaySelectMask",
+    "inputs": {
+      "masks": [
+        "detect",
+        0
+      ],
+      "selection": "largest",
+      "index": 0
+    },
+    "_meta": {
+      "title": "H3RelaySelectMask"
+    }
+  },
+  "track": {
+    "class_type": "SAM3_VideoTrack",
+    "inputs": {
       "model": [
-        "100",
+        "sam",
+        0
+      ],
+      "images": [
+        "prepare",
         0
       ],
       "initial_mask": [
-        "104",
+        "select",
         0
       ],
       "conditioning": [
-        "101",
+        "subject",
         0
-      ]
-    },
-    "class_type": "SAM3_VideoTrack",
-    "_meta": {
-      "title": "Track selected person"
-    }
-  },
-  "106": {
-    "inputs": {
-      "object_indices": "",
-      "track_data": [
-        "105",
-        0
-      ]
-    },
-    "class_type": "SAM3_TrackToMask",
-    "_meta": {
-      "title": "Selected track → mask"
-    }
-  },
-  "107": {
-    "inputs": {
-      "source_frames": [
-        "31",
-        5
       ],
-      "recover_empty_frames": true,
+      "detection_threshold": 0.5,
+      "max_objects": 1,
+      "detect_interval": 1
+    },
+    "_meta": {
+      "title": "SAM3_VideoTrack"
+    }
+  },
+  "mask": {
+    "class_type": "SAM3_TrackToMask",
+    "inputs": {
+      "track_data": [
+        "track",
+        0
+      ],
+      "object_indices": ""
+    },
+    "_meta": {
+      "title": "SAM3_TrackToMask"
+    }
+  },
+  "recover": {
+    "class_type": "H3RelayRecoverMasks",
+    "inputs": {
       "masks": [
-        "106",
+        "mask",
         0
       ],
       "images": [
-        "31",
+        "prepare",
         0
       ],
+      "source_frames": [
+        "prepare",
+        5
+      ],
       "model": [
-        "100",
+        "sam",
         0
       ],
       "conditioning": [
-        "101",
+        "subject",
         0
       ],
       "selection": [
-        "104",
+        "select",
         1
-      ]
+      ],
+      "recover_empty_frames": true
     },
-    "class_type": "H3CharacterSwapRecoverMasks",
     "_meta": {
-      "title": "Recover empty frames · same as app"
+      "title": "H3RelayRecoverMasks"
     }
   },
-  "110": {
+  "expand_mask": {
+    "class_type": "H3RelayExpandMask",
     "inputs": {
+      "masks": [
+        "recover",
+        0
+      ],
+      "images": [
+        "prepare",
+        0
+      ],
       "source_frames": [
-        "31",
+        "prepare",
         5
       ],
-      "expansion_px": 64,
-      "masks": [
-        "107",
-        0
-      ],
-      "images": [
-        "31",
-        0
-      ]
+      "expansion_px": 64
     },
-    "class_type": "H3CharacterSwapExpandMask",
     "_meta": {
-      "title": "Expand mask · matches the app"
+      "title": "H3RelayExpandMask"
     }
   },
-  "111": {
+  "mask_preview": {
+    "class_type": "PreviewImage",
     "inputs": {
-      "batch_index": 0,
-      "length": 1,
-      "image": [
-        "110",
+      "images": [
+        "expand_mask",
         1
       ]
     },
-    "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "Review frame · change index"
+      "title": "PreviewImage"
     }
   },
-  "112": {
+  "plan": {
+    "class_type": "H3RelayWindowPlan",
     "inputs": {
-      "images": [
-        "111",
+      "source_frames": [
+        "prepare",
+        5
+      ],
+      "window_frames": "124",
+      "history_frames": "18",
+      "seed": 904239,
+      "schedule": "adaptive",
+      "seed_mode": "fixed",
+      "seed_overrides": "{}"
+    },
+    "_meta": {
+      "title": "Plan source-aligned windows"
+    }
+  },
+  "start": {
+    "class_type": "StartLoop",
+    "inputs": {
+      "mode": "simple",
+      "mode.num_iterations": [
+        "plan",
+        2
+      ],
+      "cache_iterations": false
+    },
+    "_meta": {
+      "title": "Native loop \u00b7 one H3 window"
+    }
+  },
+  "window": {
+    "class_type": "H3RelayWindowInputs",
+    "inputs": {
+      "source": [
+        "prepare",
+        0
+      ],
+      "window": [
+        "plan",
+        3
+      ],
+      "iteration_index": [
+        "start",
+        0
+      ],
+      "previous": [
+        "start",
+        4
+      ],
+      "reference_history": true,
+      "fps": 24.0,
+      "resize_anchor": true,
+      "history_audio_mode": "source",
+      "source_audio": [
+        "prepare",
+        1
+      ],
+      "mask": [
+        "expand_mask",
         0
       ]
     },
-    "class_type": "PreviewImage",
     "_meta": {
-      "title": "Expanded-mask preview"
+      "title": "H3RelayWindowInputs"
     }
   },
-  "309": {
+  "reference_conditioning": {
+    "class_type": "MiniMaxH3ReferenceToVideo",
     "inputs": {
-      "image": "(none)"
-    },
-    "class_type": "H3CharacterSwapOptionalAnchor",
-    "_meta": {
-      "title": "3 · Optional first-frame anchor"
-    }
-  },
-  "800": {
-    "inputs": {
-      "model": [
-        "850",
-        0
-      ],
       "clip": [
-        "58",
+        "text_device",
         0
       ],
-      "video_vae": [
-        "7",
+      "prompt": "Replace the selected person with the reference character. Preserve source performance, scene and audio timing.",
+      "width": [
+        "dimensions",
+        0
+      ],
+      "height": [
+        "dimensions",
+        1
+      ],
+      "length": [
+        "window",
+        8
+      ],
+      "ref_image_size": "match",
+      "ref_videos.ref_video_0": [
+        "window",
+        5
+      ],
+      "ref_images.ref_image_0": [
+        "reference",
+        0
+      ],
+      "vae": [
+        "video_vae",
         0
       ],
       "audio_vae": [
-        "8",
+        "audio_vae",
+        0
+      ],
+      "ref_audios.ref_audio_0": [
+        "window",
+        6
+      ]
+    },
+    "_meta": {
+      "title": "Native H3 reference conditioning"
+    }
+  },
+  "history": {
+    "class_type": "H3RelayApplyHistory",
+    "inputs": {
+      "positive": [
+        "reference_conditioning",
+        0
+      ],
+      "latent": [
+        "reference_conditioning",
+        1
+      ],
+      "vae": [
+        "video_vae",
+        0
+      ],
+      "audio_vae": [
+        "audio_vae",
+        0
+      ],
+      "frames": [
+        "window",
+        3
+      ],
+      "history_frames": [
+        "window",
+        7
+      ],
+      "first_frame_guide": false,
+      "target_audio_guide": true,
+      "audio": [
+        "window",
+        4
+      ]
+    },
+    "_meta": {
+      "title": "H3RelayApplyHistory"
+    }
+  },
+  "encode_source": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "window",
+        0
+      ],
+      "vae": [
+        "video_vae",
         0
       ]
     },
-    "class_type": "H3CharacterSwapModels",
     "_meta": {
-      "title": "Shared models"
+      "title": "VAEEncode"
     }
   },
-  "801": {
+  "edit_mask": {
+    "class_type": "H3RelayApplyEditMask",
     "inputs": {
-      "prompt": "Replace the selected person with the reference character. Preserve source performance, scene and audio timing.",
-      "seed": 904239,
-      "audio_guide": true,
-      "steps": 8,
-      "cfg": 1,
-      "sampler_name": "er_sde",
-      "scheduler": "normal",
-      "activation_memory_gib": 17
+      "latent": [
+        "history",
+        1
+      ],
+      "source_latent": [
+        "encode_source",
+        0
+      ],
+      "mask": [
+        "window",
+        1
+      ]
     },
-    "class_type": "H3CharacterSwapSettings",
     "_meta": {
-      "title": "5 · Prompt & audio guide"
+      "title": "H3RelayApplyEditMask"
     }
   },
-  "803": {
+  "guide": {
+    "class_type": "MiniMaxH3AddGuide",
     "inputs": {
-      "source_frames": [
-        "31",
-        5
+      "positive": [
+        "history",
+        0
+      ],
+      "latent": [
+        "edit_mask",
+        0
+      ],
+      "frame_idx": 0,
+      "audio_vae": [
+        "audio_vae",
+        0
+      ],
+      "audio": [
+        "window",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Native target guide"
+    }
+  },
+  "noise": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": [
+        "window",
+        10
+      ]
+    },
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "guider": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "adapter",
+        0
+      ],
+      "positive": [
+        "guide",
+        0
+      ],
+      "negative": [
+        "guide",
+        0
+      ],
+      "cfg": 1.0
+    },
+    "_meta": {
+      "title": "CFGGuider"
+    }
+  },
+  "sampler": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "er_sde"
+    },
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "schedule": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "adapter",
+        0
+      ],
+      "scheduler": "normal",
+      "steps": 8,
+      "denoise": 1.0
+    },
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "sample": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "noise",
+        0
+      ],
+      "guider": [
+        "guider",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "schedule",
+        0
+      ],
+      "latent_image": [
+        "edit_mask",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "separate": {
+    "class_type": "LTXVSeparateAVLatent",
+    "inputs": {
+      "av_latent": [
+        "sample",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "LTXVSeparateAVLatent"
+    }
+  },
+  "decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "separate",
+        0
+      ],
+      "vae": [
+        "video_vae",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "VAEDecode"
+    }
+  },
+  "append": {
+    "class_type": "H3RelayAppendWindow",
+    "inputs": {
+      "frames": [
+        "decode",
+        0
+      ],
+      "window": [
+        "window",
+        12
+      ],
+      "previous": [
+        "start",
+        4
+      ]
+    },
+    "_meta": {
+      "title": "H3RelayAppendWindow"
+    }
+  },
+  "end": {
+    "class_type": "EndLoop",
+    "inputs": {
+      "output_value": [
+        "append",
+        0
+      ],
+      "next_iteration_value": [
+        "append",
+        0
+      ],
+      "accumulate": false
+    },
+    "_meta": {
+      "title": "EndLoop"
+    }
+  },
+  "finish": {
+    "class_type": "H3RelayFinishWindows",
+    "inputs": {
+      "state": [
+        "end",
+        0
+      ],
+      "audio_mode": "source",
+      "source_audio": [
+        "prepare",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "H3RelayFinishWindows"
+    }
+  },
+  "video": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "finish",
+        0
       ],
       "fps": [
-        "31",
-        6
+        "finish",
+        2
       ],
-      "use_anchor": [
-        "309",
-        1
-      ],
-      "use_mask": true,
-      "shot_id": "character-swap",
-      "source_video": [
-        "30",
-        0
-      ],
-      "source": [
-        "31",
-        0
-      ],
-      "source_audio": [
-        "31",
-        1
-      ],
-      "reference": [
-        "9",
-        0
-      ],
-      "anchor": [
-        "309",
-        0
-      ],
-      "body_mask": [
-        "110",
-        0
-      ]
-    },
-    "class_type": "H3CharacterSwapShot",
-    "_meta": {
-      "title": "Prepare swap inputs"
-    }
-  },
-  "805": {
-    "inputs": {
-      "window_frames": "124",
-      "history_frames": "18",
-      "shot": [
-        "803",
-        0
-      ],
-      "settings": [
-        "801",
-        0
-      ]
-    },
-    "class_type": "H3CharacterSwapWindowPlan",
-    "_meta": {
-      "title": "Continuation · window / history"
-    }
-  },
-  "806": {
-    "inputs": {
-      "models": [
-        "800",
-        0
-      ],
-      "shot": [
-        "803",
-        0
-      ],
-      "plan": [
-        "805",
-        0
-      ]
-    },
-    "class_type": "H3CharacterSwapController",
-    "_meta": {
-      "title": "6 · Generate character swap"
-    }
-  },
-  "807": {
-    "inputs": {
-      "filename_prefix": "character-swap",
-      "state": [
-        "806",
-        0
-      ],
-      "shot": [
-        "806",
+      "audio": [
+        "finish",
         1
       ]
     },
-    "class_type": "H3CharacterSwapAssemble",
     "_meta": {
-      "title": "7 · Result with source audio"
+      "title": "CreateVideo"
     }
   },
-  "850": {
+  "save": {
+    "class_type": "SaveVideo",
     "inputs": {
-      "lora_name": "h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
-      "strength_model": 1,
-      "model": [
-        "4",
+      "video": [
+        "video",
         0
-      ]
+      ],
+      "filename_prefix": "h3-relay/character-swap",
+      "format": "mp4",
+      "format.codec": "h264",
+      "format.codec.encoding": "re-encode",
+      "format.codec.encoding.crf": 16
     },
-    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "Character Swap · V1 LoRA"
+      "title": "SaveVideo"
     }
   }
 }

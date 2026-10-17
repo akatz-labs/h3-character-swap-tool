@@ -22,7 +22,11 @@ They identify exact package versions and available upstream license texts.
 - The source-built FFmpeg executable is distributed under GPL version 3.
   Exact FFmpeg, x264, zlib, FreeType and HarfBuzz source archives, the build recipe and recorded
   configuration accompany the release. FFmpeg runs as a separate process.
-- `worker_nodes/h3_character_swap` is a GPL-3.0 derivative of H3 Relay and H3 Performance, with a vendored GPL-3.0 continuation helper. Source identities are recorded in `SOURCE_PROVENANCE.json`; corresponding source is included in this repository. The INT8 kernel derivative retains NVIDIA copyright and Apache-2.0 terms in `LICENSE-Apache-2.0`.
+- The exact GPL-3.0 H3 Relay source archive in `vendor/` is pinned by repository,
+  commit and SHA-256 in `runtime/relay-lock.json`. Its `LICENSE`, `NOTICE.md` and
+  component licenses are included in the archive and worker installation.
+  The INT8 kernel derivative retains NVIDIA copyright and Apache-2.0 terms.
+  `worker_nodes/h3_workbench_runtime` contains only first-party session integration.
 - ComfyUI, its custom nodes, PyTorch, CUDA libraries and other worker packages
   retain the terms recorded in the worker inventory and their source/package
   notices. The frozen recipe and materialized source are preserved.

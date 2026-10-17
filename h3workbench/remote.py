@@ -128,8 +128,8 @@ def execute(job, graph, files, d, profile="legacy"):
     if job["data"].get("execution_backend") == "shared":
         from . import remote_shared
         return remote_shared.execute(job, graph, files, d, profile)
-    if any(n["class_type"].startswith("H3CharacterSwap") for n in graph.values()):
-        raise RuntimeError("This character-swap graph requires the matching focused worker recipe through the shared executor. Upgrade the app and worker together.")
+    if any(n["class_type"].startswith(("H3CharacterSwap", "H3Relay")) for n in graph.values()):
+        raise RuntimeError("This character-swap graph requires the matching Relay worker recipe through the shared executor. Upgrade the app and worker together.")
     from . import remote_sessions
     if remote_sessions.enabled():
         return remote_sessions.execute(job, graph, files, d, profile)
@@ -281,60 +281,42 @@ def execute(job, graph, files, d, profile="legacy"):
 
 
 def graph_render(clip, shot, job, d):
-    g = json.loads((ROOT / "templates/render.json").read_text())
+    from . import render_models, relay_contract
+    config = render_models.settings(job["data"].get("generation") or shot)
+    g = relay_contract.recipe(config["use_anchor"], config["use_mask"])
     sid = job["id"]
     spec = job["data"].get("render_spec") or media.render_spec(clip, shot)
     source = media.shot_media(clip, shot, d, dimensions=spec["dimensions"])
-    from . import render_models
-    config = render_models.settings(job["data"].get("generation") or shot)
-    g["805"]["inputs"].update(window_frames=str(config["window_frames"]),
-                               history_frames=str(config["history_frames"]))
+    count = shot["end"] - shot["start"]
+    g["805"]["inputs"].update(source_frames=count, seed=shot["seed"],
+        window_frames=str(config["window_frames"]), history_frames=str(config["history_frames"]))
     model = render_models.LORAS[config["lora_id"]]
     if model["filename"]:
         g["850"]["inputs"]["lora_name"] = model["filename"]
     else:
         del g["850"]
-        g["800"]["inputs"]["model"] = ["4", 0]
-    files = {
-        f"{sid}-source.mkv": source,
-        f"{sid}-reference.png": store.path(clip["reference"]),
-    }
+        for key in ("guider", "schedule"):
+            g[key]["inputs"]["model"] = ["4", 0]
+    files = {f"{sid}-source.mkv": source, f"{sid}-reference.png": store.path(clip["reference"])}
     g["9"]["inputs"]["image"] = f"{sid}-reference.png"
     if config["use_anchor"]:
         files[f"{sid}-anchor.png"] = store.path(shot["anchor"])
         g["309"]["inputs"]["image"] = f"{sid}-anchor.png"
-    else:
-        del g["309"]
-        del g["803"]["inputs"]["anchor"]
     if config["use_mask"]:
         mask_path = store.path(shot["mask"])
         if spec["dimensions"] != clip["dimensions"]:
             import numpy as np
             from . import masks
             mask_path = d / "generation-mask.npz"
-            np.savez_compressed(mask_path, mask=masks.read(
-                shot["mask"], shot["end"] - shot["start"], spec["dimensions"]))
+            np.savez_compressed(mask_path, mask=masks.read(shot["mask"], count, spec["dimensions"]))
         files[f"{sid}-mask.npz"] = mask_path
-    else:
-        del g["43"]
-        del g["803"]["inputs"]["body_mask"]
-    g["803"]["inputs"].update(use_anchor=config["use_anchor"], use_mask=config["use_mask"])
+        g["43"]["inputs"].update(mask_file=f"{sid}-mask.npz", expansion_px=spec["expansion"], source_frames=count)
     g["30"]["inputs"]["file"] = f"{sid}-source.mkv"
-    g["31"]["inputs"]["resolution"] = spec["resolution"]
-    if spec["render_mp"] != 1.0 or media.canvas(*spec["dimensions"]) != spec["dimensions"]:
-        # Source staging already supplies exact 24fps, 32px-grid frames. A second
-        # budget-based resize can choose a different portrait shape and crop it.
-        g["31"] = {"class_type": "GetVideoComponents", "inputs": {"video": ["30", 0]}}
-        g["803"]["inputs"].update(
-            source_frames=shot["end"] - shot["start"], fps=["31", 2]
-        )
-        if "43" in g:
-            g["43"]["inputs"]["source_frames"] = shot["end"] - shot["start"]
-    if "43" in g:
-        g["43"]["inputs"].update(mask_file=f"{sid}-mask.npz", expansion_px=spec["expansion"])
-    g["801"]["inputs"].update(prompt=shot["prompt"], seed=shot["seed"])
-    g["803"]["inputs"]["shot_id"] = sid
-    g["807"]["inputs"]["filename_prefix"] = sid
+    # Staging already supplies exact 24fps, 32px-grid pixels and source audio.
+    g["31"] = {"class_type": "GetVideoComponents", "inputs": {"video": ["30", 0]}}
+    g["803"]["inputs"]["fps"] = ["31", 2]
+    g["801"]["inputs"]["prompt"] = shot["prompt"]
+    g["809"]["inputs"]["filename_prefix"] = sid
     return g, files
 
 
@@ -348,7 +330,7 @@ def graph_mask(clip, shot, job, d):
     g = {
         "30": n("LoadVideo", file=f"{sid}-source.mkv"),
         "31": n(
-            "H3CharacterSwapPrepareVideo",
+            "H3RelayPrepareSource",
             resolution="768",
             duration_seconds=0,
             video=["30", 0],
@@ -368,7 +350,7 @@ def graph_mask(clip, shot, job, d):
             individual_masks=True,
         ),
         "36": n(
-            "H3CharacterSwapSelectSubject",
+            "H3RelaySelectMask",
             masks=["35", 0],
             selection=shot["selection"],
             index=shot.get("subject_index", 0),
@@ -385,7 +367,7 @@ def graph_mask(clip, shot, job, d):
         ),
         "38": n("SAM3_TrackToMask", track_data=["37", 0], object_indices=""),
         "39": n(
-            "H3CharacterSwapSaveMask",
+            "H3RelaySaveMask",
             masks=["38", 0],
             filename_prefix="person-mask",
             frames=shot["end"] - shot["start"],
@@ -403,7 +385,7 @@ def graph_mask_recovery(shot, job, missing):
     g = {
         "30": n("LoadVideo", file=f"{sid}-source.mkv"),
         "31": n(
-            "H3CharacterSwapPrepareVideo",
+            "H3RelayPrepareSource",
             resolution="768",
             duration_seconds=0,
             video=["30", 0],
@@ -429,13 +411,13 @@ def graph_mask_recovery(shot, job, missing):
             individual_masks=True,
         )
         g[selected] = n(
-            "H3CharacterSwapSelectSubject",
+            "H3RelaySelectMask",
             masks=[detect, 0],
             selection=shot["selection"],
             index=shot.get("subject_index", 0),
         )
         g[save] = n(
-            "H3CharacterSwapSaveMask",
+            "H3RelaySaveMask",
             masks=[selected, 0],
             filename_prefix=f"recovered-{f:04}",
             frames=1,

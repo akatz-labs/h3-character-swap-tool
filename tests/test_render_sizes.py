@@ -90,12 +90,12 @@ def test_low_resolution_graph_has_exact_source_and_mask_geometry(scene, tmp_path
     assert info["frames"] == 3 and info["fps"] == 24 and info["audio"]
     assert graph["31"]["class_type"] == "GetVideoComponents"
     assert (
-        graph["803"]["inputs"]["source_frames"]
+        graph["805"]["inputs"]["source_frames"]
         == graph["43"]["inputs"]["source_frames"]
         == 3
     )
     assert graph["803"]["inputs"]["anchor"] == ["309", 0]
-    assert graph["803"]["inputs"]["use_anchor"] is True
+    assert graph["history"]["inputs"]["first_frame_guide"] is True
     assert graph["43"]["inputs"]["expansion_px"] == spec["expansion"]
     with np.load(files["low-mask.npz"]) as z:
         assert z["mask"].shape == (3, 832, 576)
@@ -108,7 +108,7 @@ def test_low_resolution_graph_has_exact_source_and_mask_geometry(scene, tmp_path
     high_dir = tmp_path / "high"
     high_dir.mkdir()
     graph, files = remote.graph_render(c, s, {"id": "high", "data": {}}, high_dir)
-    assert graph["31"]["inputs"]["resolution"] == "768"
+    assert graph["31"]["class_type"] == "GetVideoComponents"
     assert files["high-mask.npz"] == store.path(s["mask"])
     assert s["mask"] == before["shots"][0]["mask"]
     # A budget near 1 MP can quantize back to the legacy canvas. Its custom
@@ -128,7 +128,7 @@ def test_low_resolution_graph_has_exact_source_and_mask_geometry(scene, tmp_path
         c, s, {"id": "exact-high", "data": {}}, exact_dir
     )
     assert graph["31"]["class_type"] == "GetVideoComponents"
-    assert graph["803"]["class_type"] == "H3CharacterSwapShot"
+    assert graph["803"]["class_type"] == "H3RelayWindowInputs"
     assert "311" not in graph
     info = media.probe(files["exact-high-source.mkv"])
     assert [info["width"], info["height"]] == c["dimensions"]
@@ -249,7 +249,8 @@ def test_completed_render_records_frozen_size_and_preserves_newer_settings(
             ]
         )
         (out / "history.json").write_text(
-            json.dumps({"prompt": {"outputs": {"807": {}}}})
+            json.dumps({"prompt": {"outputs": {"807": {"h3_relay_report": [{"complete": True}]},
+                "809": {"images": [{"type": "output", "subfolder": "", "filename": f"{jid}.mp4"}]}}}})
         )
         if edit_generation:
             store.clip_mutate(c["id"], lambda v: v["shots"][0].update(lora_id="none", use_anchor=False, use_mask=False))

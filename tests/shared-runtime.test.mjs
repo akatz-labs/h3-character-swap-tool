@@ -61,13 +61,13 @@ test('captured operation validates dimensions, model chain and named node requir
   for(const operation of ['alpha-extract','face-track','person-remove']) assert.throws(()=>h3Input({...input,operation}));
   assert.throws(()=>h3Input({...input,dimensions:[351,256]}),/aligned/);
   assert.throws(()=>h3Input({...input,runtimeCompatibility:{...input.runtimeCompatibility,modelConfigurationDigest:'f'.repeat(64)}}),/Model chain/);
-  const graph={'1':{class_type:'H3CharacterSwapRefineMask',inputs:{}},'2':{class_type:'H3CharacterSwapSaveMask',inputs:{}}};
-  assert.deepEqual(validateGraph(graph,h3Input(input),['H3CharacterSwapRefineMask','H3CharacterSwapSaveMask']),graph);
-  assert.throws(()=>validateGraph({...graph,'3':{class_type:'UnreviewedExec',inputs:{}}},h3Input(input),['H3CharacterSwapRefineMask','H3CharacterSwapSaveMask']),/undeclared/);
-  assert.throws(()=>validateGraph({'1':graph['1']},h3Input(input),['H3CharacterSwapRefineMask']),/named operation/);
+  const graph={'1':{class_type:'H3RelayRefineMask',inputs:{}},'2':{class_type:'H3RelaySaveMask',inputs:{}}};
+  assert.deepEqual(validateGraph(graph,h3Input(input),['H3RelayRefineMask','H3RelaySaveMask']),graph);
+  assert.throws(()=>validateGraph({...graph,'3':{class_type:'UnreviewedExec',inputs:{}}},h3Input(input),['H3RelayRefineMask','H3RelaySaveMask']),/undeclared/);
+  assert.throws(()=>validateGraph({'1':graph['1']},h3Input(input),['H3RelayRefineMask']),/named operation/);
 });
 test('two SDK stages cannot share mutable worker scratch input names',()=>{
-  const graph={'1':{class_type:'LoadImage',inputs:{image:'frame.png'}},'2':{class_type:'H3CharacterSwapRefineMask',
+  const graph={'1':{class_type:'LoadImage',inputs:{image:'frame.png'}},'2':{class_type:'H3RelayRefineMask',
     inputs:{prior_file:'prior.npz',prompt:'frame.png',text:'prior.npz',model:'sam3.safetensors'}}};
   const original=structuredClone(graph);
   const first=transportGraph(graph,'sdk-job-a',['frame.png','prior.npz']),next=transportGraph(graph,'sdk-job-b',['frame.png','prior.npz']);
@@ -79,10 +79,10 @@ test('two SDK stages cannot share mutable worker scratch input names',()=>{
 });
 test('segments require the explicit single-pass worker operation',()=>{
   const input=h3Input({...inputs(),operation:'h3-render-segments-v1'});
-  const graph={'1':{class_type:'H3CharacterSwapController',inputs:{}},'2':{class_type:'H3CharacterSwapShot',inputs:{segment_mode:true}},'3':{class_type:'H3CharacterSwapAssemble',inputs:{}},'4':{class_type:'H3CharacterSwapWindowPlan',inputs:{}}};
+  const graph=Object.fromEntries(['StartLoop','EndLoop','SamplerCustomAdvanced','SaveVideo','H3RelayFinishWindows','H3RelayWindowPlan'].map((class_type,i)=>[String(i),{class_type,inputs:class_type==='H3RelayWindowPlan'?{schedule:'segment'}:{}}]));
   const nodes=Object.values(graph).map(n=>n.class_type);
   assert.deepEqual(validateGraph(graph,input,nodes),graph);
-  assert.throws(()=>validateGraph({...graph,'2':{...graph['2'],inputs:{}}},input,nodes));
+  assert.throws(()=>validateGraph({...graph,'5':{...graph['5'],inputs:{}}},input,nodes));
 });
 test('a mismatched named graph is terminal before any runtime enqueue',async t=>{
  const root=await mkdtemp(join(tmpdir(),'h3-invalid-operation-'));t.after(()=>rm(root,{recursive:true,force:true}));

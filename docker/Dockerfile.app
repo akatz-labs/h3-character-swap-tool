@@ -9,7 +9,7 @@ RUN apt-get update && apt-get upgrade -y \
     && mkdir /data && chown 1000:1000 /data
 COPY --chown=1000:1000 payload /opt/h3-workbench
 # The CPU app previews the same pure window planner used by the worker.
-COPY --chown=1000:1000 worker/recipe/nodes/h3_character_swap/planning.py /opt/h3-workbench/worker_nodes/h3_character_swap/planning.py
+COPY --chown=1000:1000 app-relay-dependency /opt/h3-workbench
 COPY --chown=1000:1000 release-notices /usr/share/doc/h3-release
 ENV AKATZ_DESKTOP_REGISTRY=/data/registry H3_CONTAINER_PAYLOAD=/opt/h3-workbench \
     H3_CONTAINER_DATA=/data/projects PYTHONDONTWRITEBYTECODE=1 HOME=/data/home

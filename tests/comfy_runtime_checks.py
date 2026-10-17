@@ -1,7 +1,7 @@
 """Run with the pinned ComfyUI Python from its root; no model inference.
 
 python /path/to/repo/tests/comfy_runtime_checks.py --comfy /path/to/ComfyUI \
-  --package /path/to/h3_character_swap --source /path/to/26-frame-source.mkv
+  --package /path/to/relay_runtime_check --source /path/to/26-frame-source.mkv
 """
 import argparse
 import importlib.util
@@ -20,16 +20,17 @@ sys.path.insert(0, str(args.comfy))
 sys.argv = [sys.argv[0], '--cpu']
 import torch
 import nodes
+from server import PromptServer
+# Standalone mechanics test: no HTTP server is started.
+PromptServer.instance = None
 from comfy_api.latest._input_impl.video_types import VideoFromFile
-spec = importlib.util.spec_from_file_location('h3_character_swap', args.package / '__init__.py',
+spec = importlib.util.spec_from_file_location('relay_runtime_check', args.package / '__init__.py',
     submodule_search_locations=[str(args.package)])
 package = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = package
 spec.loader.exec_module(package)
-from h3_character_swap.nodes import PrepareVideo, OptionalAnchor, Shot, ExpandMask
-from h3_character_swap.relay.inputs import WindowInputs
-from h3_character_swap.relay import records
-from h3_character_swap.planning import plan_windows
+from relay_runtime_check.h3_relay.toolkit import H3RelayPrepareSource as PrepareVideo, H3RelayWindowPlan, H3RelayWindowInputs
+from relay_runtime_check.h3_relay.mask_tools import ExpandMask
 
 video = VideoFromFile(str(args.source))
 prepared = PrepareVideo().prepare(video, '768')
@@ -38,24 +39,6 @@ probe = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-count_fr
     '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'json', str(args.source)]))
 assert count == int(probe['streams'][0]['nb_read_frames']), (count, probe)
 assert len(frames) == length and fps == 24
-assert OptionalAnchor().load('(none)') == (None, False)
-assert OptionalAnchor.VALIDATE_INPUTS('(none)') is True
-reference = torch.ones(1, 32, 64, 3)
-kw = dict(source_video=video, source=frames, source_audio=audio, source_frames=count,
-          fps=fps, reference=reference, anchor=reference, shot_id='qa')
-without = Shot().prepare(use_anchor=False, use_mask=False, **kw)[0]
-anchored = Shot().prepare(use_anchor=True, use_mask=False, **kw)[0]
-assert anchored['anchor'].shape == (1, height, width, 3)
-assert anchored['key'] != without['key']
-assert without['generation'] == {'use_anchor': False, 'use_mask': False}
-assert not without['body_mask'].any()
-try:
-    Shot().prepare(use_anchor=True, use_mask=False, **dict(kw, anchor=None))
-except ValueError as e:
-    assert 'anchor image' in str(e)
-else:
-    raise AssertionError('Missing anchor accepted')
-
 # Exactly the app's Euclidean expansion, including padded tail masks.
 raw = torch.zeros(count, height, width)
 raw[:, height//2, width//2] = 1
@@ -73,12 +56,12 @@ else:
 
 # H-1 reference history is separate from current-target audio and masks.
 n = 26
-source = torch.arange(n).float().view(n, 1, 1, 1).expand(n, 2, 2, 3)
-shot = {'source': source, 'body_mask': source[..., 0], 'source_frames': n,
-        'source_audio': {'waveform': torch.arange(n).float().view(1, 1, n), 'sample_rate': 24},
-        'anchor': source[:1]}
-entry = plan_windows(n, 22, 18)[1]
-selected = WindowInputs().select(shot, entry, {'body': source[:22]})
+source = torch.arange(n).float().view(n, 1, 1, 1).expand(n, 32, 32, 3)
+entry = H3RelayWindowPlan().plan(n, '22', '18', 42)[0][1]
+audio = {'waveform': torch.arange(n).float().view(1, 1, n), 'sample_rate': 24}
+selected = H3RelayWindowInputs().select(source, entry, previous={'frames': source[:22]}, source_audio=audio,
+    mask=source[...,0], anchor=torch.ones(1, 64, 64, 3))
+assert selected[11].shape == (1, 32, 32, 3)
 assert selected[0][0, 0, 0, 0] == 21 and len(selected[0]) == 22
 assert selected[5][0, 0, 0, 0] == 4 and len(selected[5]) == 39
 assert selected[2]['waveform'][0, 0, 0] == 21
