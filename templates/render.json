@@ -60,6 +60,18 @@
       "title": "SelectCLIPDevice"
     }
   },
+  "text_memory": {
+    "class_type": "H3RelayTextMemory",
+    "inputs": {
+      "clip": [
+        "58",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "H3RelayTextMemory"
+    }
+  },
   "7": {
     "class_type": "VAELoader",
     "inputs": {
@@ -99,7 +111,7 @@
         "4",
         0
       ],
-      "lora_name": "h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
+      "lora_name": "h3-v2-challenge-eval-20261013/v2-1000.safetensors",
       "strength_model": 1.0
     },
     "_meta": {
@@ -254,7 +266,7 @@
     "class_type": "MiniMaxH3ReferenceToVideo",
     "inputs": {
       "clip": [
-        "58",
+        "text_memory",
         0
       ],
       "prompt": "Replace the selected person with the reference character. Preserve source performance, scene and audio timing.",
@@ -399,6 +411,27 @@
       "title": "Native target guide"
     }
   },
+  "sampling_memory": {
+    "class_type": "H3RelaySamplingMemory",
+    "inputs": {
+      "model": [
+        "850",
+        0
+      ],
+      "latent": [
+        "edit_mask",
+        0
+      ],
+      "conditioning": [
+        "guide",
+        0
+      ],
+      "activation_memory_gib": 17.0
+    },
+    "_meta": {
+      "title": "H3RelaySamplingMemory"
+    }
+  },
   "noise": {
     "class_type": "RandomNoise",
     "inputs": {
@@ -415,7 +448,7 @@
     "class_type": "CFGGuider",
     "inputs": {
       "model": [
-        "850",
+        "sampling_memory",
         0
       ],
       "positive": [

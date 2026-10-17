@@ -52,7 +52,8 @@ def test_generation_graph_and_snapshot(scene, lora, anchor, mask):
     assert job["data"]["generation"] == config
     assert g["4"]["inputs"]["lora_name"].startswith("minimax_h3_fl2v_turbo")
     if lora == "none":
-        assert "850" not in g and g["guider"]["inputs"]["model"] == ["4", 0]
+        assert "850" not in g and g["sampling_memory"]["inputs"]["model"] == ["4", 0]
+        assert g["guider"]["inputs"]["model"] == ["sampling_memory", 0]
     else:
         assert g["850"]["inputs"]["lora_name"] == render_models.LORAS[lora]["filename"]
     assert ("309" in g) is anchor

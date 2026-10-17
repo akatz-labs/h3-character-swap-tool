@@ -52,7 +52,9 @@ previous installations.
 
 ## ComfyUI workflow
 
-The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the V1 character LoRA. It uses native ComfyUI nodes and the same pinned H3 Relay toolkit as the app.
+The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the recommended V1.5 character LoRA. It uses native ComfyUI nodes and the same pinned H3 Relay toolkit as the app.
+
+See the [0.2.0 integration validation](release/toolkit-v2-validation.md) for matched workflow results and the real segmented-render checks.
 
 ## Run from source
 

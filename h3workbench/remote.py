@@ -295,7 +295,7 @@ def graph_render(clip, shot, job, d):
         g["850"]["inputs"]["lora_name"] = model["filename"]
     else:
         del g["850"]
-        for key in ("guider", "schedule"):
+        for key in ("sampling_memory", "schedule"):
             g[key]["inputs"]["model"] = ["4", 0]
     files = {f"{sid}-source.mkv": source, f"{sid}-reference.png": store.path(clip["reference"])}
     g["9"]["inputs"]["image"] = f"{sid}-reference.png"

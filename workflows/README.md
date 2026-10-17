@@ -20,14 +20,14 @@ cg -e h3-character-swap node dev-link h3-relay --path /path/to/new-recipe/nodes/
 
 Keep the extracted recipe available while the environment uses it. The archive's repository, commit and SHA-256 are in [runtime/relay-lock.json](../runtime/relay-lock.json). The app builds from that same archive; it does not maintain a separate copy of H3 generation code. FFmpeg and FFprobe must be available on PATH. The app worker adds a small session integration package that is unnecessary for standalone ComfyUI use.
 
-Place the seven model files at the paths below, relative to ComfyUI's model directory. Download URLs, exact sizes, SHA-256 identities and upstream license links are in [models-v1.json](../docker/models-v1.json); the downloadable catalog is [resource-catalog.json](../docker/resource-catalog.json). Model weights are not included.
+Place the seven model files at the paths below, relative to ComfyUI's model directory. Download URLs, exact sizes, SHA-256 identities and upstream license links are in the downloadable [resource-catalog.json](../docker/resource-catalog.json); legacy V1 model identities are also retained in [models-v1.json](../docker/models-v1.json). Model weights are not included.
 
 | Model | Destination |
 | --- | --- |
 | SAM 3.1 | `checkpoints/sam3.1_multiplex_fp16.safetensors` |
 | H3 Ref2VA INT8 | `diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors` |
 | FL2V Turbo 8-step | `loras/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors` |
-| Character Swap V1 | `loras/h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors` |
+| Character Swap V1.5 | `loras/h3-v2-challenge-eval-20261013/v2-1000.safetensors` |
 | H3 Qwen text encoder | `text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` |
 | H3 video VAE | `vae/minimax_h3_video_vae_fp16.safetensors` |
 | H3 audio VAE | `vae/minimax_h3_audio_vae_fp32.safetensors` |
