@@ -1,4 +1,10 @@
-# Workflow qualification — 2026-10-15
+# Toolkit migration qualification — in progress
+
+The current branch replaces the historical focused package with pinned upstream H3 Relay and native ComfyUI loops, conditioning, sampling and video output. Its app suite passes 313 Python tests and 11 runtime tests. Twelve combinations of optional anchor, mask and LoRA selection validate against the pinned ComfyUI runtime. Real CPU checks cover source geometry/timing, silent audio, Euclidean mask expansion and H-1 source/audio alignment. Source app startup and restart pass.
+
+The new standalone canvas has 43 executable nodes and five explanatory notes. Export/reload through frontend 1.53.6 preserves every explicit API input and connection. GPU equivalence, full SAM execution, app segment generation and publication remain pending; the historical results below apply to the previous implementation.
+
+## Historical focused-package qualification — 2026-10-15
 
 The standalone canvas and exported API were exercised in a new ComfyGit environment with only `h3_character_swap` installed. The pinned ComfyUI core supplies native H3, SAM and audio/video utility nodes. The old six-pack recipe was not loaded.
 

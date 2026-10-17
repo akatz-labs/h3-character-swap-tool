@@ -543,3 +543,24 @@
 .h3-header .h3-brand-logo { background:transparent;object-fit:cover;flex:none; }
 .h3-legacy a.h3-community-link { flex-shrink:0;justify-content:flex-start; }
 .h3-legacy .h3-sidebar-footer { flex-shrink:0; }
+
+/* The shot is one workspace; only the viewer's editing mode changes. */
+.h3-project-tools[data-shot=true] { min-height:72px; padding-bottom:10px; }
+.h3-project-tools[data-shot=true] .h3-clip-tabs { display:none; }
+.h3-project-tools[data-shot=true] .h3-clip-heading { grid-row:1; padding-bottom:0; }
+.h3-legacy .panel-title.shot-viewer-header { padding:0 14px; min-height:54px; gap:8px 18px; }
+.h3-legacy .shot-viewer-tabs button { border-radius:0; background:transparent; color:var(--ak-muted); font-size:13px; font-weight:500; }
+.h3-legacy .shot-viewer-tabs button[aria-selected=true] { color:var(--ak-accent); border-bottom-color:var(--ak-accent); }
+.h3-legacy .mask-viewing-controls { color:var(--ak-muted); }
+.h3-legacy .mask-viewing-controls select { color:var(--ak-text); }
+.h3-legacy .mask-viewing-controls option:disabled { color:var(--ak-muted); }
+.h3-legacy .shot-anchors-panel .triptych { gap:12px; }
+.h3-legacy .shot-anchors-panel .triptych .visual { height:clamp(180px,25vw,300px); margin:8px 8px 0; }
+.h3-legacy .shot-anchors-panel .panel-title { padding:12px; font-size:12px; }
+.h3-legacy .shot-anchors-panel .panel-footer { padding:10px 8px; }
+.h3-legacy .shot-anchors-panel .panel-footer button { white-space:normal; text-align:left; }
+@container(max-width:700px){
+ .h3-legacy .shot-anchors-panel .triptych { grid-template-columns:minmax(0,1fr); }
+ .h3-legacy .shot-anchors-panel .triptych .visual { height:240px; }
+ .h3-legacy .mask-viewing-controls .h3-coverage { display:none; }
+}

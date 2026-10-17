@@ -6,11 +6,18 @@ from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def verify(rebuild=False):
+    sys.path.insert(0, str(ROOT))
+    from runtime.relay_dependency import source
+    lock, files = source()
+    if not {'LICENSE', 'NOTICE.md', 'LICENSE-Apache-2.0', 'h3_relay/workflows.py', 'h3_relay/planning.py'} <= files.keys():
+        raise ValueError('Relay source or license inventory is incomplete')
+    print('H3 Relay ' + lock['commit'] + ': verified')
     manifest = json.loads((ROOT / 'vendor/manifest.json').read_text())
     dependencies = json.loads((ROOT / 'package.json').read_text())['dependencies']
     for package in manifest['packages']:

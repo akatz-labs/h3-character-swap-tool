@@ -5,7 +5,7 @@ const S = {
   batch: localStorage.h3batch || null,
   clip: localStorage.h3clip || "521",
   shot: localStorage.getItem("shot"),
-  tab: "anchors",
+  tab: "render",
   dirty: false,
   worker: "auto",
   workers: {},
@@ -364,11 +364,11 @@ function syncWorkspace() {
       S.dirty=false;S.shot=b.dataset.shot;draw();
     });
   }
-  if(S.tab==='anchors')syncAnchors(c,s);
-  if(S.tab==='render')syncRenderFields(s);
+  if(S.tab==='render'){syncAnchors(c,s);syncRenderFields(s);syncShotViewer(s);}
   if(S.tab==='review')syncReview(c);
 }
 function draw() {
+  normalizeShotPage();
   if(!["shots","anchors","render","review"].includes(S.tab))S.tab="shots";
   sidebar();
   disposeMaskPlayback();
@@ -393,7 +393,7 @@ function draw() {
   $('#main').dataset.viewTab=S.tab;
   $('#main').dataset.viewBinding=viewBinding(c,s);
   $("#main").innerHTML =
-    `<nav class="tabs" aria-label="Clip sections">${(shotPage()?["anchors","render"]:["shots","review"]).map((t) => `<button data-tab="${t}" aria-current="${(S.tab === t) ? "page" : "false"}" class="${(S.tab === t) ? "active" : ""}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</nav><div class="title-row"><div><h1>${esc(c.name)}</h1><div class="sub">${c.frames} frames · ${c.fps} fps · ${(c.frames / 24).toFixed(2)}s · ${c.width} × ${c.height}</div></div><span class="badge ${c.review === "keep" ? "" : "pending"}">${c.review === "keep" ? "Kept" : c.result ? "Review ready" : "In progress"}</span></div><div id="workspace"></div>`;
+    `<nav class="tabs" aria-label="Clip sections">${(shotPage()?[]:["shots","review"]).map((t) => `<button data-tab="${t}" aria-current="${(S.tab === t) ? "page" : "false"}" class="${(S.tab === t) ? "active" : ""}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</nav><div class="title-row"><div><h1>${esc(c.name)}</h1><div class="sub">${c.frames} frames · ${c.fps} fps · ${(c.frames / 24).toFixed(2)}s · ${c.width} × ${c.height}</div></div><span class="badge ${c.review === "keep" ? "" : "pending"}">${c.review === "keep" ? "Kept" : c.result ? "Review ready" : "In progress"}</span></div><div id="workspace"></div>`;
   $('#main > .shotbar')?.querySelectorAll('[data-ui-key]').forEach((node,i)=>mountedMarkup.set(node,shotButtonHtml(s,c.shots[i],i)));
   $$("[data-tab]").forEach(
     (b) =>
@@ -417,7 +417,7 @@ function draw() {
   );
   ({
     shots: (c) => {drawShots(c); $("#workspace").insertAdjacentHTML("beforeend",shotCardsHtml(c));bindShotLinks();},
-    anchors: drawAnchors,
+    anchors: drawRender,
     render: drawRender,
     review: drawReview,
 
@@ -426,7 +426,7 @@ function draw() {
     "#workspace textarea,#workspace input:not([type=range]):not([type=checkbox]),#workspace select:not(#worker):not(#render-filter)",
   ).forEach((el) =>
     el.addEventListener("input", () => {
-      if (el.closest(".mask-editor, .shots-editor, .refine-editor, .comparison")) return;
+      if (el.closest(".mask-editor, .shots-editor, .refine-editor, .comparison, .shot-viewer-header")) return;
       S.dirty = true;
       if (S.tab === "render") S.renderDraftDirty = true;
     }),
@@ -514,7 +514,7 @@ function updateTranscriptionStatus(c) {
     active?(job.data.phase||'Queued'):job.state==='success'?'Transcription complete':`Transcription ${job.state}`;
 }
 function syncAnchors(c,s) {
-  if(S.tab!=='anchors'||!$('#anchor-variants'))return;
+  if(!$('#anchor-variants'))return;
   updateTranscriptionStatus(c);
   const panels=$$('.triptych > .panel');
   syncImagePanel(panels[0],s.source_frame,'Source frame');
@@ -525,18 +525,14 @@ function syncAnchors(c,s) {
   if(variants.dataset.markup!==markup){variants.innerHTML=markup;variants.dataset.markup=markup;bindAnchorVariants();}
 
 }
-function drawAnchors(c, s) {
-  $("#workspace").innerHTML =
-    `<div class="triptych">${imagePanel("Source frame", s.source_frame, "", `<span class="h3-numeric">Frame ${s.start}</span><a class="h3-icon-link" href="${asset(s.source_frame, true)}">${uiIcon("download")}Download</a>`)}${imagePanel("Character reference", c.reference, "", `<button class="quiet" id="reference-upload">${uiIcon("image")}Change image</button><button class="quiet" id="character-edit">${uiIcon("text")}Description</button>`)}${imagePanel("Shot anchor · optional", s.anchor, "anchor-panel", `<button id="anchor-chat-prompt" class="quiet">${uiIcon("text")}Anchor prompt</button><button id="anchor-upload" class="quiet">${uiIcon("upload")}Upload</button>`)}</div><div id="anchor-variants" class="variants" ${s.anchors.length > 1 ? "" : "hidden"}>${anchorVariantsHtml(s)}</div><div class="anchor-actions">${shotAutosaveHtml()}<div class="row"><button id="go-render" class="primary">Set up mask & render ${uiIcon("arrow")}</button></div></div><p id="anchor-sync-conflict" class="error-text" role="alert" hidden>A field you edited also changed elsewhere. Reload saved settings before saving.</p>`;
+function anchorEditorHtml(c, s) {
+  return `<div class="triptych">${imagePanel("Source frame", s.source_frame, "", `<span class="h3-numeric">Frame ${s.start}</span><a class="h3-icon-link" href="${asset(s.source_frame, true)}">${uiIcon("download")}Download</a>`)}${imagePanel("Character reference", c.reference, "", `<button class="quiet" id="reference-upload">${uiIcon("image")}Change image</button><button class="quiet" id="character-edit">${uiIcon("text")}Description</button>`)}${imagePanel("Shot anchor · optional", s.anchor, "anchor-panel", `<button id="anchor-chat-prompt" class="quiet">${uiIcon("text")}Anchor prompt</button><button id="anchor-upload" class="quiet">${uiIcon("upload")}Upload</button>`)}</div><div id="anchor-variants" class="variants" ${s.anchors.length > 1 ? "" : "hidden"}>${anchorVariantsHtml(s)}</div><p id="anchor-sync-conflict" class="error-text" role="alert" hidden>A field you edited also changed elsewhere. Reload saved settings before saving.</p>`;
+}
+function bindAnchorEditor(c, s) {
   $('#anchor-variants').dataset.markup=anchorVariantsHtml(s);
   $("#reference-upload").onclick = () => uploadImage("reference");
   $("#anchor-upload").onclick = () => uploadImage("anchor");
   $("#anchor-chat-prompt").onclick = showAnchorChatPrompt;
-  $("#go-render").onclick = guarded(async () => {
-    await saveFields();
-    S.tab = "render";
-    draw();
-  });
   $("#character-edit").onclick = () => {
     dialog(
       "Character description",
@@ -548,7 +544,6 @@ function drawAnchors(c, s) {
       toast("Description saved");
     });
   };
-  bindShotAutosave([]);
   bindAnchorVariants();
 }
 async function saveFields() { await flushShotAutosave(); }
@@ -871,7 +866,7 @@ async function saveRenderSettings() {
 function drawLegacyRender(c, s) {
   S.renderDraftDirty = false;
   $("#workspace").innerHTML =
-    `<div class="render-layout"><section class="panel render-controls"><div class="panel-title">Actor mask <span class="note h3-coverage" id="mask-coverage"></span></div>${maskEditorHtml(c, s)}</section><section class="panel generation-panel"><div class="panel-title">Generation</div><div class="panel-body stack"><div class="render-generation"><strong class="generation-model">MiniMax H3 · ${esc(loRALabel(s.lora_id))} · Turbo 8</strong><div class="row"><div class="field"><label for="worker">Worker</label>${workerSelect()}</div><div class="field"><label for="render-seed">Seed</label><div class="h3-seed-control"><input id="render-seed" type="number" min="0" value="${s.seed}"><button id="render-seed-random" class="h3-icon-button" aria-label="Randomize seed" title="Randomize seed">${uiIcon("refresh")}</button></div></div></div><div class="field"><label for="render-mp">Resolution (MP)</label><select id="render-mp" aria-label="Resolution (MP)">${[0.5,0.6,0.7,0.8,0.9,1].map(mp=>`<option value="${mp}" ${Number(s.render_mp??1)===mp?'selected':''}>${mp.toFixed(1)}</option>`).join('')}${![0.5,0.6,0.7,0.8,0.9,1].includes(Number(s.render_mp??1))?`<option value="${s.render_mp}" selected>${s.render_mp} (saved)</option>`:''}</select><span id="render-size-output" class="note" role="status"></span></div><p class="note">Fits the shot to H3’s 32-pixel grid. Final clip canvas: ${c.dimensions.join(" × ")}.</p><span id="mask-review-state" class="h3-sr-only">${s.mask ? "Available" : "Missing"}</span><input id="render-lora" type="hidden" value="${esc(s.lora_id||'v1-1000')}"><label class="conditioning-toggle"><input id="render-use-anchor" type="checkbox" ${s.anchor && s.use_anchor!==false?'checked':''} ${s.anchor?'':'disabled'}> Use shot anchor</label><label class="conditioning-toggle"><input id="render-use-mask" type="checkbox" ${s.use_mask===false?'':'checked'}> Use mask</label><p class="note">Turning masking off regenerates the whole frame. Source video and audio guides stay active. With the anchor off, remove any Picture 2 instructions from your prompt.</p><label class="conditioning-toggle"><input id="render-model-offloading" type="checkbox" ${S.modelOffloading?'checked':''}> Model offloading</label><p class="note">Enabled by default to reduce GPU memory use. Applies to the next render.</p><details><summary>Performance prompt</summary><textarea id="render-prompt" rows="7" aria-label="Next performance prompt">${esc(optionalAnchorPrompt(s.prompt,!!s.anchor && s.use_anchor!==false))}</textarea></details><p id="render-sync-conflict" class="error-text" role="alert" hidden>Render settings changed elsewhere. Reload saved settings before saving.</p>${shotAutosaveHtml()}<div class="row render-actions"><button id="queue-shot" class="primary" ${s.mode === "preserve" ? "disabled" : ""}>Queue shot</button></div><p id="render-queue-reason" class="note" role="status"></p></div></div></section><section class="panel render-results"><div class="panel-title"><h2>Your takes <span id="render-count" class="note"></span></h2><select id="render-filter" aria-label="Filter renders"><option value="all">All takes</option><option value="favorites">Favorites</option><option value="active">In progress</option><option value="completed">Completed</option><option value="failed">Failed / cancelled</option></select></div><div id="render-history-cards" class="render-grid"></div></section></div>`;
+    `<div class="render-layout"><section class="panel render-controls">${shotViewerHeaderHtml(s)}${maskEditorHtml(c, s)}<div id="shot-anchors-panel" class="shot-anchors-panel" role="tabpanel" aria-labelledby="shot-anchors-tab" hidden>${anchorEditorHtml(c,s)}</div></section><section class="panel generation-panel"><div class="panel-title">Generation</div><div class="panel-body stack"><div class="render-generation"><strong class="generation-model">MiniMax H3 · ${esc(loRALabel(s.lora_id))} · Turbo 8</strong><div class="row"><div class="field"><label for="worker">Worker</label>${workerSelect()}</div><div class="field"><label for="render-seed">Seed</label><div class="h3-seed-control"><input id="render-seed" type="number" min="0" value="${s.seed}"><button id="render-seed-random" class="h3-icon-button" aria-label="Randomize seed" title="Randomize seed">${uiIcon("refresh")}</button></div></div></div><div class="field"><label for="render-mp">Resolution (MP)</label><select id="render-mp" aria-label="Resolution (MP)">${[0.5,0.6,0.7,0.8,0.9,1].map(mp=>`<option value="${mp}" ${Number(s.render_mp??1)===mp?'selected':''}>${mp.toFixed(1)}</option>`).join('')}${![0.5,0.6,0.7,0.8,0.9,1].includes(Number(s.render_mp??1))?`<option value="${s.render_mp}" selected>${s.render_mp} (saved)</option>`:''}</select><span id="render-size-output" class="note" role="status"></span></div><p class="note">Fits the shot to H3’s 32-pixel grid. Final clip canvas: ${c.dimensions.join(" × ")}.</p><span id="mask-review-state" class="h3-sr-only">${s.mask ? "Available" : "Missing"}</span><input id="render-lora" type="hidden" value="${esc(s.lora_id||'v1-1000')}"><label class="conditioning-toggle"><input id="render-use-anchor" type="checkbox" ${s.anchor && s.use_anchor!==false?'checked':''} ${s.anchor?'':'disabled'}> Use shot anchor</label><label class="conditioning-toggle"><input id="render-use-mask" type="checkbox" ${s.use_mask===false?'':'checked'}> Use mask</label><p class="note">Turning masking off regenerates the whole frame. Source video and audio guides stay active. With the anchor off, remove any Picture 2 instructions from your prompt.</p><label class="conditioning-toggle"><input id="render-model-offloading" type="checkbox" ${S.modelOffloading?'checked':''}> Model offloading</label><p class="note">Enabled by default to reduce GPU memory use. Applies to the next render.</p><details><summary>Performance prompt</summary><textarea id="render-prompt" rows="7" aria-label="Next performance prompt">${esc(optionalAnchorPrompt(s.prompt,!!s.anchor && s.use_anchor!==false))}</textarea></details><p id="render-sync-conflict" class="error-text" role="alert" hidden>Render settings changed elsewhere. Reload saved settings before saving.</p>${shotAutosaveHtml()}<div class="row render-actions"><button id="queue-shot" class="primary" ${s.mode === "preserve" ? "disabled" : ""}>Queue shot</button></div><p id="render-queue-reason" class="note" role="status"></p></div></div></section><section class="panel render-results"><div class="panel-title"><h2>Your takes <span id="render-count" class="note"></span></h2><select id="render-filter" aria-label="Filter renders"><option value="all">All takes</option><option value="favorites">Favorites</option><option value="active">In progress</option><option value="completed">Completed</option><option value="failed">Failed / cancelled</option></select></div><div id="render-history-cards" class="render-grid"></div></section></div>`;
   $('#render-seed').dataset.remoteValue=String(s.seed);
   $('#render-seed-random').onclick=()=>{
     const input=$('#render-seed');input.value=String(crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff);

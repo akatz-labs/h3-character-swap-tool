@@ -659,7 +659,7 @@ def test_point_graph_uses_points_without_text_union_and_preserves_raw_clicks(
         {"id": "test", "data": {"options": {"mode": "shot", "frame": 6}}},
         tmp_path,
     )
-    nodes = [n for n in g.values() if n["class_type"] == "H3CharacterSwapRefineMask"]
+    nodes = [n for n in g.values() if n["class_type"] == "H3RelayRefineMask"]
     assert len(nodes) == 2 and all("conditioning" not in n["inputs"] for n in nodes)
     assert len(plan["derived"]) == 1 and plan["derived"][0]["frame"] == 18
     assert s["mask_points"][1]["label"] == 0 and len(s["mask_points"]) == 2

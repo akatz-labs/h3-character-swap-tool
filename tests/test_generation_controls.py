@@ -52,14 +52,16 @@ def test_generation_graph_and_snapshot(scene, lora, anchor, mask):
     assert job["data"]["generation"] == config
     assert g["4"]["inputs"]["lora_name"].startswith("minimax_h3_fl2v_turbo")
     if lora == "none":
-        assert "850" not in g and g["800"]["inputs"]["model"] == ["4", 0]
+        assert "850" not in g and g["sampling_memory"]["inputs"]["model"] == ["4", 0]
+        assert g["guider"]["inputs"]["model"] == ["sampling_memory", 0]
     else:
         assert g["850"]["inputs"]["lora_name"] == render_models.LORAS[lora]["filename"]
     assert ("309" in g) is anchor
     assert ("43" in g) is mask
     assert any("anchor" in name for name in files) is anchor
     assert any("mask" in name for name in files) is mask
-    assert g["801"]["inputs"]["audio_guide"] is True
+    assert g["801"]["inputs"]["ref_audios.ref_audio_0"] == ["803", 6]
+    assert g["guide"]["inputs"]["audio"] == ["803", 2]
     assert g["803"]["inputs"]["source_audio"] == ["31", 1]
     for node in g.values():
         for value in node["inputs"].values():
@@ -169,36 +171,21 @@ def test_offload_retry_requires_capacity_receipt_and_preserves_failed_inputs(sce
     assert store.clip_get("c")["shots"][0]["seed"] == 99
 
 
-def adapter():
-    spec = importlib.util.spec_from_file_location("generation", Path(__file__).parents[1] / "worker_nodes/h3_character_swap/conditioning.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 @pytest.mark.parametrize("anchor", [True, False])
 @pytest.mark.parametrize("mask", [True, False])
-@pytest.mark.parametrize("history", [0, 18])
-def test_expanded_conditioning_bypass_preserves_source_audio_and_continuation(anchor, mask, history):
-    module = adapter()
-    def node(kind, **inputs):
-        return {"class_type": kind, "inputs": inputs}
-    graph = {"ref": node("H3CharacterSwapReference", **{"ref_images.ref_image_0": "character", "ref_images.ref_image_1": "anchor", "ref_videos.ref_video_0": "source", "ref_audios.ref_audio_0": "audio"}),
-             "history": node("H3CharacterSwapHistory", positive=["ref", 0], latent=["ref", 1]),
-             "mask": node("H3CharacterSwapMaskedRegeneration", latent=["history", 1]),
-             "audio": node("MiniMaxH3AddGuide", positive=["history", 0], latent=["mask", 0], audio="audio", frame_idx=0),
-             "sample": node("SamplerCustomAdvanced", latent_image=["mask", 0])}
-    expanded = module.conditioning_graph({"expand": copy.deepcopy(graph)}, anchor, mask, history)["expand"]
-    assert expanded["ref"]["inputs"]["ref_videos.ref_video_0"] == "source"
-    assert expanded["ref"]["inputs"]["ref_audios.ref_audio_0"] == "audio"
-    assert ("ref_images.ref_image_1" in expanded["ref"]["inputs"]) is anchor
-    assert ("mask" in expanded) is mask
-    assert ("history" in expanded) is (anchor or history > 0)
-    assert expanded["audio"]["inputs"]["frame_idx"] == 0
-    for node in expanded.values():
-        for value in node["inputs"].values():
-            if isinstance(value, list):
-                assert value[0] in expanded
+def test_native_recipe_preserves_source_audio_and_optional_guides(anchor, mask):
+    from h3workbench.relay_contract import recipe
+    graph = recipe(anchor, mask)
+    reference = graph['801']['inputs']
+    assert reference['ref_videos.ref_video_0'] == ['803', 5]
+    assert reference['ref_audios.ref_audio_0'] == ['803', 6]
+    assert ('ref_images.ref_image_1' in reference) is anchor
+    assert ('edit_mask' in graph) is mask
+    assert graph['history']['inputs']['first_frame_guide'] is anchor
+    assert graph['history']['inputs']['history_frames'] == ['803', 7]
+    assert graph['guide']['inputs']['frame_idx'] == 0
+    assert graph['807']['inputs']['audio_mode'] == 'source'
+    assert not any(n['class_type'].startswith('H3CharacterSwap') for n in graph.values())
 
 
 def test_offloading_default_explicit_opt_out_and_legacy_jobs(scene):

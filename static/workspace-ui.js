@@ -8,7 +8,7 @@ function timeLabel(frame, fps = 24) {
 function shotRange(c, s) { return `${timeLabel(s.start, c.fps)}–${timeLabel(s.end, c.fps)}`; }
 function shotName(c, s) { return s.name || `Shot ${c.shots.findIndex(x => x.id === s.id) + 1}`; }
 function shotStatus(s) { return s.mode === 'preserve' ? 'Original source' : s.renders?.length ? `${s.renders.length} take${s.renders.length === 1 ? '' : 's'}` : s.anchor ? 'Ready for masking' : 'Set up shot'; }
-async function openShot(clipId, shotId, page = 'anchors') {
+async function openShot(clipId, shotId, page = 'render') {
   if (!(await prepareWorkspaceLeave())) return;
   S.clip = clipId; S.shot = shotId; S.tab = page; S.dirty = false;
   localStorage.h3clip = clipId;

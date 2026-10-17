@@ -3,16 +3,14 @@
 import copy
 import hashlib
 import json
-import runpy
 from pathlib import Path
 
 from .config import WORKERS
 
-# Use the worker's pure planner without importing its ComfyUI/Torch package.
-_windowing = runpy.run_path(str(Path(__file__).resolve().parents[1] /
-                              "worker_nodes/h3_character_swap/planning.py"))
-WINDOW_FRAMES = _windowing["WINDOWS"]
-HISTORY_FRAMES = _windowing["HISTORY"]
+from runtime.relay_dependency import pure_module
+_windowing = vars(pure_module('planning'))
+WINDOW_FRAMES = _windowing['WINDOWS']
+HISTORY_FRAMES = _windowing['HISTORY']
 
 
 def window_plan(shot, config=None):

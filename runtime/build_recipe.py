@@ -7,7 +7,10 @@ import shutil
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE = 'h3-character-swap-v1'
+PROFILE = 'h3-relay-toolkit-v2'
+import sys
+sys.path.insert(0, str(ROOT))
+from runtime.relay_dependency import extract
 
 
 def sha(path):
@@ -21,14 +24,14 @@ def build(destination):
     destination.mkdir(parents=True)
     metadata = destination / 'metadata'
     shutil.copytree(ROOT / 'runtime/comfyui', metadata)
-    source = ROOT / 'worker_nodes/h3_character_swap'
-    target = destination / 'nodes/h3_character_swap'
-    shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    relay = extract(destination / 'nodes/h3_relay')
+    shutil.copytree(ROOT / 'worker_nodes/h3_workbench_runtime', destination / 'nodes/h3_workbench_runtime',
+                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     files = {str(p.relative_to(destination)): {'sha256': sha(p), 'bytes': p.stat().st_size}
-             for p in sorted(target.rglob('*')) if p.is_file()}
+             for p in sorted((destination / 'nodes').rglob('*')) if p.is_file()}
     manifest = tomllib.loads((metadata / 'pyproject.toml').read_text())
     receipt = {'version': 1, 'profile': PROFILE,
-        'comfy_revision': manifest['tool']['comfygit']['comfyui_commit_sha'],
+        'relay': relay, 'comfy_revision': manifest['tool']['comfygit']['comfyui_commit_sha'],
         'metadata': {str(p.relative_to(metadata)): sha(p) for p in sorted(metadata.rglob('*')) if p.is_file()},
         'files': files}
     reviewed = json.loads((ROOT / 'docker/resource-catalog.json').read_text())['models']

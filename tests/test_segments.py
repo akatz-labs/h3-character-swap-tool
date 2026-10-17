@@ -152,10 +152,13 @@ def test_segment_graph_crops_source_and_separates_extra_anchor(scene,monkeypatch
     job={'id':'job-segment','data':{'snapshot':c,'shot':s,'segment_plan':{'segments':items}}}
     graph,files,stage=segment_jobs.graph(c,s,items,1,job,d)
     assert requested==[(106,247)]
-    assert graph['803']['inputs']['segment_mode'] is True
-    assert graph['803']['inputs']['use_anchor'] is True
-    assert graph['803']['inputs']['segment_reference']==['309',0]
-    assert graph['803']['inputs']['history_file']=='job-segment-history.npz'
+    assert graph['805']['inputs']['schedule'] == 'segment'
+    assert graph['history']['inputs']['first_frame_guide'] is True
+    assert graph['801']['inputs']['ref_images.ref_image_2']==['309',0]
+    assert graph['801']['inputs']['ref_images.ref_image_1']==['803',11]
+    assert graph['load_history']['inputs']['history_file']=='job-segment-history.npz'
+    assert all(graph[k]['inputs']['initial_history'] == ['load_history',0] for k in ('805','803','append'))
+    assert graph['save_history']['inputs']['frames'] == ['807',0]
     assert 'Current segment dialogue: "world"' in graph['801']['inputs']['prompt']
     assert '<Picture 3>' in graph['801']['inputs']['prompt']
     assert stage['data']['shot']['start']==106
@@ -223,9 +226,11 @@ def test_take_metadata_records_actual_pass_not_legacy_shot_defaults(scene,monkey
     c,s,d=scene;items=segments.layout(s,{'operation':'partition','frames':40});items[0]['anchor_mode']='none'
     output=d/'runtime';(output/'output').mkdir(parents=True)
     for filename in ['movie.mp4','master.mkv']:(output/'output'/filename).write_bytes(filename.encode())
-    report={'output':{'subfolder':'','filename':'movie.mp4'},'continuation_master':{'subfolder':'','filename':'master.mkv'},
-            'windows':[{'window_frames':56}],'history_frames':0}
-    (output/'history.json').write_text(json.dumps({'prompt':{'outputs':{'807':{'h3_character_swap':[report]}}}}))
+    report={'windows':[{'window_frames':56}],'history_frames':0,'complete':True}
+    (output/'history.json').write_text(json.dumps({'prompt':{'outputs':{
+        '807':{'h3_relay_report':[report]},
+        '809':{'images':[{'type':'output','subfolder':'','filename':'movie.mp4'}]},
+        'save_history':{'h3_relay_history':[{'type':'output','subfolder':'','filename':'master.mkv'}]}}}}))
     (d/'api.json').write_text('{}')
     w,h=media.render_spec(c,s)['dimensions']
     monkeypatch.setattr(media,'probe',lambda _:dict(width=w,height=h,frames=40,fps=24))

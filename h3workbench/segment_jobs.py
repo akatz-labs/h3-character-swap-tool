@@ -158,29 +158,28 @@ def graph(clip, shot, items, index, job, directory):
     stage=copy.deepcopy(job)
     stage['data'].update(shot=virtual,render_spec=spec,generation=render_models.settings(virtual))
     result,files=remote.graph_render(clip,virtual,stage,directory)
-    result['803']['inputs']['segment_mode']=True
+    result['805']['inputs']['schedule'] = 'segment'
+    result['save_history'] = {'class_type': 'H3RelaySaveHistory', 'inputs': {
+        'frames': ['807', 0], 'filename_prefix': job['id']}}
     if h:
-        # Generated history provides Picture 2 even without a manually supplied anchor.
-        result['803']['inputs']['use_anchor']=True
-        file=history_file(items,index,spec['dimensions'],directory)
-        name=job['id']+'-history.npz';files[name]=file;result['803']['inputs']['history_file']=name
+        file = history_file(items,index,spec['dimensions'],directory)
+        name = job['id']+'-history.npz'; files[name] = file
+        result['load_history'] = {'class_type': 'H3RelayLoadHistory', 'inputs': {'history_file': name}}
+        for key in ('805', '803', 'append'):
+            result[key]['inputs']['initial_history'] = ['load_history', 0]
+        # Picture 2 is the generated boundary; an explicit new anchor is Picture 3.
+        result['801']['inputs']['ref_images.ref_image_1'] = ['803', 11]
         if virtual['anchor']:
-            result['803']['inputs']['segment_reference']=['309',0]
-    # The plan node validates one explicit pass. Its legacy size selector is not
-    # allowed to create hidden windows for a segment.
+            result['801']['inputs']['ref_images.ref_image_2'] = ['309', 0]
+        result['history']['inputs']['first_frame_guide'] = True
     return result,files,stage
 
 
 def collect(job, clip, shot, items,index,directory,output,graph):
     seg=items[index]
     history=json.loads((output/'history.json').read_text())
-    report=next(iter(history.values()))['outputs']['807']['h3_character_swap'][0]
-    def local(descriptor):
-        root=(output/'output').resolve()
-        path=(root/descriptor['subfolder']/descriptor['filename']).resolve()
-        if not path.is_relative_to(root) or not path.is_file(): raise ValueError('Segment output is missing')
-        return path
-    video=local(report['output']);master=local(report['continuation_master'])
+    from . import relay_contract
+    report, video, master = relay_contract.outputs(history, output/'output', continuation=True)
     spec=media.render_spec(clip,shot)
     for file in [video,master]:
         info=media.probe(file)

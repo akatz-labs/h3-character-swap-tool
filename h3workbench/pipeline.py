@@ -678,13 +678,10 @@ def execute(id):
                 attach(job, update)
             else:
                 history = json.loads((out / "history.json").read_text())
-                hist = next(iter(history.values()))
-                output = hist["outputs"]["807"]
+                from . import relay_contract
+                output, video, _ = relay_contract.outputs(history, out / "output")
                 (d / "node-output.json").write_text(json.dumps(output, indent=2))
-                candidates = [p for p in (out / "output").rglob(id + "*.mp4")]
-                if len(candidates) != 1:
-                    raise RuntimeError("Could not uniquely identify assembled render")
-                info = media.probe(candidates[0])
+                info = media.probe(video)
                 spec = job["data"].get("render_spec") or media.render_spec(c, s)
                 if info["frames"] != s["end"] - s["start"]:
                     raise RuntimeError("Rendered timeline mismatch")
@@ -696,7 +693,7 @@ def execute(id):
                     )
                 result = {
                     "id": id,
-                    "asset": store.asset_add(candidates[0]),
+                    "asset": store.asset_add(video),
                     "api": store.asset_add(d / "api.json"),
                     "seed": s["seed"],
                     "prompt": s["prompt"],

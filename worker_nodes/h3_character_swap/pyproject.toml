@@ -1,8 +1,0 @@
-[project]
-name = "h3-character-swap-nodes"
-version = "0.1.0"
-description = "Focused H3 character swaps with SAM masks and source-aligned audio/history"
-requires-python = ">=3.12"
-license = "GPL-3.0-only"
-dependencies = ["numpy", "scipy", "Pillow", "opencv-python-headless"]
-

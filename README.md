@@ -52,7 +52,9 @@ previous installations.
 
 ## ComfyUI workflow
 
-The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the V1 character LoRA. It uses one focused node package and the app’s generation core.
+The [standalone workflow and API guide](workflows/README.md) covers source video, character reference, optional anchor, audio guidance, SAM masking and the recommended V1.5 character LoRA. It uses native ComfyUI nodes and the same pinned H3 Relay toolkit as the app.
+
+See the [0.2.0 integration validation](release/toolkit-v2-validation.md) for matched workflow results and the real segmented-render checks.
 
 ## Run from source
 
@@ -92,8 +94,8 @@ validation record before treating the example as a dependable quality demo.
 
 ## License
 
-The app and Akatz App Kit use the [MIT license](LICENSE). The focused
-ComfyUI node package under `worker_nodes/h3_character_swap` uses GPL-3.0;
+The app and Akatz App Kit use the [MIT license](LICENSE). The pinned H3 Relay
+source archive in `vendor/` uses GPL-3.0;
 its NVIDIA kernel derivative retains Apache-2.0 notices.
 Third-party components and models retain their own terms. The release bundle
 must include its exact notices and corresponding source/build information.

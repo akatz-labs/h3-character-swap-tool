@@ -67,10 +67,10 @@ def tooling(tools_root, cache):
 
 def runtime_revision(models, port, cache, tools_root):
     files = [ROOT / name for name in ['dist/worker/h3-adapter.mjs',
-        'runtime/build_recipe.py', 'runtime/configure_installation.py', 'runtime/install_recipe.py',
+        'runtime/build_recipe.py', 'runtime/relay_dependency.py', 'runtime/relay-lock.json', 'runtime/configure_installation.py', 'runtime/install_recipe.py',
         'runtime/allowed_nodes.json', 'runtime/tooling/pyproject.toml', 'runtime/tooling/uv.lock',
         'scripts/setup_source_worker.py', 'docker/resource-catalog.json', 'docker/models-v1.json']]
-    for name in ['runtime/comfyui', 'runtime/tools', 'worker_nodes']:
+    for name in ['runtime/comfyui', 'runtime/tools', 'worker_nodes', 'vendor']:
         files.extend(p for p in (ROOT / name).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc')
     identity = {'files': {str(p.relative_to(ROOT)): digest(p) for p in sorted(files)},
         'modelsRoot': str(models), 'comfyPort': port, 'cache': str(cache), 'toolsRoot': str(tools_root)}

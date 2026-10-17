@@ -73,7 +73,14 @@ def install():
 
     class SessionExecutor(original):
         def reset(self):
+            # ComfyUI unloads models immediately before this executor reset.
+            # Keep cache-owned patchers alive until that unload has completed:
+            # LoadedModel holds weak references and still needs model_size().
             super().reset()
+            with lock:
+                if (state.get("cleanup_clear_models") and
+                        state["reset_epoch"] == state["cleanup_reset_after"]):
+                    provider.values.clear()
             # Finish releasing old graph objects before acknowledging cleanup.
             # libc can retain freed model allocations across chain switches.
             gc.collect()
@@ -139,10 +146,8 @@ def install():
                     "stream": mm.VRAMState.LOW_VRAM,
                     "layer-stream": mm.VRAMState.NO_VRAM,
                 }[placement]
-            if clear_models and not repeated:
-                provider.values.clear()
-                if operation == "unload":
-                    state["family"] = None
+            if clear_models and not repeated and operation == "unload":
+                state["family"] = None
             epoch = state["cleanup_reset_after"] if repeated else state["reset_epoch"]
             state.update(cleanup_request_id=body["request_id"], cleanup_reset_after=epoch,
                          cleanup_clear_models=clear_models)
