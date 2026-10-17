@@ -32,7 +32,7 @@ second copy of the Relay timeline implementation.
 - Source-audio correlation at zero lag was 0.999972 after AAC encoding. At 32 kHz
   the original had 57,334 samples and the encoded file 57,344; the extra ten
   samples are codec tail padding, not a sample-exact audio claim.
-- 313 Python tests, 11 Node runtime checks, TypeScript/Vite builds, source
+- 319 Python tests, 11 Node runtime checks, TypeScript/Vite builds, source
   allowlist checks and reproducible rebuilds of both shared packages passed.
 
 The standalone old/new workflow comparison using V1.5 preserved all 120 decoded
@@ -41,6 +41,24 @@ Removal two-window comparisons were visually close, with mean absolute pixel
 differences of 1.482121/255 and 0.827001/255 respectively. They were not
 pixel-identical. Full SAM removal and a real browser reroll after a ComfyUI
 restart preserved the exact preceding window and recovered cached source masks.
+
+## Idle cleanup regression
+
+The shared model cache previously released its strong references on the HTTP
+thread before ComfyUI unloaded models. Its model manager could then encounter a
+dead patcher reference and stop the prompt thread. Cache release now happens in
+the execution-thread reset, after native unloading and before acknowledgement.
+The shared hook and legacy fallback use the same ordering.
+
+Six regression cases cover both hooks: unload and retry acknowledgement,
+model-family changes, and model retention between stages. A fresh worker recipe
+`fc0504eadae65a5d931c3b86b68ecdaddfcca21b82f8f6d916881f52d5a78a02`
+completed a real 43-frame render through the app. Every decoded video pixel and
+audio sample matched the preceding whole-shot result exactly.
+The normal idle policy unloaded all eight cached model entries after 300.24
+seconds. Total GPU use fell from 5,615 MiB to 719 MiB. The same ComfyUI process
+then executed a fresh image-preview prompt successfully, with no thread crash
+or controller restart. Tailnet browser playback and download also passed.
 
 ## Qualified environment and limits
 

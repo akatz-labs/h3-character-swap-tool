@@ -124,6 +124,7 @@
     "tests/conftest.py",
     "tests/shared-runtime.test.mjs",
     "tests/test_accepted_graph_bytes.py",
+    "tests/test_cache_unload_order.py",
     "tests/test_comparisons.py",
     "tests/test_contract.py",
     "tests/test_docker_context.py",
