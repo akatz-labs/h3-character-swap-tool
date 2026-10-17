@@ -8,11 +8,11 @@
       "id": "model",
       "type": "UNETLoader",
       "pos": [
-        960,
-        220
+        480,
+        100
       ],
       "size": [
-        270,
+        370,
         82
       ],
       "flags": {},
@@ -39,7 +39,7 @@
           ]
         }
       ],
-      "title": "UNETLoader",
+      "title": "H3 Ref2VA \u00b7 INT8",
       "properties": {
         "Node name for S&R": "UNETLoader"
       },
@@ -51,18 +51,18 @@
         "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
         "weight_dtype": "default"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "shift",
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        960,
-        470
+        480,
+        258
       ],
       "size": [
-        276.9,
+        370,
         82
       ],
       "flags": {},
@@ -116,18 +116,18 @@
         "shift_video": 12,
         "shift_audio": 3
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "attention",
       "type": "ModelAttentionBackend",
       "pos": [
-        960,
-        710
+        480,
+        416
       ],
       "size": [
-        270,
+        370,
         58
       ],
       "flags": {},
@@ -179,18 +179,18 @@
       "widgets_values_named": {
         "attention": "comfy kitchen attention"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "text",
       "type": "CLIPLoader",
       "pos": [
-        1400,
-        220
+        910,
+        100
       ],
       "size": [
-        270,
+        370,
         106
       ],
       "flags": {},
@@ -217,7 +217,7 @@
           ]
         }
       ],
-      "title": "CLIPLoader",
+      "title": "H3 Qwen text encoder",
       "properties": {
         "Node name for S&R": "CLIPLoader"
       },
@@ -231,18 +231,18 @@
         "type": "minimax",
         "device": "default"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "text_device",
       "type": "SelectCLIPDevice",
       "pos": [
-        1400,
-        490
+        910,
+        282
       ],
       "size": [
-        270,
+        370,
         58
       ],
       "flags": {},
@@ -294,18 +294,18 @@
       "widgets_values_named": {
         "device": "gpu:0"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "text_memory",
       "type": "H3RelayTextMemory",
       "pos": [
-        1400,
-        690
+        910,
+        416
       ],
       "size": [
-        192.9,
+        370,
         26
       ],
       "flags": {},
@@ -351,18 +351,18 @@
       "properties": {
         "Node name for S&R": "H3RelayTextMemory"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "video_vae",
       "type": "VAELoader",
       "pos": [
-        1400,
-        890
+        910,
+        518
       ],
       "size": [
-        270,
+        370,
         58
       ],
       "flags": {},
@@ -392,7 +392,7 @@
           ]
         }
       ],
-      "title": "VAELoader",
+      "title": "H3 video VAE \u00b7 FP16",
       "properties": {
         "Node name for S&R": "VAELoader"
       },
@@ -402,18 +402,18 @@
       "widgets_values_named": {
         "vae_name": "minimax_h3_video_vae_fp16.safetensors"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "audio_vae",
       "type": "VAELoader",
       "pos": [
-        1400,
-        1100
+        910,
+        652
       ],
       "size": [
-        270,
+        370,
         58
       ],
       "flags": {},
@@ -442,7 +442,7 @@
           ]
         }
       ],
-      "title": "VAELoader",
+      "title": "H3 audio VAE \u00b7 FP32",
       "properties": {
         "Node name for S&R": "VAELoader"
       },
@@ -452,18 +452,18 @@
       "widgets_values_named": {
         "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "turbo",
       "type": "LoraLoaderModelOnly",
       "pos": [
-        960,
-        960
+        480,
+        550
       ],
       "size": [
-        270,
+        370,
         82
       ],
       "flags": {},
@@ -505,7 +505,7 @@
           ]
         }
       ],
-      "title": "LoraLoaderModelOnly",
+      "title": "FL2V Turbo \u00b7 8-step",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
@@ -517,18 +517,18 @@
         "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
         "strength_model": 1
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "adapter",
       "type": "LoraLoaderModelOnly",
       "pos": [
-        960,
-        1210
+        480,
+        708
       ],
       "size": [
-        270,
+        370,
         82
       ],
       "flags": {},
@@ -571,7 +571,7 @@
           ]
         }
       ],
-      "title": "LoraLoaderModelOnly",
+      "title": "Character Swap V1.5 \u00b7 strength",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
@@ -583,19 +583,19 @@
         "lora_name": "h3-v2-challenge-eval-20261013/v2-1000.safetensors",
         "strength_model": 1
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "source",
       "type": "LoadVideo",
       "pos": [
         0,
-        220
+        100
       ],
       "size": [
-        280,
-        214
+        380,
+        330
       ],
       "flags": {},
       "order": 4,
@@ -621,7 +621,7 @@
           ]
         }
       ],
-      "title": "LoadVideo",
+      "title": "Source video",
       "properties": {
         "Node name for S&R": "LoadVideo"
       },
@@ -633,18 +633,18 @@
         "file": "source.mp4",
         "upload": "image"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#235044",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "prepare",
       "type": "H3RelayPrepareSource",
       "pos": [
         0,
-        580
+        506
       ],
       "size": [
-        270,
+        380,
         266
       ],
       "flags": {},
@@ -818,7 +818,7 @@
           "links": null
         }
       ],
-      "title": "H3RelayPrepareSource",
+      "title": "Prepare Source \u00b7 resolution & duration",
       "properties": {
         "Node name for S&R": "H3RelayPrepareSource"
       },
@@ -832,18 +832,18 @@
         "duration_seconds": 0,
         "missing_audio": "silence"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#235044",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "dimensions",
       "type": "GetImageSize",
       "pos": [
-        1400,
-        1330
+        0,
+        848
       ],
       "size": [
-        140,
+        380,
         66
       ],
       "flags": {},
@@ -921,19 +921,19 @@
       "properties": {
         "Node name for S&R": "GetImageSize"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "reference",
       "type": "LoadImage",
       "pos": [
-        430,
-        220
+        0,
+        990
       ],
       "size": [
-        280,
-        314
+        380,
+        330
       ],
       "flags": {},
       "order": 5,
@@ -974,7 +974,7 @@
           "links": null
         }
       ],
-      "title": "LoadImage",
+      "title": "Character reference \u00b7 Picture 1",
       "properties": {
         "Node name for S&R": "LoadImage"
       },
@@ -986,18 +986,18 @@
         "image": "reference.png",
         "upload": "image"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#235044",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "sam",
       "type": "CheckpointLoaderSimple",
       "pos": [
         0,
-        1650
+        1460
       ],
       "size": [
-        270,
+        400,
         98
       ],
       "flags": {},
@@ -1068,15 +1068,15 @@
       "widgets_values_named": {
         "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "subject",
       "type": "CLIPTextEncode",
       "pos": [
         0,
-        1940
+        1634
       ],
       "size": [
         400,
@@ -1123,7 +1123,7 @@
           ]
         }
       ],
-      "title": "CLIPTextEncode",
+      "title": "SAM person description",
       "properties": {
         "Node name for S&R": "CLIPTextEncode"
       },
@@ -1133,18 +1133,18 @@
       "widgets_values_named": {
         "text": "person"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#235044",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "first_frame",
       "type": "ImageFromBatch",
       "pos": [
-        450,
-        1650
+        0,
+        1910
       ],
       "size": [
-        270,
+        400,
         82
       ],
       "flags": {},
@@ -1198,18 +1198,18 @@
         "batch_index": 0,
         "length": 1
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "detect",
       "type": "SAM3_Detect",
       "pos": [
-        450,
-        1940
+        0,
+        2068
       ],
       "size": [
-        270,
+        400,
         206
       ],
       "flags": {},
@@ -1350,18 +1350,18 @@
         "refine_iterations": 2,
         "individual_masks": true
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "select",
       "type": "H3RelaySelectMask",
       "pos": [
-        900,
-        1740
+        460,
+        1460
       ],
       "size": [
-        308.9,
+        360,
         102
       ],
       "flags": {},
@@ -1432,18 +1432,18 @@
         "selection": "largest",
         "index": 0
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "track",
       "type": "SAM3_VideoTrack",
       "pos": [
-        900,
-        2070
+        460,
+        1638
       ],
       "size": [
-        275,
+        360,
         166
       ],
       "flags": {},
@@ -1541,18 +1541,18 @@
         "max_objects": 1,
         "detect_interval": 1
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "mask",
       "type": "SAM3_TrackToMask",
       "pos": [
-        1350,
-        1740
+        460,
+        1880
       ],
       "size": [
-        270,
+        360,
         58
       ],
       "flags": {},
@@ -1604,18 +1604,18 @@
       "widgets_values_named": {
         "object_indices": ""
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "recover",
       "type": "H3RelayRecoverMasks",
       "pos": [
-        1350,
-        2060
+        460,
+        2014
       ],
       "size": [
-        294,
+        360,
         162
       ],
       "flags": {},
@@ -1756,18 +1756,18 @@
         "source_frames": 0,
         "recover_empty_frames": true
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "expand_mask",
       "type": "H3RelayExpandMask",
       "pos": [
-        1800,
-        1740
+        880,
+        1460
       ],
       "size": [
-        386.9,
+        400,
         102
       ],
       "flags": {},
@@ -1868,19 +1868,19 @@
         "source_frames": 120,
         "expansion_px": 64
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "mask_preview",
       "type": "PreviewImage",
       "pos": [
-        1800,
-        2110
+        880,
+        1638
       ],
       "size": [
-        140,
-        26
+        400,
+        330
       ],
       "flags": {},
       "order": 33,
@@ -1919,22 +1919,22 @@
           "links": null
         }
       ],
-      "title": "PreviewImage",
+      "title": "Review expanded person mask",
       "properties": {
         "Node name for S&R": "PreviewImage"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "plan",
       "type": "H3RelayWindowPlan",
       "pos": [
-        2100,
-        220
+        1380,
+        100
       ],
       "size": [
-        270,
+        400,
         286
       ],
       "flags": {},
@@ -2063,18 +2063,18 @@
         "seed_mode": "fixed",
         "seed_overrides": "{}"
       },
-      "color": "#334e60",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "start",
       "type": "StartLoop",
       "pos": [
-        2600,
-        220
+        1380,
+        462
       ],
       "size": [
-        351,
+        400,
         186
       ],
       "flags": {},
@@ -2223,18 +2223,18 @@
         "mode.num_iterations": 4,
         "cache_iterations": false
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "window",
       "type": "H3RelayWindowInputs",
       "pos": [
-        2600,
-        650
+        1380,
+        724
       ],
       "size": [
-        323,
+        400,
         394
       ],
       "flags": {},
@@ -2608,19 +2608,19 @@
         "iteration_index": 0,
         "resize_anchor": true
       },
-      "color": "#334e60",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "reference_conditioning",
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        3120,
-        220
+        1880,
+        100
       ],
       "size": [
-        400,
-        444
+        450,
+        520
       ],
       "flags": {},
       "order": 35,
@@ -2894,7 +2894,7 @@
           ]
         }
       ],
-      "title": "Native H3 reference conditioning",
+      "title": "H3 prompt \u00b7 reference conditioning",
       "properties": {
         "Node name for S&R": "MiniMaxH3ReferenceToVideo"
       },
@@ -2912,18 +2912,18 @@
         "length": 124,
         "ref_image_size": "match"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "history",
       "type": "H3RelayApplyHistory",
       "pos": [
-        3120,
-        930
+        1880,
+        696
       ],
       "size": [
-        270,
+        450,
         206
       ],
       "flags": {},
@@ -3082,18 +3082,18 @@
         "first_frame_guide": false,
         "target_audio_guide": true
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "encode_source",
       "type": "VAEEncode",
       "pos": [
-        3120,
-        1400
+        1880,
+        978
       ],
       "size": [
-        140,
+        450,
         46
       ],
       "flags": {},
@@ -3153,18 +3153,18 @@
       "properties": {
         "Node name for S&R": "VAEEncode"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "edit_mask",
       "type": "H3RelayApplyEditMask",
       "pos": [
-        3560,
-        1400
+        1880,
+        1100
       ],
       "size": [
-        193.9,
+        450,
         66
       ],
       "flags": {},
@@ -3240,18 +3240,18 @@
       "properties": {
         "Node name for S&R": "H3RelayApplyEditMask"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "guide",
       "type": "MiniMaxH3AddGuide",
       "pos": [
-        3560,
-        930
+        1880,
+        1242
       ],
       "size": [
-        274.9,
+        450,
         158
       ],
       "flags": {},
@@ -3375,18 +3375,18 @@
       "widgets_values_named": {
         "frame_idx": 0
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "sampling_memory",
       "type": "H3RelaySamplingMemory",
       "pos": [
-        4020,
-        1060
+        2430,
+        574
       ],
       "size": [
-        294,
+        320,
         98
       ],
       "flags": {},
@@ -3466,18 +3466,18 @@
       "widgets_values_named": {
         "activation_memory_gib": 17
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "noise",
       "type": "RandomNoise",
       "pos": [
-        4020,
-        220
+        2430,
+        100
       ],
       "size": [
-        270,
+        320,
         82
       ],
       "flags": {},
@@ -3532,18 +3532,18 @@
         "noise_seed": 0,
         "control_after_generate": "fixed"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "guider",
       "type": "CFGGuider",
       "pos": [
-        4460,
-        220
+        2810,
+        100
       ],
       "size": [
-        270,
+        320,
         98
       ],
       "flags": {},
@@ -3623,18 +3623,18 @@
       "widgets_values_named": {
         "cfg": 1
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "sampler",
       "type": "KSamplerSelect",
       "pos": [
-        4020,
-        470
+        2430,
+        258
       ],
       "size": [
-        270,
+        320,
         58
       ],
       "flags": {},
@@ -3670,18 +3670,18 @@
       "widgets_values_named": {
         "sampler_name": "er_sde"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "schedule",
       "type": "BasicScheduler",
       "pos": [
-        4020,
-        700
+        2430,
+        392
       ],
       "size": [
-        270,
+        320,
         106
       ],
       "flags": {},
@@ -3736,18 +3736,18 @@
         "steps": 8,
         "denoise": 1
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "sample",
       "type": "SamplerCustomAdvanced",
       "pos": [
-        4460,
-        650
+        2810,
+        274
       ],
       "size": [
-        211.9,
+        320,
         106
       ],
       "flags": {},
@@ -3863,18 +3863,18 @@
       "properties": {
         "Node name for S&R": "SamplerCustomAdvanced"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "separate",
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        4460,
-        1080
+        2810,
+        456
       ],
       "size": [
-        196.9,
+        320,
         46
       ],
       "flags": {},
@@ -3935,18 +3935,18 @@
       "properties": {
         "Node name for S&R": "LTXVSeparateAVLatent"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "decode",
       "type": "VAEDecode",
       "pos": [
-        4900,
-        650
+        2810,
+        578
       ],
       "size": [
-        140,
+        320,
         46
       ],
       "flags": {},
@@ -4006,18 +4006,18 @@
       "properties": {
         "Node name for S&R": "VAEDecode"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "append",
       "type": "H3RelayAppendWindow",
       "pos": [
-        5340,
-        650
+        3230,
+        100
       ],
       "size": [
-        313,
+        550,
         126
       ],
       "flags": {},
@@ -4134,18 +4134,18 @@
       "properties": {
         "Node name for S&R": "H3RelayAppendWindow"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "end",
       "type": "EndLoop",
       "pos": [
-        5340,
-        1100
+        3230,
+        302
       ],
       "size": [
-        270,
+        550,
         98
       ],
       "flags": {},
@@ -4225,18 +4225,18 @@
       "widgets_values_named": {
         "accumulate": false
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "finish",
       "type": "H3RelayFinishWindows",
       "pos": [
-        5780,
-        650
+        3230,
+        476
       ],
       "size": [
-        270,
+        550,
         118
       ],
       "flags": {},
@@ -4351,18 +4351,18 @@
       "widgets_values_named": {
         "audio_mode": "source"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#28465c",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "video",
       "type": "CreateVideo",
       "pos": [
-        6220,
-        650
+        3230,
+        670
       ],
       "size": [
-        270,
+        550,
         150
       ],
       "flags": {},
@@ -4450,18 +4450,18 @@
         "color_space": "sRGB",
         "codec": "none"
       },
-      "color": "#30353d",
-      "bgcolor": "#20252d"
+      "color": "#303844",
+      "bgcolor": "#1e252d"
     },
     {
       "id": "save",
       "type": "SaveVideo",
       "pos": [
-        6220,
-        1000
+        3230,
+        896
       ],
       "size": [
-        270,
+        550,
         154
       ],
       "flags": {},
@@ -4501,7 +4501,7 @@
           "links": null
         }
       ],
-      "title": "SaveVideo",
+      "title": "Save final video",
       "properties": {},
       "widgets_values": [
         "h3-relay/character-swap",
@@ -4519,148 +4519,128 @@
         "format.codec.encoding.crf": 16,
         "codec": "auto"
       },
-      "color": "#365745",
-      "bgcolor": "#20252d"
+      "color": "#603d40",
+      "bgcolor": "#1e252d"
     },
     {
       "id": 1,
       "type": "MarkdownNote",
       "pos": [
-        0,
-        -360
+        -1640,
+        100
       ],
       "size": [
-        850,
-        460
+        740,
+        610
       ],
       "flags": {},
-      "order": 8,
+      "order": 46,
       "mode": 0,
-      "showAdvanced": null,
       "inputs": [],
       "outputs": [],
-      "title": "01 \u00b7 Inputs",
+      "title": "Note: Model Links",
       "properties": {},
       "widgets_values": [
-        "## 01 \u00b7 Inputs\n\nUpload one continuous source shot and a character reference. Prepare Source resamples to 24 fps and fits a 32-pixel canvas. 768 = up to 1 MP; 480 = up to 0.5 MP. Duration 0 keeps the whole clip.\n\nThis canvas has no explicit anchor. The canonical Python recipe supports use_anchor=True; the app exposes anchor selection directly."
+        "# Model Links\n\nDownload each file into the named folder under **ComfyUI/models/**.\n\n**diffusion_models/**\n\n- [minimax_h3_ref2va_pruned_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors)\n\n**text_encoders/**\n\n- [qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors)\n\n**vae/**\n\n- [minimax_h3_video_vae_fp16.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors)\n- [minimax_h3_audio_vae_fp32.safetensors](https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors)\n\n**checkpoints/**\n\n- [sam3.1_multiplex_fp16.safetensors](https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors)\n\n**loras/**\n\n- [minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors](https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/main/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors)\n- [h3_character_swap_v1.5.safetensors](https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/main/h3_character_swap_v1.5.safetensors)\n\n**Character Swap V1.5 + FL2V Turbo 8-step:** both strengths 1.0.\n\nRefresh model lists after downloading. Models retain their upstream licenses."
       ],
-      "widgets_values_named": {
-        "text": "## 01 \u00b7 Inputs\n\nUpload one continuous source shot and a character reference. Prepare Source resamples to 24 fps and fits a 32-pixel canvas. 768 = up to 1 MP; 480 = up to 0.5 MP. Duration 0 keeps the whole clip.\n\nThis canvas has no explicit anchor. The canonical Python recipe supports use_anchor=True; the app exposes anchor selection directly."
-      },
-      "color": "#432",
-      "bgcolor": "#653"
+      "color": "#443b27",
+      "bgcolor": "#29251d"
     },
     {
       "id": 2,
       "type": "MarkdownNote",
       "pos": [
-        960,
-        -360
+        -1640,
+        810
       ],
       "size": [
-        850,
-        460
+        740,
+        920
       ],
       "flags": {},
-      "order": 9,
+      "order": 47,
       "mode": 0,
-      "showAdvanced": null,
       "inputs": [],
       "outputs": [],
-      "title": "02 \u00b7 Models",
+      "title": "Note: Model Storage & Custom Nodes",
       "properties": {},
       "widgets_values": [
-        "## 02 \u00b7 Models\n\nUse the pinned Ref2VA INT8 model, Qwen encoder and H3 video/audio VAEs. Character Swap uses FL2V Turbo 8-step plus the Character Swap V1.5 LoRA, both at strength 1. Keep 8 steps, normal scheduler, CFG 1 and er_sde.\n\nText Stage Memory releases inactive models between VAE and Qwen encoding in normal residency mode; high-VRAM mode remains unchanged. Sampling Workspace supplies the tested activation estimate and releases the diffusion model before decoding. Model files and license links: https://github.com/akatz-ai/h3-relay/tree/main/example_workflows/toolkit ComfyUI must support native Start Loop / End Loop. Qualified core: 79be670e2d9be63e238785af307369d2b9039ed1; frontend 1.53.6."
+        "# Model Storage Location\n\n```text\nComfyUI/\n\u2514\u2500\u2500 models/\n    \u251c\u2500\u2500 diffusion_models/\n    \u2502   \u2514\u2500\u2500 minimax_h3_ref2va_pruned_int8_convrot.safetensors\n    \u251c\u2500\u2500 text_encoders/\n    \u2502   \u2514\u2500\u2500 qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors\n    \u251c\u2500\u2500 vae/\n    \u2502   \u251c\u2500\u2500 minimax_h3_video_vae_fp16.safetensors\n    \u2502   \u2514\u2500\u2500 minimax_h3_audio_vae_fp32.safetensors\n    \u251c\u2500\u2500 checkpoints/\n    \u2502   \u2514\u2500\u2500 sam3.1_multiplex_fp16.safetensors\n    \u2514\u2500\u2500 loras/\n        \u251c\u2500\u2500 minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors\n        \u2514\u2500\u2500 h3_character_swap_v1.5.safetensors\n```\n\nSelect these files in the matching loaders. An existing shared model directory also works when ComfyUI is configured to use it.\n\n**V1.5 filename:** the saved LoRA loader uses `h3-v2-challenge-eval-20261013/v2-1000.safetensors`, the validation alias for V1.5. Select your downloaded `h3_character_swap_v1.5.safetensors` in that loader, or keep the same subfolder/alias. Both names refer to the same weights.\n\n## Custom nodes\n\nInstall [H3 Relay](https://github.com/akatz-ai/h3-relay) under `ComfyUI/custom_nodes/h3-relay/`. This canvas requires the **Relay 2.0 toolkit**. Use a current ComfyUI with native H3, SAM3 and Start Loop / End Loop support; restart after installing nodes. FFmpeg and FFprobe must be on PATH.\n\nBlue nodes are H3 Relay helpers; the surrounding groups show where they fit. Green nodes are user inputs. Red nodes save output."
       ],
-      "widgets_values_named": {
-        "text": "## 02 \u00b7 Models\n\nUse the pinned Ref2VA INT8 model, Qwen encoder and H3 video/audio VAEs. Character Swap uses FL2V Turbo 8-step plus the Character Swap V1.5 LoRA, both at strength 1. Keep 8 steps, normal scheduler, CFG 1 and er_sde.\n\nText Stage Memory releases inactive models between VAE and Qwen encoding in normal residency mode; high-VRAM mode remains unchanged. Sampling Workspace supplies the tested activation estimate and releases the diffusion model before decoding. Model files and license links: https://github.com/akatz-ai/h3-relay/tree/main/example_workflows/toolkit ComfyUI must support native Start Loop / End Loop. Qualified core: 79be670e2d9be63e238785af307369d2b9039ed1; frontend 1.53.6."
-      },
-      "color": "#432",
-      "bgcolor": "#653"
+      "color": "#443b27",
+      "bgcolor": "#29251d"
     },
     {
       "id": 3,
       "type": "MarkdownNote",
       "pos": [
-        2100,
-        -360
+        -820,
+        100
       ],
       "size": [
-        850,
-        460
+        700,
+        450
       ],
       "flags": {},
-      "order": 10,
+      "order": 48,
       "mode": 0,
-      "showAdvanced": null,
       "inputs": [],
       "outputs": [],
-      "title": "03 \u00b7 Source-aligned windows",
+      "title": "READ ME \u00b7 Setup & defaults",
       "properties": {},
       "widgets_values": [
-        "## 03 \u00b7 Source-aligned windows\n\nPlan Windows owns the exact frame ranges, history and seeds. Native Start Loop / End Loop own iteration. Keep the count-mode connections intact. adaptive preserves the app window planner. Source video and reference audio include H\u22121 context frames; target masks and the target audio guide remain current-window-only.\n\nRaw decoded output is assembled once, without pasted-mask finishing."
+        "# Character Swap V1.5 \u00b7 H3 Relay 2.0\n\n1. Upload a source video and a character image or sheet in **User inputs**.\n2. **Prepare Source** sets 24 fps and a canvas aligned to 32 pixels. Choose 480 or 768; duration 0 keeps the entire clip.\n3. In **SAM person description**, identify the person to replace. Inspect the expanded mask preview.\n4. In **H3 prompt**, describe the replacement and the performance to preserve. `<Picture 1>` is the character; `<Video 1>` is the source performance.\n5. Run and inspect every window boundary in the saved video.\n\n**Defaults:** both LoRAs at 1.0; 8 steps, `er_sde` / `normal`, CFG 1. This canvas has no separate scene anchor.\n\nFinal delivery uses the original source soundtrack. Start with one short continuous shot."
       ],
-      "widgets_values_named": {
-        "text": "## 03 \u00b7 Source-aligned windows\n\nPlan Windows owns the exact frame ranges, history and seeds. Native Start Loop / End Loop own iteration. Keep the count-mode connections intact. adaptive preserves the app window planner. Source video and reference audio include H\u22121 context frames; target masks and the target audio guide remain current-window-only.\n\nRaw decoded output is assembled once, without pasted-mask finishing."
-      },
-      "color": "#432",
-      "bgcolor": "#653"
+      "color": "#443b27",
+      "bgcolor": "#29251d"
     },
     {
       "id": 4,
       "type": "MarkdownNote",
       "pos": [
-        3120,
-        -360
+        -820,
+        650
       ],
       "size": [
-        850,
-        460
+        700,
+        610
       ],
       "flags": {},
-      "order": 11,
+      "order": 49,
       "mode": 0,
-      "showAdvanced": null,
       "inputs": [],
       "outputs": [],
-      "title": "04 \u00b7 Conditioning",
+      "title": "Note: Size Settings Reference",
       "properties": {},
       "widgets_values": [
-        "## 04 \u00b7 Conditioning\n\nWrite a concrete character description and the source action to preserve. Picture 1 is the character reference; Video 1 is the source performance. Source audio is used for reference conditioning and the frame-zero guide.\n\nMasking, history and guides stay explicit so the graph is reusable."
+        "# MiniMax H3 \u00b7 Size Settings Reference\n\n**24 fps \u00b7 width and height divisible by 32.** Match the source aspect ratio. More pixels, longer windows and larger reference images require more memory.\n\n| Approx. MP | Landscape reference |\n|---|---|\n| 0.21 | 608 \u00d7 352 |\n| 0.31 | 736 \u00d7 416 |\n| 0.41 | 864 \u00d7 480 |\n| 0.52 | 960 \u00d7 544 |\n| 0.64 | 1056 \u00d7 608 |\n| 0.74 | 1152 \u00d7 640 |\n| 0.82 | 1216 \u00d7 672 |\n| 0.94 | 1280 \u00d7 736 |\n| 1.03 | 1344 \u00d7 768 |\n\nThese are manually chosen reference sizes. **1344 \u00d7 768 exceeds a strict 1 MP cap.**\n\n**Prepare Source uses strict pixel caps**, not a fixed output height. For an ideal 16:9 input, 480 (\u22640.5 MP) gives **928 \u00d7 512**; 768 (\u22641 MP) gives **1344 \u00d7 736**. Portrait inputs swap those dimensions; square inputs give 704 \u00d7 704 or 992 \u00d7 992. Already aligned sources within the cap keep their size. The node outputs the actual width and height."
       ],
-      "widgets_values_named": {
-        "text": "## 04 \u00b7 Conditioning\n\nWrite a concrete character description and the source action to preserve. Picture 1 is the character reference; Video 1 is the source performance. Source audio is used for reference conditioning and the frame-zero guide.\n\nMasking, history and guides stay explicit so the graph is reusable."
-      },
-      "color": "#432",
-      "bgcolor": "#653"
+      "color": "#443b27",
+      "bgcolor": "#29251d"
     },
     {
       "id": 5,
       "type": "MarkdownNote",
       "pos": [
-        5780,
-        -360
+        -820,
+        1360
       ],
       "size": [
-        850,
-        460
+        700,
+        820
       ],
       "flags": {},
-      "order": 12,
+      "order": 50,
       "mode": 0,
-      "showAdvanced": null,
       "inputs": [],
       "outputs": [],
-      "title": "05 \u00b7 Review and output",
+      "title": "Note: Windows, History & Review",
       "properties": {},
       "widgets_values": [
-        "## 05 \u00b7 Review and output\n\nFinish Windows checks complete source coverage and removes padding/history from delivery. Native Create Video / Save Video write the MP4. Review identity/background, limbs, occlusions and every continuation boundary.\n\nThe app separately saves 16-bit FFV1 continuation masters for explicit segment rerenders. Graph validation is not visual acceptance."
+        "# Windows, history & review\n\nH3 window sizes follow **17n + 5**: 22, 39, 56, 73, 90, 107, 124\u2026\n\n| Window | Duration at 24 fps |\n|---|---|\n| 22 frames | 0.92 s |\n| 39 frames | 1.63 s |\n| 107 frames | 4.46 s |\n| 124 frames | 5.17 s |\n\n**History 18** carries generated context into the next window. Keep history smaller than the window. The planner owns source ranges and seeds; native loops execute them. Assembly trims repeated overlap and padding back to the source frame count.\n\nKeep the loop connections intact. The groups separate inputs, models, masks, planning, conditioning, sampling and output; they do not change execution.\n\n**Masking:** SAM selects and tracks the source person; Relay recovery/expansion prepares the edit mask. The final video is raw decoded generation, without pasting the subject through a mask. Inspect identity, hands, hair, occlusions and continuation seams.\n\nThe app adds reviewed anchors and independent segment rerenders on top of this same toolkit.\n\n**Memory:** Text Stage Memory and Sampling Workspace manage stage transitions. They respect explicit high-VRAM mode. Normal offloading was required for the unchanged fixture on 24 GB cards; this is not a blanket memory-fit guarantee."
       ],
-      "widgets_values_named": {
-        "text": "## 05 \u00b7 Review and output\n\nFinish Windows checks complete source coverage and removes padding/history from delivery. Native Create Video / Save Video write the MP4. Review identity/background, limbs, occlusions and every continuation boundary.\n\nThe app separately saves 16-bit FFV1 continuation masters for explicit segment rerenders. Graph validation is not visual acceptance."
-      },
-      "color": "#432",
-      "bgcolor": "#653"
+      "color": "#443b27",
+      "bgcolor": "#29251d"
     }
   ],
   "links": [
@@ -5378,15 +5358,107 @@
     ]
   ],
   "floatingLinks": null,
-  "groups": [],
+  "groups": [
+    {
+      "id": 1,
+      "title": "01 \u00b7 User inputs",
+      "bounding": [
+        -28,
+        22,
+        436,
+        1328
+      ],
+      "color": "#2b737b",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "02 \u00b7 H3 models & LoRA",
+      "bounding": [
+        452,
+        22,
+        856,
+        798
+      ],
+      "color": "#554477",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "04 \u00b7 H3 Relay \u00b7 window planning",
+      "bounding": [
+        1352,
+        22,
+        456,
+        1126
+      ],
+      "color": "#396b89",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "05 \u00b7 Reference conditioning & guides",
+      "bounding": [
+        1852,
+        22,
+        506,
+        1408
+      ],
+      "color": "#3f596e",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "06 \u00b7 Sampling & decoding",
+      "bounding": [
+        2402,
+        22,
+        756,
+        680
+      ],
+      "color": "#746345",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "07 \u00b7 H3 Relay \u00b7 assembly & output",
+      "bounding": [
+        3202,
+        22,
+        606,
+        1058
+      ],
+      "color": "#3e6e56",
+      "font_size": 26,
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "03 \u00b7 SAM \u00b7 person selection & masks",
+      "bounding": [
+        -28,
+        1382,
+        1336,
+        922
+      ],
+      "color": "#75694b",
+      "font_size": 26,
+      "flags": {}
+    }
+  ],
   "definitions": null,
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.9,
+      "scale": 0.29,
       "offset": [
-        416,
-        110
+        1900,
+        350
       ]
     },
     "reroutes": null,
