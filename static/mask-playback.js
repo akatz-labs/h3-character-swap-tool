@@ -21,6 +21,7 @@ function maskFrameUI(e) {
   $('#mask-time').title = `${(e.frame/24).toFixed(2)}s / ${((e.end-e.start)/24).toFixed(2)}s`;
   uiButton($('#mask-play'), e.wanted ? 'Pause' : 'Play', e.wanted ? 'pause' : 'play', true);
   maskDrawPoints();
+  if(e.controlsViewing!==e.viewing || e.controlsReady!==e.ready)maskViewingControls(e);
 }
 function maskPlaybackError(e, error) {
   if (e !== maskEditState || e.playbackAbort?.signal.aborted) return;
@@ -63,18 +64,30 @@ function maskPaint(e, frame, page) {
     const p=i*4; data[p]=62; data[p+1]=149; data[p+2]=243;
     data[p+3]=page[offset+i] <= e.padding ? 140 : 0;
   }
-  // Both layers are presented together from the decoder's same captured frame.
-  e.player.render(1,0,0); e.player.top.hidden=true;
+  // Anchor inspection always uses the shot's first-frame mask. Keep the video
+  // decoder parked so returning to Source video restores its captured frame.
+  if(e.viewing==='anchor') {
+    const source=$('#mask-source'),image=e.anchorImage;
+    if(!image)return;
+    source.width=w;source.height=h;
+    const ctx=source.getContext('2d'),scale=Math.min(w/image.naturalWidth,h/image.naturalHeight);
+    ctx.fillStyle='#10151d';ctx.fillRect(0,0,w,h);
+    const iw=image.naturalWidth*scale,ih=image.naturalHeight*scale;
+    ctx.drawImage(image,(w-iw)/2,(h-ih)/2,iw,ih);
+    e.player.renderKey='';
+  } else e.player.render(1,0,0);
+  e.player.top.hidden=true;
   context.putImageData(pixels,0,0);
   e.frame=frame; e.loading=false; e.loadError=false; e.displayedFrame=frame;
   $('#mask-loading').hidden=true; maskFrameUI(e);
 }
 async function maskPresent(e) {
   if (!e.preview || e.player?.time == null || e !== maskEditState) return;
-  const frame = Math.round(e.player.time*24), index = Math.floor(frame/e.preview.page_frames);
-  if(e.seeking && frame!==e.requested)return;
+  const anchor=e.viewing==='anchor',frame = anchor?0:Math.round(e.player.time*24), index = Math.floor(frame/e.preview.page_frames);
+  if(!anchor && e.seeking && frame!==e.requested)return;
   const serial = e.presentSerial = (e.presentSerial||0)+1;
   try {
+    if(anchor)await maskAnchorImage(e);
     let page=e.pages.get(index);
     if (!page) {
       e.loading=true;
@@ -88,12 +101,12 @@ async function maskPresent(e) {
     // Two pages ahead, with three decoded pages retained in total.
     for(let next=index+1;next<=index+2&&next<e.preview.pages.length;next++)
       if(!e.pages.has(next))maskDistancePage(e,next).catch(()=>{});
-    if (e.wanted && e.ready && e.player.video.paused) await e.player.start();
-  } catch(error) {maskPlaybackError(e,error);}
+    if (!anchor && e.wanted && e.ready && e.player.video.paused) await e.player.start();
+  } catch(error) {if(serial===e.presentSerial)maskPlaybackError(e,error);}
 }
 async function maskPlay() {
   const e=maskEditState;
-  if (!e?.ready) return;
+  if (!e?.ready || e.viewing==='anchor') return;
   if (e.wanted) {maskPause();return;}
   e.wanted=true; maskFrameUI(e);
   try {await e.player.start(e.frame>=e.end-e.start-1?0:null);}
@@ -106,7 +119,7 @@ async function loadMaskPlayback(retry=false) {
   const controller=e.playbackAbort=new AbortController();
   const alive=()=>e===maskEditState&&!controller.signal.aborted&&!!$('#mask-source');
   e.pages=new Map(); e.pageRequests=new Map(); e.maskPixels=null; e.loading=true; e.loadError=false;
-  e.loadedMask=shot().mask; e.requested=e.frame; e.seeking=false;
+  e.loadedMask=shot().mask; e.requested=e.viewing==='anchor'?(e.sourceFrame??0):e.frame; e.seeking=false;
   $('#mask-loading').hidden=false; $('#mask-loading').textContent='Preparing playback…';
   $('#mask-preview-retry').hidden=true; $('#mask-play').disabled=true;
   const video=$('#mask-video'), timeline=$('#mask-frame');

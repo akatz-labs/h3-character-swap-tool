@@ -24,7 +24,7 @@ function maskPending(points, s) {
     .filter((f) => JSON.stringify(current[f]) !== JSON.stringify(applied[f]));
 }
 function maskEditorHtml(c, s) {
-  return `<div class="mask-editor"><div class="mask-viewport" id="mask-viewport"><video id="mask-video" muted playsinline preload="auto"></video><canvas id="mask-source" aria-label="Source frame"></canvas><canvas id="mask-preview" aria-label="Person mask overlay"></canvas><svg id="mask-points" viewBox="0 0 ${c.dimensions[0]} ${c.dimensions[1]}" preserveAspectRatio="xMidYMid meet" tabindex="0" role="application" aria-label="Mask correction points. Choose Include or Exclude, then click the person or background."></svg><span id="mask-loading" class="mask-loading">Loading frame…</span></div><div class="panel-body stack"><div class="mask-tools" role="group" aria-label="Point tools">${[
+  return `<div class="mask-editor" id="shot-mask-panel" role="tabpanel" aria-labelledby="shot-mask-tab"><div class="mask-viewport" id="mask-viewport"><video id="mask-video" muted playsinline preload="auto"></video><canvas id="mask-source" aria-label="Source frame"></canvas><canvas id="mask-preview" aria-label="Person mask overlay"></canvas><svg id="mask-points" viewBox="0 0 ${c.dimensions[0]} ${c.dimensions[1]}" preserveAspectRatio="xMidYMid meet" tabindex="0" role="application" aria-label="Mask correction points. Choose Include or Exclude, then click the person or background."></svg><span id="mask-anchor-label" class="mask-anchor-label" role="status" hidden></span><span id="mask-loading" class="mask-loading">Loading frame…</span></div><div class="panel-body stack"><div class="mask-tools" role="group" aria-label="Point tools">${[
     ["include", "Include"],
     ["exclude", "Exclude"],
     ["move", "Move"],
@@ -157,7 +157,7 @@ function maskDrawPoints() {
   keyframes.innerHTML = frames
     .map(
       (f) =>
-        `<button class="quiet ${f === e.frame ? "active" : ""}" data-mask-frame="${f}">Frame ${e.start + f} · ${e.points.filter((p) => p.frame === f).length}</button>`,
+        `<button class="quiet ${f === e.frame ? "active" : ""}" data-mask-frame="${f}" ${e.viewing==='anchor'?'disabled':''}>Frame ${e.start + f} · ${e.points.filter((p) => p.frame === f).length}</button>`,
     )
     .join("");
   $$("[data-mask-frame]").forEach(
@@ -166,10 +166,11 @@ function maskDrawPoints() {
   }
   $("#mask-undo").disabled = !e.undo.length;
   $("#mask-redo").disabled = !e.redo.length;
-  $("#mask-clear-frame").disabled = !e.points.some((p) => p.frame === e.frame);
+  $("#mask-clear-frame").disabled = e.viewing==='anchor' || !e.points.some((p) => p.frame === e.frame);
 }
 function maskSeek(frame) {
   const e=maskEditState;
+  if(e.viewing==='anchor')maskSetViewing('source',false);
   maskPause(); e.requested=Math.max(0,Math.min(e.end-e.start-1,Math.round(frame)));
   e.selected=null;
   if (!e.ready) return;
@@ -244,9 +245,9 @@ function updateMaskEditorStatus() {
   const at=(points,f)=>JSON.stringify((points||[]).filter(p=>p.frame===f).map(p=>[p.x,p.y,p.label]).sort());
   const frameBusy=active.some(j=>j.kind==='mask'||j.data.options?.mode!=='frame'||(j.data.options.frame===e.frame&&at(j.data.shot?.mask_points,e.frame)===at(e.points,e.frame)));
   $("#mask-update").disabled =
-    !!e.submitting || frameBusy || !pending.includes(e.frame);
-  $("#mask-track").disabled = !!e.submitting || active.length > 0 || !(e.points.length || s.mask);
-  $("#track-mask").disabled = busy;
+    e.viewing==='anchor' || !!e.submitting || frameBusy || !pending.includes(e.frame);
+  $("#mask-track").disabled = e.viewing==='anchor' || !!e.submitting || active.length > 0 || !(e.points.length || s.mask);
+  $("#track-mask").disabled = e.viewing==='anchor' || busy;
   const text = e.conflict
     ? "Saved settings changed elsewhere. Your local edits are kept."
     : e.submitting
@@ -393,9 +394,9 @@ function bindMaskEditor(c, s) {
       v.points = v.points.filter((p) => p.frame !== v.frame);
       v.selected = null;
     });
-  $("#mask-frame").oninput = (ev) => maskSeek(Number(ev.target.value));
+  $("#mask-frame").oninput = (ev) => {if(e.viewing!=='anchor')maskSeek(Number(ev.target.value));};
   $("#mask-frame-number").onchange = (ev) =>
-    maskSeek(Number(ev.target.value) - s.start);
+    {if(e.viewing!=='anchor')maskSeek(Number(ev.target.value) - s.start);};
   $("#mask-prev").onclick = () => maskSeek(e.frame - 1);
   $("#mask-next").onclick = () => maskSeek(e.frame + 1);
   let paddingBefore;
@@ -502,7 +503,7 @@ function bindMaskEditor(c, s) {
       .sort((a, b) => a.d - b.d)[0]?.p;
   svg.oncontextmenu = (ev) => ev.preventDefault();
   svg.onpointerdown = (ev) => {
-    if (e.loading || e.loadError || e.player?.busy || ev.button > 2) return;
+    if (e.viewing==='anchor' || e.loading || e.loadError || e.player?.busy || ev.button > 2) return;
     maskPause();
     const q = coordinate(ev);
     if (q.x < 0 || q.x > 1 || q.y < 0 || q.y > 1) return;

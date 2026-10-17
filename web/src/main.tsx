@@ -33,10 +33,10 @@ function Editors({projectId,page,instanceId,view,onError,onLocation,worker,onWor
   useEffect(()=>{void view.current?.ready.then(()=>{if(worker)view.current?.selectWorker(worker);});},[worker,instanceId,view]);
   useEffect(()=>{tabs.current?.querySelector('[aria-current=page]')?.scrollIntoView({block:'nearest',inline:'nearest'});},[page]);
   return <section className="h3-editor-workspace" data-clips-open={clipsOpen}>
-    <div className="h3-project-tools">
+    <div className="h3-project-tools" data-shot={!!clipHeader?.shot}>
       <button className="h3-clips-toggle" aria-expanded={clipsOpen} aria-controls="h3-clip-browser" onClick={()=>setClipsOpen(!clipsOpen)}><Icon name="film"/>Clips</button>
       {clipHeader?.shot&&<button className="h3-back-clip" onClick={()=>view.current?.update({page:'shots'})}>← Clip overview</button>}
-      <nav ref={tabs} className="h3-clip-tabs" aria-label="Clip sections">{definition.projectPages.filter(tab=>clipHeader?.shot?['anchors','render'].includes(tab.id):['shots','review'].includes(tab.id)).map(tab=><button key={tab.id} data-page={tab.id} aria-current={page===tab.id?'page':undefined} onClick={()=>view.current?.update({page:tab.id})}><Icon name={tab.id==='shots'?'film':tab.id==='anchors'?'image':tab.id==='render'?'play':'grid'}/>{tab.label}</button>)}</nav>
+      <nav ref={tabs} className="h3-clip-tabs" aria-label="Clip sections">{definition.projectPages.filter(tab=>!clipHeader?.shot&&['shots','review'].includes(tab.id)).map(tab=><button key={tab.id} data-page={tab.id} aria-current={page===tab.id?'page':undefined} onClick={()=>view.current?.update({page:tab.id})}><Icon name={tab.id==='shots'?'film':tab.id==='anchors'?'image':tab.id==='render'?'play':'grid'}/>{tab.label}</button>)}</nav>
       {clipHeader&&<div className="h3-clip-heading" data-clip-id={clipHeader.id}>
         <h1 title={clipHeader.name}>{clipHeader.shot?`${clipHeader.shot.name} · ${clipHeader.name}`:clipHeader.name}</h1>
         <div className="h3-clip-details"><span>{clipHeader.shot?`Frames ${clipHeader.shot.start}–${clipHeader.shot.end-1} · ${((clipHeader.shot.end-clipHeader.shot.start)/clipHeader.fps).toFixed(1)}s`:`${(clipHeader.frames/clipHeader.fps).toFixed(1)}s · ${clipHeader.width} × ${clipHeader.height}`} · {clipHeader.fps} fps</span><span className="h3-clip-status" data-status={clipHeader.status}>{clipHeader.status==='kept'?'Kept':clipHeader.status==='ready'?'Review ready':'In progress'}</span></div>

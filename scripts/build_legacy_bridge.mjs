@@ -17,19 +17,19 @@ async function writeChanged(path, content) {
 const refresh=renderToStaticMarkup(createElement(Icon,{name:'refresh'})).replace('ak-icon','h3-icon');
 await writeChanged(join(root,'static/vendor/app-kit-icons.js'),'// Generated from @akatz/app-kit. See app-kit-icons.LICENSE.txt.\nconst appKitIcons = '+JSON.stringify({refresh})+';\n');
 await writeChanged(join(root,'static/vendor/app-kit-icons.LICENSE.txt'),(await readFile(new URL('../THIRD_PARTY_NOTICES.md',import.meta.resolve('@akatz/app-kit/react')),'utf8')).trimEnd()+'\n');
-const names=['vendor/app-kit-icons.js','ui-icons.js','comparison.js','review-player.js','mask-editor.js','mask-playback.js','shots-editor.js','finish-review.js','refine-editor.js','workspace-ui.js','shot-autosave.js','segments.js','app.js'];
+const names=['vendor/app-kit-icons.js','ui-icons.js','comparison.js','review-player.js','mask-editor.js','mask-playback.js','shots-editor.js','finish-review.js','refine-editor.js','workspace-ui.js','shot-autosave.js','shot-viewer.js','segments.js','app.js'];
 const source=await Promise.all(names.map(name=>readFile(join(root,'static',name),'utf8')));
 let app=source.at(-1);
 const opening='const $ = (s) => document.querySelector(s),\n  $$ = (s) => [...document.querySelectorAll(s)];';
 if(!app.startsWith(opening))throw new Error('Legacy editor entry changed; review its scope adapter');
 app=app.slice(opening.length);
-app=app.replace('const S = {','const S = {').replace('tab: "anchors",','tab: options.page || "shots",').replace('batch: localStorage.h3batch || null,','batch: options.projectId || localStorage.h3batch || null,');
+app=app.replace('const S = {','const S = {').replace('tab: "render",','tab: options.page || "shots",').replace('batch: localStorage.h3batch || null,','batch: options.projectId || localStorage.h3batch || null,');
 app=app.replace('    signal,\n    headers:',"    signal: signal ? AbortSignal.any([signal, lifecycle.signal]) : lifecycle.signal,\n    headers:");
 const startup='guarded(async () => {\n  await refresh();\n  poll();\n  workerPoll();\n})();';
 if(!app.includes(startup))throw new Error('Legacy startup changed; review its lifecycle adapter');
 app=app.replace(startup,'const ready = (async () => { await refresh(); poll(); workerPoll(); })();');
 app=app.replace('S.worker = e.target.value;', 'S.worker = e.target.value; options.onWorker?.(S.worker);');
-app=app.replace('function draw() {','function draw() {\n  syncClipHeader();\n  if(S.batch)options.onLocation?.({projectId:S.batch,page:S.tab});');
+app=app.replace('function draw() {','function draw() {\n  normalizeShotPage();\n  syncClipHeader();\n  if(S.batch)options.onLocation?.({projectId:S.batch,page:S.tab});');
 app=app.replace('function syncWorkspace() {','function syncWorkspace() {\n  syncClipHeader();');
 const prefix=`import {createLegacyScope,createLegacyController} from '../src/legacy-lifecycle.ts';
 export function mountLegacy(root, options) {

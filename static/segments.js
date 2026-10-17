@@ -274,12 +274,13 @@ function drawRender(c,s){
     $$('[data-whole-take]').forEach(b=>b.onclick=()=>openRender(b.dataset.wholeTake));
   };
   $('#mask-play').onclick=guarded(async()=>{
-    const e=maskEditState,seg=segmentSelected();if(!e?.ready||!seg)return;if(e.wanted){maskPause();return;}
+    const e=maskEditState,seg=segmentSelected();if(!e?.ready||!seg||e.viewing==='anchor')return;if(e.wanted){maskPause();return;}
     e.wanted=true;await e.player.start(e.frame<seg.start||e.frame>=seg.end-1?seg.start:null);maskFrameUI(e);
   });
   $('#mask-video').addEventListener('timeupdate',()=>{
     const e=maskEditState,seg=segmentSelected();if(!segmentActive()||!e?.wanted||!seg||e.player.video.currentTime*24<seg.end)return;
     if($('#mask-loop').checked){e.player.video.currentTime=seg.start/24;}else maskPause();
   });
+  bindShotViewer(c,s);
   void loadSegmentPlan(true);
 }
