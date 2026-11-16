@@ -36,7 +36,7 @@ def graph(names, width, height, length, selected, start, seed, prompt, prefix, *
     result = {
         'model': n('UNETLoader', unet_name=PIKA_PRESET['model'], weight_dtype='default'),
         'pika': n('LoraLoaderModelOnly', model=['model', 0], lora_name=PIKA_PRESET['pika'], strength_model=PIKA_PRESET['pika_strength']),
-        edit_node: n('LoraLoaderModelOnly', model=['pika', 0], lora_name=edit_lora, strength_model=PIKA_PRESET['swap_strength']),
+        edit_node: n('LoraLoaderModelOnly', model=['pika', 0], lora_name=edit_lora, strength_model=PIKA_PRESET['swap_strength'] if mode == 'swap_pika' else 1.),
         'clip': n('CLIPLoader', clip_name='qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', type='minimax', device='default'),
         'vae': n('VAELoader', vae_name='minimax_h3_video_vae_fp16.safetensors'),
         'text': n('CLIPTextEncode', clip=['clip', 0], text=prompt),
@@ -195,7 +195,7 @@ def execute(job, directory, *, attach=True):
         'settings': {k: copy.deepcopy(segment[k]) for k in segments.EDITABLE if k in segment},
         'render_mode': mode, 'guide_inputs_snapshot': {'source': guides.source(clip), 'shot_start': shot['start'], 'guides': chosen},
         'lora': copy.deepcopy(render_models.LORAS[segment.get('lora_id', 'v2-1000')]) if mode == 'swap_pika' else {'id': 'ripple-v1', 'label': 'H3 Ripple V1'},
-        'recipe': copy.deepcopy(remake_render.PRESET) if remake else {'model': captured['model']['inputs']['unet_name'], 'pika_strength': 1., 'edit_strength': 1., 'steps': 6, 'sampler': 'lcm', 'scheduler': 'simple', 'source_video_guide': mode == 'guides', 'source_video_reference': mode == 'swap_pika'},
+        'recipe': copy.deepcopy(remake_render.PRESET) if remake else {'model': captured['model']['inputs']['unet_name'], 'pika_strength': captured['pika']['inputs']['strength_model'], 'edit_strength': captured['swap' if mode == 'swap_pika' else 'ripple']['inputs']['strength_model'], 'steps': captured['schedule']['inputs']['steps'], 'sampler': captured['sampler']['inputs']['sampler_name'], 'scheduler': captured['schedule']['inputs']['scheduler'], 'source_video_guide': mode == 'guides', 'source_video_reference': mode == 'swap_pika'},
         **({'cast_inputs_snapshot': cast.generation_inputs(clip, shot, segment)} if mode == 'swap_pika' else {}),
         'history_frames': h, 'window_frames': length,
         'model_offloading': offload,

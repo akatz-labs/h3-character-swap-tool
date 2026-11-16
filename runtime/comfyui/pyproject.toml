@@ -7,12 +7,12 @@ dependencies = [
   "alembic==1.20.0",
   "av==19.0.1",
   "blake3==1.0.11",
-  "comfy-aimdo==0.5.5",
+  "comfy-aimdo==0.6.0",
   "comfy-angle==0.1.1",
-  "comfy-kitchen==0.2.35",
-  "comfyui-embedded-docs==0.5.12",
-  "comfyui-frontend-package==1.53.6",
-  "comfyui-workflow-templates==0.11.70",
+  "comfy-kitchen==0.2.41",
+  "comfyui-embedded-docs==0.5.16",
+  "comfyui-frontend-package==1.59.1",
+  "comfyui-workflow-templates==0.11.107",
   "einops==0.8.2",
   "filelock==4.1.1",
   "huggingface-hub==0.36.2",
@@ -48,8 +48,8 @@ dependencies = [
 schema_version = 2
 python_version = "3.12"
 comfyui_version_type = "commit"
-comfyui_version = "79be670e2d9be63e238785af307369d2b9039ed1"
-comfyui_commit_sha = "79be670e2d9be63e238785af307369d2b9039ed1"
+comfyui_version = "c844cb672186f187bf9455e2808821417a10d296"
+comfyui_commit_sha = "c844cb672186f187bf9455e2808821417a10d296"
 comfyui_repository = "https://github.com/Comfy-Org/ComfyUI.git"
 headless = false
 

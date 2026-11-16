@@ -94,8 +94,25 @@ Open **http://localhost:8898** on that computer, then:
    from the preceding generated segment.
 4. Review takes in **Outputs**, then use **Create final** to join segments.
 
-Guide generation optionally uses your own OpenAI API key, saved under **Settings
-→ OpenAI**. Uploading your own guides and rendering swaps need no API key.
+Guides can use your own OpenAI API key, saved under **Settings → OpenAI**, or
+run locally with **H3 Image Edit**. In **Settings → Models**, install the optional
+H3 Image Edit model, its image VAE, and Character Swap V1.5. The existing H3 text
+encoder is reused. Once the worker reports those files ready, **H3 Image Edit**
+appears in the guide modal's **Edit model** menu. No OpenAI key is needed for it.
+
+H3 Image Edit uses the INT8 ConvRot checkpoint, six sampling steps, CFG 1, and
+Character Swap V1.5 at strength 1.0. Quality selects the approximate output area:
+**Low: 1 MP, Medium: 2 MP, High: 4 MP**, preserving source aspect ratio. The model
+is tuned for larger images; Low and Medium trade detail for lower resource use.
+Model offloading is enabled by default in local Execution settings. Actual memory
+and speed depend on your GPU and reference images. Source and reference ordering,
+edit instructions, quality, and model choice are retained for each guide.
+
+The two image-specific files add **20.63 GiB**; V1.5 adds about 148 MiB if absent.
+These downloads are optional and do not increase the minimum video setup.
+Review the [H3 Image model license](https://huggingface.co/Comfy-Org/MiniMax-H3-Image)
+before use; it is separate from this application's MIT license.
+Uploading your own guides and rendering swaps need no API key.
 **Settings → Transcription → Auto** prefers installed local Whisper, then a saved
 OpenAI key. Whisper and the Pika recipe's two LoRAs are optional model downloads.
 API requests are billed to your provider account; local mode has no hosted credits.

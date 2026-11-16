@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const settings = z.object({
   prompt: z.string().max(12000),
+  edit_model: z.enum(['gpt-image', 'h3-image']).optional(),
   quality: z.enum(['low', 'medium', 'high']),
   references: z.array(z.string()).max(15),
   helpers: z.array(z.object({id: z.string(), text: z.string()})),

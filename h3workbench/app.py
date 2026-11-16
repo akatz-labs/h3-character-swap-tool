@@ -709,7 +709,8 @@ def cancel(id: str, body: dict = None):
             else:
                 store.job_update(id, "cancelled", phase="Cancelled")
         elif (j["state"] == "running" and not j["data"].get("finalizing")
-              and j["kind"] in {"mask", "mask_edit", "render", "guide_render", "refine_extract", "refine_mask", "refine_face", "backplate"}
+              and (j["kind"] in {"mask", "mask_edit", "render", "guide_render", "refine_extract", "refine_mask", "refine_face", "backplate"}
+                   or (j["kind"] == "guide_generate" and j["data"].get("options", {}).get("provider") == "local-h3-image"))
               and pipeline.resource(j) in {j["data"].get("worker"), "prep", "cpu"}):
             if not (body or {}).get("confirm_running"):
                 raise ValueError("Confirm stopping this running job")

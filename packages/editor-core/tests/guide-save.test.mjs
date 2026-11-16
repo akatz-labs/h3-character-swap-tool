@@ -9,7 +9,7 @@ function harness(change=()=>{},failure=conflict()){
  const guide={id:'g',frame:0,source:'video',source_asset:'frame',dimensions:[512,512],prompt:'',quality:'medium',references:['ref'],helpers:[{id:'swap',text:'Swap'}],approved:null,versions:[]};
  const clip={id:'c',revision:1,source:'video',dimensions:[512,512],shots:[{id:'s',start:0,end:24,guides:[guide]}]};
  const calls=[];let writes=0;
- const env=vm.createContext({structuredClone,Error,S:{data:{clips:[clip]}},
+ const env=vm.createContext({structuredClone,Error,adapter:{mode:'hosted'},S:{data:{clips:[clip]}},
   api:async(path,method,body)=>{calls.push({path,method,body});if(!method){const fresh=structuredClone(clip);fresh.revision=2;change(fresh);return fresh;}if(++writes===1)throw failure;return {revision:body.revision+1};},
   mergeSegmentClip:c=>env.S.data.clips[0]=c});
  vm.runInContext(app.slice(app.indexOf('function sameSettings'),app.indexOf('let writeQueue')),env);

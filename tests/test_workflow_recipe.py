@@ -28,7 +28,7 @@ def test_focused_recipe_has_exact_node_and_model_inventory(tmp_path):
     models = json.loads((target / 'model-identities.json').read_text())
     catalog = json.loads((Path(__file__).parents[1] / 'docker/resource-catalog.json').read_text())
     assert set(models['models']) == {item['relativePath'] for item in catalog['models']}
-    assert len(models['models']) == 8
+    assert len(models['models']) == 10
     required = {m['id'] for m in catalog['models'] if m['requirement'] == 'required'}
     assert len(required) == 6
     assert required == {m for f in catalog['features'] if not f['optional'] for m in f['models']}

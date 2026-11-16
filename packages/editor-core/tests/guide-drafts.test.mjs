@@ -19,3 +19,10 @@ test('untouched fields follow server updates, saved drafts clear, invalid storag
  s.setItem('g','{"values":{"prompt":4}}');assert.deepEqual(restoreGuideDraft(s,'g',initial).values,initial);
  assert.equal(retainGuideDraft({setItem(){throw Error('full')}},'g',draft),false);
 });
+test('local guide model choice survives reopening and is isolated per guide',()=>{
+ const s=storage(),current={...initial,edit_model:'gpt-image'};
+ const draft=restoreGuideDraft(s,'local:guide',current);draft.values.edit_model='h3-image';draft.values.quality='high';
+ retainGuideDraft(s,'local:guide',draft);
+ assert.equal(restoreGuideDraft(s,'local:guide',current).values.edit_model,'h3-image');
+ assert.equal(restoreGuideDraft(s,'local:other',current).values.edit_model,'gpt-image');
+});

@@ -70,7 +70,10 @@ def secret():
 def status():
     if provider() == 'local-openai':
         from . import local_openai
-        return local_openai.status()
+        from . import local_h3_image
+        result = local_openai.status()
+        result['models'] = [{'id': 'gpt-image', 'label': result['label'], 'available': result['available'] and result['configured'], 'message': result.get('message', '')}, local_h3_image.status()]
+        return result
     if provider() == 'private-openai':
         from . import guide_gateway
         return guide_gateway.status()

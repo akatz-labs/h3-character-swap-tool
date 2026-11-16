@@ -136,7 +136,7 @@ async function guideWrite(cid,sid,action){
 // Retry only a rejected metadata save, after checking this guide's exact inputs.
 // Never replay a quote, generation request, upload or ambiguous network failure.
 function guideSettings(g){
-  return {prompt:g.prompt,quality:g.quality,references:[...g.references],helpers:structuredClone(g.helpers||[]),edit_source_asset:g.edit_source_asset||g.source_asset};
+  return {...(adapter.mode==='local'?{edit_model:g.edit_model||'gpt-image'}:{}),prompt:g.prompt,quality:g.quality,references:[...g.references],helpers:structuredClone(g.helpers||[]),edit_source_asset:g.edit_source_asset||g.source_asset};
 }
 async function saveGuideDraft(session,base,revision,approve=false){
   const {cid,sid,id,draft}=session,changes=structuredClone(draft.values);
@@ -168,10 +168,10 @@ function guideDraftChanged(session){
   if(session!==guideSession)return;
   const retained=retainGuideDraft(localStorage,session.draftKey,session.draft);
   $('#guide-draft-status').textContent=retained?'Draft saved':'Browser storage unavailable — save before closing.';
-  const changed=JSON.stringify(session.draft.values)!==JSON.stringify(session.draft.base)||session.preview!==session.approved;
+  const changed=!sameSettings(session.draft.values,session.draft.base)||session.preview!==session.approved;
   const pending=session.preview&&!guideRecord(session).versions.some(v=>v.id===session.preview);
-  $('#guide-save').disabled=session.busy||pending||!changed;
-  $('#guide-save').title=pending?'Wait for the selected version to finish':'Apply the selected version to this timeline guide';
+  $('#guide-save').disabled=session.busy||pending;
+  $('#guide-save').title=pending?'Wait for the selected version to finish':changed?'Apply the selected version to this timeline guide':'Keep the current guide and close';
   const guide=guideRecord(session),version=guide.versions.find(v=>v.id===session.preview);
   $('#guide-save').textContent=version&&version.id!==guide.approved?'Use this version':'Save settings';
   $('#guide-selection-status').textContent=version?`Version ${guide.versions.indexOf(version)+1} ${version.id===guide.approved&&guide.enabled?'in use':'selected'}`:'';
@@ -179,7 +179,9 @@ function guideDraftChanged(session){
   renderGuideSource();
   const values=session.draft.values,parts=values.prompt?[values.prompt]:[];
   parts.push(...values.helpers.map(h=>session.presets.find(p=>p.id===h.id).label+':\n'+h.text));
-  $('#guide-full-prompt').textContent=values.helpers.length?parts.join('\n\n'):values.prompt;
+  let preview=values.helpers.length?parts.join('\n\n'):values.prompt;
+  if(values.edit_model==='h3-image')preview=['<Picture 1> is the source frame to edit.',...values.references.map((_,i)=>`<Picture ${i+2}> is reference image ${i+2}.`)].join('\n')+'\n\n'+preview.replace(/\bImage (\d+)\b/g,'<Picture $1>').replaceAll('Images 2 onward','Pictures 2 onward');
+  $('#guide-full-prompt').textContent=preview;
 }
 function updateGuideGenerationPrice(session) {
   const running=S.data.jobs.some(p=>p.kind==='guide_generate'&&p.clip_id===session.cid&&p.shot_id===session.sid&&p.data.options?.guide?.id===session.id&&['submitting','queued','waiting','running'].includes(p.state));
@@ -241,12 +243,13 @@ async function openGuide(id){
       <div class="guide-helper-chips" role="group" aria-label="Prompt helpers">${session.presets.map(p=>`<button type="button" data-guide-helper="${esc(p.id)}" aria-pressed="${draft.values.helpers.some(h=>h.id===p.id)}" title="Enable ${esc(p.label.toLowerCase())} instructions">${esc(p.label)}</button>`).join('')}</div>
       <details class="guide-full-prompt guide-disclosure"><summary id="guide-full-prompt-label">Full prompt</summary><pre id="guide-full-prompt" tabindex="0" aria-labelledby="guide-full-prompt-label"></pre></details>
       <details class="guide-references guide-disclosure" open><summary>Reference images <span id="guide-ref-count"></span></summary><div id="guide-reference-list" class="guide-reference-list"></div><button type="button" class="quiet" data-guide-upload="reference">${uiIcon('upload')}Upload reference</button><input id="guide-reference-upload" type="file" accept="image/*" hidden></details>
-      <div class="guide-model"><label for="guide-model">Edit model</label><select id="guide-model"><option>GPT Image 2.6 Flare</option></select><label for="guide-quality">Quality</label><select id="guide-quality">${['low','medium','high'].map(q=>`<option value="${q}" ${q===draft.values.quality?'selected':''}>${q[0].toUpperCase()+q.slice(1)}</option>`).join('')}</select></div>
+      <div class="guide-model"><label for="guide-model">Edit model</label><select id="guide-model"><option value="gpt-image">GPT Image 2.6 Flare</option>${draft.values.edit_model==='h3-image'?'<option value="h3-image" selected>H3 Image Edit</option>':''}</select><label for="guide-quality">Quality</label><select id="guide-quality">${['low','medium','high'].map(q=>`<option value="${q}" ${q===draft.values.quality?'selected':''}>${q[0].toUpperCase()+q.slice(1)}</option>`).join('')}</select></div>
       </div><div class="guide-generation"><button id="guide-generate" class="primary" disabled><span id="guide-generate-label">Generate guide</span></button><span id="guide-provider-status" class="guide-connection-status" role="status"></span></div>
     </div></div><footer class="guide-footer"><div class="guide-footer-actions"><button id="guide-remove" class="danger">${uiIcon('trash')}Remove guide</button><button type="button" id="guide-toggle-enabled" role="switch" aria-checked="${g.enabled}"><span class="guide-switch" aria-hidden="true"></span>Enabled</button></div><span id="guide-error" role="alert"></span><span id="guide-selection-status" role="status"></span><div class="guide-footer-confirm"><button id="guide-cancel">Close</button><button id="guide-save" class="primary" disabled>Use this version</button></div></footer>`);
   session.dropLifetime=new AbortController();
   guideSession=session;$('#dialog-close').insertAdjacentHTML('beforebegin','<span id="guide-draft-status" role="status" title="Guide settings are saved in this browser"></span>');$('#dialog').classList.add('guide-modal');$('#dialog-close').innerHTML=uiIcon('close');$('#dialog-close').setAttribute('aria-label','Close guide');
   $('#guide-prompt').oninput=event=>{draft.values.prompt=event.target.value;guideDraftChanged(session);};
+  $('#guide-model').onchange=event=>{draft.values.edit_model=event.target.value;showGuideProvider(session.providerStatus);guideDraftChanged(session);};
   $('#guide-quality').onchange=event=>{draft.values.quality=event.target.value;guideDraftChanged(session);};
   $('#guide-reset-source').onclick=()=>setGuideSource(guideRecord(session).source_asset);
   $('#guide-use-source').onclick=()=>setGuideSource(guideRecord(session).versions.find(v=>v.id===session.preview).asset);
@@ -263,6 +266,7 @@ async function openGuide(id){
     finally{session.busy=false;if(session===guideSession){guideDraftChanged(session);renderGuideVersions();}}
   });
   $('#guide-save').onclick=run(async()=>{
+    if(sameSettings(draft.values,draft.base)&&session.preview===session.approved){$('#dialog').close();return;}
     const result=await guideWrite(cid,sid,(base,revision)=>saveGuideDraft(session,base,revision,true));mergeSegmentClip(result);localStorage.removeItem(draftKey);$('#dialog').close();renderGuideStrip();await loadSegmentPlan(true);
   });
   $('#guide-generate').onclick=run(async()=>{
@@ -277,7 +281,7 @@ async function openGuide(id){
           const updated=await saveGuideDraft(session,base,revision);
           mergeSegmentClip(updated);revision=updated.revision;draft.base=structuredClone(changes);
         }
-        return api(base+'/'+id+'/generate','POST',{revision,changes,...price});
+        return api(base+'/'+id+'/generate','POST',{revision,changes,...price,...(adapter.mode==='local'?{worker:adapter.execution().worker,model_offloading:adapter.execution().modelOffloading}:{})});
       });
       session.preview=job.id;session.submission=null;mergeJob(job);
     }catch(error){session.preview=previous;throw error;}
@@ -340,8 +344,14 @@ function renderGuideHelpers(){
 
 }
 function showGuideProvider(status){
-  guideSession.providerReady=['private-openai','local-openai'].includes(status.provider)&&status.configured===true&&status.available===true;
-  $('#guide-provider-status').textContent=guideSession.providerReady?'':status.message||'Generation not connected';
+  guideSession.providerStatus=status;
+  const chosen=guideSession.draft.values.edit_model||'gpt-image';
+  const models=adapter.mode==='local'&&status.models?status.models:[{id:'gpt-image',label:'GPT Image 2.6 Flare',available:['private-openai','local-openai'].includes(status.provider)&&status.configured===true&&status.available===true,message:status.message}];
+  $('#guide-model').innerHTML=models.filter(m=>m.available||m.id==='gpt-image'||m.id===chosen).map(m=>`<option value="${esc(m.id)}" ${m.id===chosen?'selected':''} ${!m.available&&m.id!=='gpt-image'?'disabled':''}>${esc(m.label)}</option>`).join('');
+  const model=models.find(m=>m.id===chosen);
+  guideSession.providerReady=model?.available===true;
+  $('#guide-provider-status').textContent=guideSession.providerReady?'':model?.message||'Generation not connected';
+  [...$('#guide-quality').options].forEach((option,i)=>{const q=['Low','Medium','High'][i];option.textContent=chosen==='h3-image'?`${q} · ${[1,2,4][i]} MP`:q;});
   $('#guide-generate').title=guideSession.providerReady?'Generate an edited guide':'Generation unavailable; upload a guide image';
   $('#guide-generate').setAttribute('aria-describedby','guide-provider-status');renderGuideVersions();
 }
@@ -443,9 +453,9 @@ function renderGuideVersions(){
     $$('[data-guide-settings]').forEach(button=>button.onclick=guarded(async()=>{
       const saved=g.versions.find(v=>v.id===button.dataset.guideSettings),available=new Set(session.references.map(r=>r.asset));
       if(saved.references.some(id=>!available.has(id)))throw Error('A saved reference is no longer available.');
-      Object.assign(session.draft.values,{prompt:saved.prompt,references:[...saved.references],quality:saved.quality||'medium',helpers:structuredClone(saved.helpers||[]),edit_source_asset:saved.source_asset||g.source_asset});
+      Object.assign(session.draft.values,{...(adapter.mode==='local'?{edit_model:saved.edit_model||'gpt-image'}:{}),prompt:saved.prompt,references:[...saved.references],quality:saved.quality||'medium',helpers:structuredClone(saved.helpers||[]),edit_source_asset:saved.source_asset||g.source_asset});
       $('#guide-prompt').value=session.draft.values.prompt;$('#guide-quality').value=session.draft.values.quality;
-      renderGuideReferences();renderGuideHelpers();guideDraftChanged(session);
+      showGuideProvider(session.providerStatus||{});renderGuideReferences();renderGuideHelpers();guideDraftChanged(session);
     }));
     $('#guide-jobs').innerHTML=jobs.filter(j=>['failed','interrupted'].includes(j.state)&&j.id!==session.preview&&!g.versions.some(v=>v.id===j.id)).slice(0,4).map(j=>`<div class="guide-job"><strong>${esc(renderStatus(j))}</strong><p class="note">${esc(j.data.error||j.data.phase||'')}</p>${collect(j)}</div>`).join('');
     $$('[data-guide-collect]').forEach(button=>button.onclick=guarded(async()=>{session.preview=button.dataset.guideCollect;mergeJob(await api('guide-jobs/'+button.dataset.guideCollect+'/collect','POST'));renderGuideVersions();}));

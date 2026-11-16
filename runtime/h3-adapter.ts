@@ -22,7 +22,7 @@ interface H3Configuration {
   modelNames?: string[];
   operationModels?: Partial<Record<H3Operation, string[]>>;
 }
-export type H3Operation = 'sam-anchor-v1' | 'qwen-anchor-v1' | 'sam-frame' | 'sam-track' | 'sam-recover' | 'h3-render' | 'h3-render-segments-v1' | 'h3-ripple-v1' | 'h3-swap-pika-v1' | 'h3-swap-remake-v1';
+export type H3Operation = 'sam-anchor-v1' | 'qwen-anchor-v1' | 'sam-frame' | 'sam-track' | 'sam-recover' | 'h3-render' | 'h3-render-segments-v1' | 'h3-ripple-v1' | 'h3-swap-pika-v1' | 'h3-swap-remake-v1' | 'h3-image-edit-v1';
 interface H3Input {
   version: 1;
   operation: H3Operation;
@@ -48,8 +48,9 @@ interface AdapterContext {
 }
 const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms));
 const terminal = (message: string, cancelled = false): Error => Object.assign(new Error(message), {terminal: true, cancelled});
-const operations: H3Operation[] = ['sam-anchor-v1','qwen-anchor-v1','sam-frame','sam-track','sam-recover','h3-render','h3-render-segments-v1','h3-ripple-v1','h3-swap-pika-v1','h3-swap-remake-v1'];
+const operations: H3Operation[] = ['sam-anchor-v1','qwen-anchor-v1','sam-frame','sam-track','sam-recover','h3-render','h3-render-segments-v1','h3-ripple-v1','h3-swap-pika-v1','h3-swap-remake-v1','h3-image-edit-v1'];
 const roots: Record<H3Operation, string[]> = {
+  'h3-image-edit-v1': ['MiniMaxH3ImageConditioning','LoraLoaderModelOnly','KSampler','SaveImage'],
   'h3-swap-remake-v1': ['H3RemakeConditioning','LoraLoaderBypassModelOnly','H3RemakeKeyframeUntil','ManualSigmas','H3RemakeNoise','BasicGuider','SamplerCustomAdvanced','SaveVideo'],
   'sam-anchor-v1': ['SAM3_Detect','H3RelaySaveMask'],
   'qwen-anchor-v1': ['TextEncodeQwenImage21','LoraLoaderModelOnly','KSampler','SaveImage'],

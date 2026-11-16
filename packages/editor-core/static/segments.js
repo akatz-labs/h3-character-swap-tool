@@ -382,11 +382,13 @@ function updateSegmentHistory(){
   }
   if(s.cast_setup&&!seg.cast_inputs.characters.length){$('#queue-shot').disabled=true;$('#render-queue-reason').textContent='Add a character to this segment.';}
   if(usesTimelineGuides(seg)){const reason=guideRenderReason();$('#render-queue-reason').textContent='';$('#queue-shot').disabled=!!active||!!legacyActive||s.mode==='preserve';if(!reason)segmentValidation();uiButton($('#queue-shot'),active?(segmentJobState(active,seg.id)==='running'?'Generating…':'Queued'):'Generate segment','play');review.hidden=true;}
-  generationPriceButton($('#queue-shot'),{operation:'render-guided-swap',seconds:(seg.end-seg.start)/24});
+  // Quote the visible selection immediately, including while shot autosave is pending.
+  const megapixels=$('#render-mp').value;
+  generationPriceButton($('#queue-shot'),{operation:'render-guided-swap',parameters:{megapixels},seconds:(seg.end-seg.start)/24});
   for(const [id,mode] of [['segment-all','all'],['segment-from','from']]){
     const targets=generationTargets(mode),button=$('#'+id);
     button.disabled=!targets.length||!!e.submitting;
-    generationPriceButton(button,targets.map(v=>({operation:'render-guided-swap',seconds:(v.end-v.start)/24})),button.disabled);
+    generationPriceButton(button,targets.map(v=>({operation:'render-guided-swap',parameters:{megapixels},seconds:(v.end-v.start)/24})),button.disabled);
   }
   if(e.submitting){$('#queue-shot').disabled=true;$('#segment-generate-more').disabled=true;}
   renderOutputs();
@@ -421,6 +423,7 @@ function drawRender(c,s){
   drawOutputToolbar();
   $('#queue-shot').insertAdjacentHTML('afterend',`<button id="segment-generate-more" class="h3-icon-button" title="More generation options" aria-label="More generation options" aria-expanded="false" aria-controls="segment-generate-menu">⌄</button><div id="segment-generate-menu" class="segment-generate-menu" hidden><button id="segment-all">Queue all segments</button><button id="segment-from">Queue from here</button></div>`);
   bindShotAutosave([['#render-mp','render_mp',s.render_mp??0.5]]);
+  $('#render-mp').addEventListener('input',updateSegmentHistory);
   const timeline=$('.segment-timeline');player.append(timeline);$('#segment-timeline-surface').insertAdjacentHTML('beforeend','<div id="shot-guides" class="shot-guides" role="group" aria-label="Timeline guide frames"></div>');
   timeline.querySelector(':scope > .row').insertAdjacentHTML('beforeend',`<div class="guide-toolbar"><span id="guide-count" class="note">No guides</span><button id="guide-add" class="quiet">${uiIcon('plus')}Add guide at playhead</button></div>`);
   $('#guide-add').onclick=guarded(addGuideAtPlayhead);

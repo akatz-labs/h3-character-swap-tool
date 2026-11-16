@@ -1,6 +1,31 @@
-# H3 Character Swap for ComfyUI
+# ComfyUI workflows and app recipes
 
-A focused workflow for replacing a person with a reference character while preserving the source performance and soundtrack. It uses the same V1 character LoRA, FL2V Turbo 8-step recipe, mask expansion and relay continuation as the app.
+## Included standalone workflows
+
+- **H3 Character Swap.json** is an importable ComfyUI canvas for the historical
+  Ref2VA + FL2V Turbo 8-step + Character Swap recipe, with SAM and Relay.
+- **H3 Character Swap.api.json** is its matching executable API graph.
+
+These are historical examples, not the current editor's selectable model stack.
+The setup and qualification notes below describe that older snapshot.
+
+## Current editor recipes
+
+- [Pika + Character Swap V1.5](../packages/editor-core/recipes/pika-swap-relay-v2.json):
+  H3 FL2VA, Pika strength 1.0, Character Swap strength **0.8**, six steps,
+  LCM/simple and 18-frame Relay history.
+- [H3 Image Edit graph builder](../h3workbench/local_h3_image.py): optional
+  INT8 image model with Character Swap V1.5 at **1.0**, six steps, Euler/simple,
+  CFG 1 and 1/2/4 MP quality settings.
+
+The Pika JSON is an app recipe descriptor, **not a drag-and-drop ComfyUI canvas**.
+The editor builds executable graphs from the selected segment, references,
+mask and guide inputs. A standalone Pika canvas and standalone H3 Image Edit
+canvas have not yet been included in this public source distribution.
+
+## Historical Ref2VA/Turbo workflow
+
+A focused workflow for replacing a person with a reference character while preserving the source performance and soundtrack. It preserves the older FL2V Turbo 8-step recipe, mask expansion and relay continuation.
 
 - **[H3 Character Swap.json](H3%20Character%20Swap.json)**: open in the ComfyUI canvas. The graph exposes the native loop, model chain, sampling and video output.
 - **[H3 Character Swap.api.json](H3%20Character%20Swap.api.json)**: the matching API graph, exported by the ComfyUI frontend. It includes SAM detection, tracking, empty-frame recovery and expansion.

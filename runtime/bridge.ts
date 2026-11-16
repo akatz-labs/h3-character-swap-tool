@@ -60,11 +60,11 @@ async function boundClient(b: Binding): Promise<ExecutorClient> {
 }
 export async function bind(targetValue: unknown, featureValue: unknown, installationValue?: unknown): Promise<Binding> {
   const t = target(targetValue), feature = identifier(featureValue), client = new ExecutorClient(t), health = await client.health();
-  for (const capability of requiredCapabilities) if (!health.capabilities?.includes(capability)) throw new Error('The selected executor needs ' + capability + ' before H3 can use it');
+  for (const capability of requiredCapabilities) if (!health.capabilities?.includes(capability)) throw Object.assign(new Error('The selected executor needs ' + capability + ' before H3 can use it'), {status: 422});
   const readiness = await client.readiness('h3-workbench');
   const installationId = installationValue === undefined ? null : identifier(installationValue);
   const selected = readiness.find(r => r.features.includes(feature) && r.installation.runtime && record(r.installation.runtime).managed && (!installationId || r.installation.id === installationId));
-  if (!selected) throw new Error('The selected worker has no ready H3 operation: ' + feature);
+  if (!selected) throw Object.assign(new Error('Worker setup is not ready for ' + feature + (installationId ? ' (selected installation ' + installationId + ')' : '') + '. Check Settings → Worker setup and Models.'), {status: 422});
   const managed = record(record(selected.installation.runtime).managed);
   return {version: 1, target: t, executorId: health.executorId, installationId: selected.installation.id, revision: hash(selected.installation.revision), recipeRevision: hash(managed.recipeRevision), feature};
 }
@@ -75,16 +75,21 @@ async function bindAuto(v:Record<string,unknown>):Promise<unknown>{
   const checked=compatibility({recipeRevision:'a'.repeat(64),adapterRevision:'a'.repeat(64),modelDigest:'a'.repeat(64),...desired});
   const names=new Set<string>();
   const candidates=v.candidates.map((value,index)=>{const candidate=record(value),worker=identifier(candidate.worker);if(names.has(worker))throw new Error('Duplicate Auto worker');names.add(worker);return {candidate,worker,index};});
+  const setupErrors: string[] = [];
   const observed=await Promise.all(candidates.map(async({candidate,worker,index})=>{
     try{
       const b=await bind(candidate.target,feature,candidate.installationId),client=await boundClient(b),health=await client.health();
-      if(!health.capabilities?.includes('auto-placement-v1'))return null;
+      if(!health.capabilities?.includes('auto-placement-v1'))throw Object.assign(new Error('Update the executor to support automatic placement.'),{status:422});
       const snapshot=placementSnapshot(await client.json('/v1/status'),b.executorId);if(snapshot.fenced)return null;
       const chain={...checked,recipeRevision:b.recipeRevision,adapterRevision:b.revision,modelDigest:b.recipeRevision};
       return {worker,binding:b,index,...rankPlacement(snapshot,b.installationId,chain)};
-    }catch{return null;}
+    }catch(error){
+      if((error as Error & {status?:number}).status===422)setupErrors.push(worker+': '+(error as Error).message);
+      return null;
+    }
   }));
   const selected=observed.filter(r=>r!==null).sort((a,b)=>a.score-b.score||a.index-b.index)[0];
+  if(!selected && setupErrors.length===candidates.length)throw Object.assign(new Error(setupErrors.join(' ')),{status:422});
   if(!selected)throw Object.assign(new Error('Allowed workers are busy, offline, or lack verified Auto ownership support'),{status:409});
   return {worker:selected.worker,binding:selected.binding,placement:selected.decision};
 }

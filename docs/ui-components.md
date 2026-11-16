@@ -22,7 +22,7 @@ Approved design: `docs/design/shot-outputs-20261109` (card A, viewer, failure, a
 | `H3UI.viewer` | Completed output, final and failed-attempt viewers | Left media / right scrollable inspector; trusted child markup only |
 | `H3UI.parameters`, `failure` | All output inspectors | Read-only frozen parameters; escaped copyable errors; recovery suggestions are text |
 | `WorkspaceTabs` — [web/src/WorkspaceTabs.tsx](../packages/editor-core/web/src/WorkspaceTabs.tsx) | Shot Edit/Outputs navigation | Accessible current-page state; caller owns navigation |
-| `ProjectSidebarFooter` — [web/src/ProjectSidebarFooter.tsx](../packages/editor-core/web/src/ProjectSidebarFooter.tsx) | Shots and Assets sidebars | One project queue entry with immediate submitting/accepted count and activity spinner, package version and maker credit; no duplicated footer markup in the React shell |
+| `ProjectSidebarFooter` — [web/src/ProjectSidebarFooter.tsx](../packages/editor-core/web/src/ProjectSidebarFooter.tsx) | Shots and Assets sidebars | One project queue entry with immediate submitting/accepted count and activity spinner, package version, centered Credits button using the shared Dialog for model acknowledgments, and maker credit; no duplicated footer markup in the React shell |
 | Shared sidebar geometry — [web/src/project-sidebar.css](../packages/editor-core/web/src/project-sidebar.css) | `.h3-project-sidebar`, navigation header, divider and footer | Same padding, typography and footer anchor across both views; validate bounding boxes when switching tabs |
 | `ProjectNavigation` — [web/src/ProjectNavigation.tsx](../packages/editor-core/web/src/ProjectNavigation.tsx) | Editor and Assets project headers | Shots / Assets; shared project chooser, per-project pencil and rename/delete dialog, with confirmation before permanent deletion |
 | `Icon`, `Dialog`, `SelectMenu`, `WorkerStatusIcon` — `@akatz/app-kit/react` | React shell, worker picker, Assets | Use pinned app-kit implementations; do not fork icon paths or generic shell controls |
@@ -141,7 +141,8 @@ See [readiness and transcription](segment-readiness-and-transcription.md).
 
 File drops use `bindFileDrop` in `packages/editor-core/web/src/file-drop.ts`.
 It owns file-type validation, nested drag highlighting and listener cleanup.
-Shots/canvas drops reuse `importShotFiles`; guide source, edited image and reference
+The full Shots workspace (including sidebar/canvas padding) accepts video drops
+and reuses `importShotFiles`; guide source, edited image and reference
 drops reuse the guide upload handler. File-picker controls remain available.
 
 Image uploads use `packages/editor-core/web/src/image-upload.ts` for guide source,
@@ -153,3 +154,14 @@ the saved project or shots within an imported clip.
 ### Segment model selector
 
 `renderSegmentControls` in `packages/editor-core/static/segments.js` uses the shared field/select styling and `MODEL_PRESETS` from `domain/workflow.ts`. The saved `lora_id` selects Viggle Remake Swap or Pika + Character Swap V1.5 for this segment only. Both use MiniMax H3 FL2VA. Switching changes the render signature; retained takes are never deleted.
+
+Character picker search and New character share a wrapping toolbar; Manage project
+characters uses the standard button. Both creation entry points open the Assets
+naming dialog. `ProjectAssets.tsx` reuses the circular activity spinner for reference
+uploads and keeps text editable. `character-drafts.ts` retains each keystroke by
+account/project/character; serialized server writes flush newer text after the image
+receipt, preserving revision checks.
+
+Character detail headers group Back to characters with the prominent name and saved
+status in one compact header. The usage region keeps its heading/count visible and
+scrolls after three fixed-height shot rows; long names truncate with full title text.

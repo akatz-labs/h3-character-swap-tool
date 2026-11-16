@@ -49,7 +49,7 @@ async function castPicker(characterId=null){
   const characters=await api(`batches/${project}/characters`);
   if(S.clip!==cid||S.shot!==sid||segmentSelected()?.id!==segmentId)return;
   const chosen=new Set(),title=current?'Change character':'Add characters';
-  dialog(title,`<div class="cast-picker"><p class="note">${current?`Replace ${esc(current.name)} in this segment. Its segment masks stay unchanged.`:`Choose from ${esc(S.data.batches.find(b=>b.id===project)?.name||'this project')}.`}</p><input id="cast-picker-search" type="search" aria-label="Search project characters" placeholder="Search project characters"><div class="cast-picker-grid" id="cast-picker-grid"></div><p id="cast-picker-error" role="alert" hidden></p><div class="cast-picker-footer"><button id="cast-picker-manage" class="quiet">Manage project characters ${uiIcon('arrow')}</button><div class="row"><span id="cast-picker-count" class="note">0 selected</span><button id="cast-picker-cancel">Cancel</button><button id="cast-picker-add" class="primary" disabled>${title}</button></div></div></div>`);
+  dialog(title,`<div class="cast-picker"><p class="note">${current?`Replace ${esc(current.name)} in this segment. Its segment masks stay unchanged.`:`Choose from ${esc(S.data.batches.find(b=>b.id===project)?.name||'this project')}.`}</p><div class="cast-picker-toolbar"><input id="cast-picker-search" type="search" aria-label="Search project characters" placeholder="Search project characters"><button id="cast-picker-new">${uiIcon('plus')}New character</button></div><div class="cast-picker-grid" id="cast-picker-grid"></div><p id="cast-picker-error" role="alert" hidden></p><div class="cast-picker-footer"><button id="cast-picker-manage">Manage project characters ${uiIcon('arrow')}</button><div class="row"><span id="cast-picker-count" class="note">0 selected</span><button id="cast-picker-cancel">Cancel</button><button id="cast-picker-add" class="primary" disabled>${title}</button></div></div></div>`);
   const refresh=()=>{
     const query=$('#cast-picker-search').value.toLowerCase();
     const items=characters.filter(c=>(c.name+' '+c.description).toLowerCase().includes(query));
@@ -61,6 +61,7 @@ async function castPicker(characterId=null){
   };
   const count=()=>{const n=chosen.size;$('#cast-picker-count').textContent=`${n} selected`;$('#cast-picker-add').textContent=current?'Change character':n?`Add ${n} character${n===1?'':'s'}`:'Add characters';$('#cast-picker-add').disabled=!n;};
   $('#cast-picker-search').oninput=refresh;
+  $('#cast-picker-new').onclick=guarded(()=>manageProjectCharacters(true));
   $('#cast-picker-cancel').onclick=()=>$('#dialog').close();
   $('#cast-picker-manage').onclick=guarded(()=>manageProjectCharacters());
   $('#cast-picker-add').onclick=guarded(async()=>{const button=$('#cast-picker-add');button.disabled=true;try{

@@ -154,6 +154,8 @@ def call(value, job=None, staging_done=None):
 
 
 def operation(job, directory):
+    if job["kind"] == "guide_generate" and job["data"]["options"].get("provider") == "local-h3-image":
+        return "h3-image-edit-v1"
     if job["kind"] == "guide_render":
         segment = next(s for s in job["data"]["shot"]["segments"] if s["id"] == job["data"]["options"]["segment_id"])
         if segment.get("lora_id") == "viggle-remake-swap": return "h3-swap-remake-v1"
@@ -250,7 +252,7 @@ def _execute(job, graph, files, directory, profile, staging_done):
     inputs = {"version": 1, "operation": feature, "operationRevision": binding["revision"],
               "graphFile": "captured-api.json", "graphDigest": graph_digest, "runtimeCompatibility": chain,
               "family": family, "profile": profile, "frames": (job["data"]["segment_scope"][0]["end"] - job["data"]["segment_scope"][0]["start"])
-              if job["kind"] == "guide_render" else 1 if job["kind"] == "anchor_generate" else shot["end"] - shot["start"], "dimensions": spec["dimensions"]}
+              if job["kind"] == "guide_render" else 1 if job["kind"] in {"anchor_generate", "guide_generate"} else shot["end"] - shot["start"], "dimensions": spec["dimensions"]}
     stages = list(store.job_get(job["id"])["data"].get("shared_stages") or [])
     if str(directory) not in stages:
         stages.append(str(directory))

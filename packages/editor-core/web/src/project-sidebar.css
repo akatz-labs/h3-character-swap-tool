@@ -46,5 +46,11 @@
 .h3-shell .h3-project-navigation .h3-project-menu{margin:8px 0 14px}
 .h3-shell .h3-project-navigation .h3-project-modes{margin-top:12px}
 
-.h3-shell .h3-model-credit{font-size:10px;line-height:15px;color:var(--ak-muted)}
-.h3-shell .h3-model-credit a{color:inherit}
+.h3-shell .h3-project-sidebar-footer footer{align-items:center}
+.h3-shell .h3-credits-button{font:inherit;color:inherit;background:transparent;border:0;padding:4px 6px;min-height:28px;cursor:pointer;user-select:none}
+.h3-shell .h3-credits-button:hover{color:var(--ak-accent)}
+.h3-model-credits{display:grid;gap:16px;max-width:440px}
+.h3-model-credits p{margin:0;color:var(--ak-muted);line-height:1.6}
+.h3-model-credits section{display:grid;gap:10px;padding-top:16px;border-top:1px solid var(--ak-border)}
+.h3-model-credits h3{margin:0}
+.h3-model-credits a{color:var(--ak-accent);cursor:pointer}

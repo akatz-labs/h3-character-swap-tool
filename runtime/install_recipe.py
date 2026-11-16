@@ -155,6 +155,7 @@ def install(recipe, workspace_path, name, models_directory, *, reuse_root=None,
                  "LoraLoaderModelOnly", "LoraLoaderBypassModelOnly", "H3RemakeKeyframeUntil", "MiniMaxH3SigmaShift", "ModelAttentionBackend"])}
     contract = {"schema_version": 1, "comfygit_environment": name, "environment_path": str(environment_path),
         "comfy_revision": captured["comfy_revision"], "runtime_sources": runtime_sources,
+        "launch_residency": "offload",
         "required_launch_flags": ["--disable-dynamic-vram", "--reserve-vram", "0", "--enable-triton-backend", "--cache-classic", "--highvram"],
         "launch_environment": launch, "models": {k: {**v, "optional": True} for k, v in verified.items() if v["available"]},
         "environment_metadata_sha256": {p.name: sha(p) for p in (environment_path / ".cec").iterdir() if p.name in {"pyproject.toml", "uv.lock"}},

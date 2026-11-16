@@ -27,6 +27,7 @@ def test_submitted_graph_preserves_admitted_bytes_after_failure(tmp_path, contro
     session.runtime_pid = 123
     session.preflight = {}
     session.contract = {}
+    session.launch_residency = 'offload'
     session.verify_idle = lambda: None
     session.verify_models = lambda *args: None
     session.cleanup = lambda *args, **kwargs: None

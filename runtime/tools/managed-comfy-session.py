@@ -468,7 +468,8 @@ class Session:
             time.sleep(.1)
         raise RuntimeError("Executor cleanup was acknowledged but did not finish")
 
-    def start(self):
+    def start(self, residency=None):
+        self.launch_residency = residency or self.contract.get("launch_residency", "full")
         if self.contract.get("gpu_uuid") and self.gpu_job is None:
             import importlib.util
             values = self.contract["launch_environment"]
@@ -494,7 +495,7 @@ class Session:
         flags = [f for f in self.contract["required_launch_flags"] if f not in {"--cache-none", "--disable-smart-memory"}]
         if "--cache-classic" not in flags:
             flags.append("--cache-classic")
-        if self.contract.get("launch_residency", "full") == "offload":
+        if self.launch_residency == "offload":
             flags = [f for f in flags if f not in {"--highvram", "--gpu-only", "--disable-dynamic-vram"}]
             if "--enable-dynamic-vram" not in flags:
                 flags.append("--enable-dynamic-vram")
@@ -529,7 +530,7 @@ class Session:
         if self.gpu_job: self.gpu_job.attach(self.runtime_pid)
         self.runtime_identity = process_identity(self.runtime_pid)
         assert args[args.index("--port") + 1] == str(self.spec["port"])
-        self.preflight = resource_preflight(self.runtime_pid, args, residency=self.contract.get("launch_residency", "full"))
+        self.preflight = resource_preflight(self.runtime_pid, args, residency=self.launch_residency)
         save(self.root / "preflight.json", self.preflight)
         self.last_activity = time.monotonic()
         self.state = "ready"
@@ -549,8 +550,10 @@ class Session:
         self.verify_idle()
         self.verify_models(packet.get("required_models"))
         previous_family = getattr(self, "family", None) or getattr(self, "last_family", None)
-        if (previous_family and previous_family["label"] in self.contract.get("recycle_after_families", [])
-                and (self.unloaded or previous_family["key"] != packet["family"]["key"] or self.placement != packet["placement"])):
+        residency = "offload" if packet["placement"] == "offload" else "full"
+        residency_changed = self.launch_residency != residency
+        if (residency_changed or (previous_family and previous_family["label"] in self.contract.get("recycle_after_families", [])
+                and (self.unloaded or previous_family["key"] != packet["family"]["key"] or self.placement != packet["placement"]))):
             previous = self.runtime_identity
             # A declared, measured transition policy recycles only the owned
             # idle runtime while retaining admission and generation settings.
@@ -564,11 +567,11 @@ class Session:
                 time.sleep(.5)
             else:
                 raise RuntimeError("Previous model chain did not release its GPU process")
-            self.start()
+            self.start(residency)
             self.state = "running"
             self.publish()
             save(directory / "runtime-recycle.json", {
-                "reason": self.contract.get("transition_policy_reason", "Declared measured model-transition capacity policy"),
+                "reason": "Execution offloading setting changed" if residency_changed else self.contract.get("transition_policy_reason", "Declared measured model-transition capacity policy"),
                 "previous_runtime": previous, "runtime": self.runtime_identity,
                 "previous_family": previous_family, "family": packet["family"],
                 "environment": str(self.env), "same_graph_sha256": packet["graph_sha256"], "time": time.time()})

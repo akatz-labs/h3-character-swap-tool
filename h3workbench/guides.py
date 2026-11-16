@@ -42,7 +42,7 @@ def signature(clip, shot, segment):
     from . import segments, cast, masks
     swap = segment.get('render_mode') == 'swap_pika'
     pending = [t['id'] for t in cast.resolve(clip, shot, segment)['mask_tracks'] if masks.pending_frames(t['state'])] if swap and segments.render_shot(shot, segment).get('use_mask', True) else []
-    return segments.digest({**({'pending_masks': pending} if pending else {}), 'mode': ('viggle-remake-swap-v1' if segment.get('lora_id') == 'viggle-remake-swap' else 'swap-pika-v1.5-references-v3') if swap else 'ripple-v1', 'source': source(clip), 'shot_start': shot['start'],
+    return segments.digest({**({'pending_masks': pending} if pending else {}), 'mode': ('viggle-remake-swap-v1' if segment.get('lora_id') == 'viggle-remake-swap' else 'swap-pika-v1.5-strength08-v4') if swap else 'ripple-v1', 'source': source(clip), 'shot_start': shot['start'],
         'range': [segment['start'], segment['end']], 'history_frames': segments.effective_history(segment), 'guides': selected(clip, shot, segment),
         'dimensions': media.render_spec(clip, shot)['dimensions'], 'seed': segment['seed'],
         'prompt': segments.prompt(clip, shot, segment),
@@ -75,7 +75,7 @@ def references(clip, shot):
 def validate_draft(clip, shot, guide, changes):
     if not isinstance(changes, dict):
         raise ValueError('Guide settings must be an object')
-    if set(changes) - {'prompt', 'references', 'quality', 'enabled', 'helpers', 'edit_source_asset'}:
+    if set(changes) - {'prompt', 'references', 'quality', 'enabled', 'helpers', 'edit_source_asset', 'edit_model'}:
         raise ValueError('Unknown guide setting')
     if 'edit_source_asset' in changes:
         available = {guide['source_asset'], *guide.get('source_uploads', []), *[v['asset'] for v in guide['versions']]}
@@ -86,6 +86,8 @@ def validate_draft(clip, shot, guide, changes):
         raise ValueError('Guide instructions must be text of at most 12,000 characters')
     if 'quality' in changes and (not isinstance(changes['quality'], str) or changes['quality'] not in {'low', 'medium', 'high'}):
         raise ValueError('Choose low, medium or high quality')
+    if 'edit_model' in changes and (not isinstance(changes['edit_model'], str) or changes['edit_model'] not in {'gpt-image', 'h3-image'}):
+        raise ValueError('Choose an available guide edit model')
     if 'helpers' in changes:
         guide_prompts.validate_helpers(changes['helpers'])
     if 'enabled' in changes and type(changes['enabled']) is not bool:
@@ -165,7 +167,11 @@ def execute(job, directory):
     # Frozen at submission; historical attempts retain their exact input text.
     prompt = options['full_prompt'] if 'full_prompt' in options else guide_prompts.compose(guide)
     provider = options.get('provider', 'comfy')
-    if provider == 'local-openai':
+    if provider == 'local-h3-image':
+        from . import local_h3_image
+        output = local_h3_image.run(job, directory, prompt, inputs)
+        model = 'H3 Image Edit'
+    elif provider == 'local-openai':
         from . import local_openai
         output = local_openai.run(job, directory, prompt, guide['quality'], inputs, options.get('image_size'))
         model = local_openai.MODEL
@@ -186,6 +192,7 @@ def execute(job, directory):
             note = ''
     version = {'id': job['id'], 'asset': raw, 'created': store.now(), 'model': model, 'provider': provider,
                'source_asset': edit_source, 'original_source_asset': guide['source_asset'],
+               'edit_model': guide.get('edit_model', 'gpt-image'),
                'requested_size': options.get('image_size', 'auto'), 'dimensions': [width, height],
                'prompt': guide['prompt'], 'helpers': copy.deepcopy(guide.get('helpers', [])), 'full_prompt': prompt,
                'references': guide['references'], 'quality': guide['quality'], 'note': note}
@@ -200,7 +207,7 @@ def execute(job, directory):
                     and target['enabled'] and not target.get('archived') and current(clip, shot, target)):
                 baseline = next(g for g in job['data']['shot']['guides'] if g['id'] == guide['id'])
                 # Preserve settings saved elsewhere while this image was running.
-                for key in ('prompt', 'quality', 'references', 'helpers', 'edit_source_asset'):
+                for key in ('prompt', 'quality', 'references', 'helpers', 'edit_source_asset', 'edit_model'):
                     if key in guide and target.get(key) == baseline.get(key):
                         target[key] = copy.deepcopy(guide[key])
                 target.update(approved=version['id'], auto_saved_version=version['id'])

@@ -94,7 +94,7 @@ async function importShotFiles(files) {
 }
 bindFileDrop(document.body,{
   kind:'video',signal:importLifetime.signal,
-  acceptsTarget:target=>!$('#dialog')?.open&&!!target.closest('#h3-clip-browser,#mask-viewport,.h3-empty-project'),
+  acceptsTarget:target=>!$('#dialog')?.open&&!!target.closest('.layout'),
   active:active=>$('#h3-clip-browser')?.classList.toggle('h3-video-drop-active',active),
   files:files=>void importShotFiles(files),
   invalid:()=>toast('Drop video files to import shots.'),

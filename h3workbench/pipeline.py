@@ -850,6 +850,8 @@ def execute(id):
 
 def resource(job):
     if job["kind"] == "guide_generate":
+        if job["data"].get("options", {}).get("provider") == "local-h3-image":
+            return job["data"].get("execution_resource") or job["data"]["worker"]
         if job['data'].get('options', {}).get('provider') in {'private-openai', 'local-openai'}:
             return 'guide-openai'
         return "guide-comfy"

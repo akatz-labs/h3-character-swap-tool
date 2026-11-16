@@ -654,7 +654,7 @@ def test_pika_recipe_accepts_new_jobs_and_retains_exact_sampling(scene, offload)
     graph = guide_render.graph(['source.mkv','guide.png'],96,64,90,chosen,shot['start'],3,seg['guide_prompt'],'p',mode='swap_pika',offload=offload)
     loras = [n['inputs'] for n in graph.values() if n['class_type'] == 'LoraLoaderModelOnly']
     assert [n['lora_name'] for n in loras] == ['pika_h3_flex_fl2va_v1_bf16.safetensors', 'h3-v2-challenge-eval-20261013/v2-1000.safetensors']
-    assert all(n['strength_model'] == 1.0 for n in loras)
+    assert [n['strength_model'] for n in loras] == [1.0, 0.8]
     assert graph['swap']['inputs']['model'] == ['pika',0]
     assert graph['schedule']['inputs'] == {'model':['swap',0], 'scheduler':'simple', 'steps':6, 'denoise':1.0}
     assert graph['guide_0']['inputs']['frame_idx'] == 22
@@ -820,3 +820,40 @@ def test_guide_reference_limit_is_eight(scene):
     # A ninth existing project image cannot be selected as another reference.
     assert edit(client, key, {'references': [*guide['references'], shot['guides'][0]['source_asset']]}).status_code == 400
     assert edit(client, key, {'references': guide['references']}).status_code == 200
+
+
+def test_ripple_strength_is_unchanged_by_swap_tuning():
+    graph = guide_render.graph(["source.mkv"], 96, 64, 22, [], 0, 3, "Edit", "test", mode="guides")
+    assert graph["ripple"]["inputs"]["strength_model"] == 1.0
+
+
+def test_local_image_generation_freezes_choice_worker_offload_and_restores_draft(scene, monkeypatch):
+    from h3workbench import local_h3_image, local_openai
+    client, c, _ = scene
+    monkeypatch.setenv('H3_GUIDE_PROVIDER','local-openai')
+    monkeypatch.setattr(local_openai,'configured',lambda:False)
+    checked=[]
+    monkeypatch.setattr(local_h3_image,'ready',lambda worker:checked.append(worker))
+    key=add(client)
+    changes={'edit_model':'h3-image','quality':'high','prompt':'Replace the person'}
+    assert edit(client,key,changes).status_code==200
+    r=client.post(f'/api/clips/c/shots/s/guides/{key}/generate',json={
+        'revision':store.clip_get('c')['revision'],'changes':changes,'worker':'local','model_offloading':True})
+    assert r.status_code==200,r.text
+    job=store.job_get(r.json()['id'])
+    assert checked==['local']
+    assert job['data']['options']['provider']=='local-h3-image'
+    assert job['data']['options']['model_offloading'] is True
+    assert job['data']['options']['guide']['edit_model']=='h3-image'
+    assert job['data']['execution_backend']=='shared'
+    assert job['data']['render_spec']['dimensions']==local_h3_image.dimensions([96,64],'high')
+
+
+def test_private_provider_cannot_run_local_image(scene,monkeypatch):
+    client,_,_=scene
+    monkeypatch.setenv('H3_GUIDE_PROVIDER','private-openai')
+    key=add(client)
+    r=client.post(f'/api/clips/c/shots/s/guides/{key}/generate',json={
+        'revision':store.clip_get('c')['revision'],'changes':{'edit_model':'h3-image'}})
+    assert r.status_code==400
+    assert 'local runner' in r.text

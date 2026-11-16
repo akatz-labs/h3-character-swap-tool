@@ -99,7 +99,7 @@ def save(clip_id: str, shot_id: str, guide_id: str, body: dict):
     def change(c, s):
         guide = guides.marker(s, guide_id)
         changes = body.get('changes', {})
-        if not isinstance(changes, dict) or set(changes) - {'prompt', 'quality', 'references', 'helpers', 'edit_source_asset'}: raise ValueError('Unknown guide setting')
+        if not isinstance(changes, dict) or set(changes) - {'prompt', 'quality', 'references', 'helpers', 'edit_source_asset', 'edit_model'}: raise ValueError('Unknown guide setting')
         guides.validate_draft({**c, 'batch_id': project_id}, s, guide, changes)
         version = body.get('version_id')
         if version is not None:
@@ -118,14 +118,14 @@ def generate(clip_id: str, shot_id: str, guide_id: str, body: dict):
             raise store.Conflict('Guide changed; review it before generating')
         guide = copy.deepcopy(guides.marker(s, guide_id))
         changes = body.get('changes', {})
-        if not isinstance(changes, dict) or set(changes) - {'prompt', 'quality', 'references', 'helpers', 'edit_source_asset'}: raise ValueError('Unknown generation setting')
+        if not isinstance(changes, dict) or set(changes) - {'prompt', 'quality', 'references', 'helpers', 'edit_source_asset', 'edit_model'}: raise ValueError('Unknown generation setting')
         guides.validate_draft(c, s, guide, changes)
         guide.update(changes)
         guide.setdefault('helpers', [])
         guide['edit_source_asset'] = guide.get('edit_source_asset') or guide['source_asset']
         if not guides.current(c, s, guide):
             raise ValueError('The source or canvas changed; add a new guide')
-        guides.validate_draft(c, s, guide, {k: guide[k] for k in ('prompt', 'quality', 'references', 'helpers', 'edit_source_asset') if k in guide})
+        guides.validate_draft(c, s, guide, {k: guide[k] for k in ('prompt', 'quality', 'references', 'helpers', 'edit_source_asset', 'edit_model') if k in guide})
         if not guide['prompt'].strip() and not guide.get('helpers'):
             raise ValueError('Describe the edit before generating')
         names = {v['asset']: v['name'] for v in guides.references(c, s)}
@@ -134,11 +134,25 @@ def generate(clip_id: str, shot_id: str, guide_id: str, body: dict):
         if len(full_prompt) > 32000: raise ValueError('The full guide prompt must be at most 32,000 characters')
         if guide_provider.provider() not in {'private-openai', 'local-openai'}:
             raise ValueError('Connect AKATZ Labs generation or upload a guide image')
-        guide_provider.ready()
+        selected_provider = guide_provider.provider()
+        execution = {'worker': 'cpu'}
+        if guide.get('edit_model') == 'h3-image':
+            from . import local_h3_image
+            if selected_provider != 'local-openai':
+                raise ValueError('H3 Image Edit is available only in the local runner')
+            worker = body.get('worker', 'auto')
+            local_h3_image.ready(worker)
+            offload = body.get('model_offloading', True)
+            if type(offload) is not bool: raise ValueError('Model offloading must be true or false')
+            selected_provider = 'local-h3-image'
+            execution = {'worker': worker, 'requested_worker': worker, 'execution_backend': 'shared',
+                         'render_spec': {'dimensions': local_h3_image.dimensions(guide['dimensions'], guide['quality'])}}
+        else:
+            guide_provider.ready()
         job = store.job_create('guide_generate', clip_id, shot_id, {'snapshot': c, 'shot': s,
             'options': {'guide': copy.deepcopy(guide), 'full_prompt': full_prompt,
                         'image_size': 'x'.join(map(str, guide['dimensions'])),
-                        'provider': guide_provider.provider()}, 'worker': 'cpu', 'phase': 'Queued'})
+                        'provider': selected_provider, 'model_offloading': body.get('model_offloading', True)}, **execution, 'phase': 'Queued'})
         return store.public_job(store.job_get(job))
 
 

@@ -31,7 +31,8 @@
       "acquisition": "download",
       "stages": [
         "h3-swap-remake-v1",
-        "h3-swap-pika-v1"
+        "h3-swap-pika-v1",
+        "h3-image-edit-v1"
       ],
       "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
     },
@@ -104,7 +105,8 @@
       "requirement": "optional",
       "acquisition": "download",
       "stages": [
-        "h3-swap-pika-v1"
+        "h3-swap-pika-v1",
+        "h3-image-edit-v1"
       ],
       "revision": "0f409f0c2a18f123f3985041ec52982c813f5a9c",
       "url": "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/0f409f0c2a18f123f3985041ec52982c813f5a9c/h3_character_swap_v1.5.safetensors"
@@ -122,6 +124,34 @@
         "h3-swap-pika-v1"
       ],
       "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/54472221d27c695fca9621b0c3ed52f06c4af707/loras/pika_h3_flex_fl2va_v1_bf16.safetensors"
+    },
+    {
+      "id": "model-h3-image",
+      "name": "H3 Image Edit \u00b7 INT8 ConvRot",
+      "relativePath": "diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors",
+      "sizeBytes": 20979314802,
+      "sha256": "83eb140f1ff95c068f8a6886e6d3f3d0d4ab2e07bb2fe6d2ef992a51146ee622",
+      "shortHash": "fad3f13885c3e295",
+      "requirement": "optional",
+      "acquisition": "download",
+      "stages": [
+        "h3-image-edit-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/0bb149f51e3156ed4b90dd45d5620346bfe1df8f/diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors"
+    },
+    {
+      "id": "model-h3-image-vae",
+      "name": "H3 Image VAE",
+      "relativePath": "vae/minimax_h3_image_vae_fp16.safetensors",
+      "sizeBytes": 1168505312,
+      "sha256": "d80e9c2e5cfc9844869961ff5a58c9a9e52182df6bfb30b26018dd7f348721af",
+      "shortHash": "d2e4a49c68b01db8",
+      "requirement": "optional",
+      "acquisition": "download",
+      "stages": [
+        "h3-image-edit-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3-Image/resolve/0bb149f51e3156ed4b90dd45d5620346bfe1df8f/vae/minimax_h3_image_vae_fp16.safetensors"
     }
   ],
   "features": [
@@ -172,6 +202,17 @@
         "model-10",
         "model-14",
         "model-13"
+      ]
+    },
+    {
+      "id": "h3-image-edit-v1",
+      "label": "H3 Image Edit \u00b7 local guides",
+      "optional": true,
+      "models": [
+        "model-h3-image",
+        "model-h3-image-vae",
+        "model-10",
+        "model-v1-5"
       ]
     }
   ],

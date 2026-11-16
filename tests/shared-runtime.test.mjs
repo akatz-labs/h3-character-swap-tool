@@ -142,6 +142,11 @@ test('H3 Auto resolves exact warm compatibility before admission and freezes onl
   const first=await bridge(request);assert.equal(first.worker,'warm');assert.equal(first.placement.reason,'compatible-warm');
   values[1].session.compatibility={...chain,residency:'offload'};
   assert.equal((await bridge(request)).worker,'cold');assert.equal(first.worker,'warm','the saved selection does not change with later observations');
+  // A retired installation is a setup failure, not a busy GPU to retry forever.
+  const stale={...request.candidates[0],installationId:'retired-sam'};
+  await assert.rejects(bridge({...request,candidates:[stale]}),error=>error.status===422 && /retired-sam/.test(error.message) && /Worker setup/.test(error.message));
+  // One stale target must not prevent another allowed, ready worker from running.
+  assert.equal((await bridge({...request,candidates:[stale,request.candidates[1]]})).worker,'warm');
   delete values[0].status.gpuCompute;
   const limited={...request,candidates:[request.candidates[0]]};await assert.rejects(bridge(limited),/lack verified Auto/);
   await assert.rejects(bridge({...request,compatibility:{...request.compatibility,precision:null}}),/precision/);

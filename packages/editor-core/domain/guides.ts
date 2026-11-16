@@ -67,7 +67,7 @@ export function signature(c: R, s: R, seg: R) {
   const pending = swap ? pendingMasks(c, s, seg) : [];
   return digest({
     ...(pending.length ? { pending_masks: pending } : {}),
-    mode: swap ? (seg.lora_id === "viggle-remake-swap" ? "viggle-remake-swap-v1" : "swap-pika-v1.5-references-v3") : "ripple-v1",
+    mode: swap ? (seg.lora_id === "viggle-remake-swap" ? "viggle-remake-swap-v1" : "swap-pika-v1.5-strength08-v4") : "ripple-v1",
     source: source(c),
     shot_start: s.start,
     range: [seg.start, seg.end],
