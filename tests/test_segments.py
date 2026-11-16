@@ -24,7 +24,7 @@ def scene(tmp_path,monkeypatch):
 
 def ready(c,s,items,i):
     seg=items[i];result={'id':'take-'+str(i)+'-'+str(len(seg['takes'])),'signature':segments.setting_signature(c,s,seg),
-       'dependencies':segments.dependencies(items,i),'master':'master','dimensions':media.render_spec(c,s)['dimensions']}
+       'start':seg['start'],'end':seg['end'], 'dependencies':segments.dependencies(items,i),'master':'master','dimensions':media.render_spec(c,s)['dimensions']}
     seg['takes'].append(result);seg['selected_take']=result['id'];return result
 
 
@@ -37,6 +37,20 @@ def test_legacy_plan_visible_and_readonly(scene):
     assert '"Hello world"' not in segments.prompt(c,s,items[0])
     assert 'Current segment dialogue: "Hello"' in segments.prompt(c,s,items[0])
     assert segments.current({**s,'use_anchor':False})[0]['anchor_mode']=='none'
+
+
+def test_audio_setting_invalidates_takes_and_restoring_it_restores_currentness(scene):
+    c,s,_=scene
+    items=segments.current(s)
+    result=ready(c,s,items,0)
+    original=result["signature"]
+    assert segments.states(c,s,items)[0]["current"]
+    s["use_source_audio"]=False
+    assert segments.setting_signature(c,s,items[0]) != original
+    assert not segments.states(c,s,items)[0]["current"]
+    s["use_source_audio"]=True
+    assert segments.setting_signature(c,s,items[0]) == original
+    assert segments.states(c,s,items)[0]["current"]
 
 
 def test_partition_exact_and_prompt_preserved_in_layout_history(scene):
@@ -59,7 +73,9 @@ def test_split_merge_bounds_and_no_hidden_windows(scene):
     s['segments']=split
     assert len(segments.layout(s,{'operation':'merge','index':1}))==2
     s['segments']=segments.layout(s,{'operation':'merge','index':1})
-    with pytest.raises(ValueError,match='single|one diffusion'):segments.layout(s,{'operation':'merge','index':1})
+    merged=segments.layout(s,{'operation':'merge','index':1})
+    assert [(v['start'],v['end']) for v in merged]==[(0,480)]
+    assert segments.states(c,s,merged)[0]['window_frames']==481
 
 
 def test_reset_cannot_reach_across_cut(scene):
@@ -68,7 +84,7 @@ def test_reset_cannot_reach_across_cut(scene):
     with pytest.raises(ValueError,match='before this continuous'):segments.validate(s,items)
 
 
-def test_take_dependencies_invalidate_downstream_without_deleting(scene):
+def test_settings_edits_preserve_but_invalidate_downstream_selected_frames(scene):
     c,s,_=scene;items=segments.current(s);s['segments']=items
     for i in range(len(items)):ready(c,s,items,i)
     assert all(x['current'] for x in segments.states(c,s))
@@ -79,7 +95,7 @@ def test_take_dependencies_invalidate_downstream_without_deleting(scene):
     assert [x['current'] for x in segments.states(c,s)]==[True,False,True,True]
 
 
-def test_queue_freezes_exact_plan_and_requires_current_predecessors(scene):
+def test_queue_freezes_exact_plan_and_requires_saved_predecessors(scene):
     c,s,_=scene;s['segments']=segments.current(s)
     store.clip_mutate('c',lambda c:c['shots'][0].update(segments=s['segments']))
     request={'mode':'segment','segment_id':s['segments'][1]['id'],'plan_revision':segments.plan_revision(s)}
@@ -88,6 +104,91 @@ def test_queue_freezes_exact_plan_and_requires_current_predecessors(scene):
     s['segments'][1]['prompt']='later edit'
     assert frozen['segments'][1]['prompt']==''
     with pytest.raises(store.Conflict):segment_jobs.freeze(c,s,request)
+
+
+@pytest.mark.parametrize('field,value', [('anchor_conditioning', 'reference'), ('use_source_audio', False)])
+def test_changed_settings_block_continuation_from_saved_take(scene, field, value):
+    c,s,_=scene;s['anchor_conditioning']='first_frame'
+    items=segments.current(s);s['segments']=items
+    saved=copy.deepcopy(ready(c,s,items,0))
+    s[field]=value
+    state=segments.states(c,s)
+    assert not state[0]['current']
+    assert not state[0]['reusable']
+    assert state[1]['blocked']
+    with pytest.raises(ValueError, match='Generate segment 1 first'):
+        segment_jobs.freeze(c,s,{'mode':'segment','segment_id':items[1]['id'], 'plan_revision':segments.plan_revision(s)})
+    assert segments.take(items[0]) == saved
+
+
+
+@pytest.mark.parametrize('change', [dict(master=None), dict(start=1), dict(end=1), dict(dimensions=[32,32]),
+                                  dict(cast_inputs_snapshot={'source':'another-source','shot_start':0}),
+                                  dict(cast_inputs_snapshot={'source':None,'shot_start':12})])
+def test_incompatible_saved_take_cannot_supply_history(scene, change):
+    c,s,_=scene;items=segments.current(s);s['segments']=items
+    ready(c,s,items,0).update(change)
+    assert not segments.states(c,s)[0]['reusable']
+    assert segments.states(c,s)[1]['blocked']
+    with pytest.raises(ValueError,match='matching source range and resolution'):
+        segment_jobs.freeze(c,s,{'mode':'segment','segment_id':items[1]['id'],
+                                'plan_revision':segments.plan_revision(s)})
+
+
+def test_changing_selected_take_invalidates_full_chain(scene):
+    c,s,_=scene;items=segments.current(s);s['segments']=items
+    for i in range(len(items)):ready(c,s,items,i)
+    ready(c,s,items,0)
+    states=segments.states(c,s)
+    assert [v['current'] for v in states]==[True,False,False,False]
+    assert [v['reusable'] for v in states]==[True,False,False,False]
+    assert [v['blocked'] for v in states]==[False,False,True,True]
+
+
+def test_assembly_admits_selected_takes_after_settings_change(scene):
+    c,s,_=scene;items=segments.current(s);s['segments']=items
+    for i in range(len(items)):ready(c,s,items,i)
+    s['use_source_audio']=False
+    store.clip_mutate('c',lambda clip:clip['shots'][0].update(s))
+    job=store.job_get(pipeline.queue('segment_assemble','c','s'))
+    assert job['kind']=='segment_assemble'
+    assert [v['selected_take'] for v in job['data']['shot']['segments']]==[v['selected_take'] for v in items]
+
+
+@pytest.mark.parametrize('absent_frames', [list(range(92,124)), list(range(124))])
+def test_target_absence_can_queue_and_preserves_empty_generation_masks(scene, monkeypatch, absent_frames):
+    import numpy as np
+    c,s,directory=scene
+    spec={**media.render_spec(c,s),'dimensions':[64,64]}
+    monkeypatch.setattr(media,'render_spec',lambda *args:spec)
+    monkeypatch.setattr(media,'shot_media',lambda *args,**kwargs:store.path(c['source']))
+    values=np.zeros((480,64,64),bool)
+    values[:,20:40,20:40]=True
+    values[absent_frames]=False
+    path=directory/'actor-mask.npz';np.savez_compressed(path,mask=values)
+    mask=store.asset_add(path)
+    c=store.clip_mutate('c',lambda c:c['shots'][0].update(use_mask=True,mask=mask,mask_empty_frames=absent_frames))
+    s=c['shots'][0];items=segments.current(s)
+    job=store.job_get(pipeline.queue('render','c','s', worker="fey",options={'segments':{'mode':'segment','segment_id':items[0]['id'], 'plan_revision':segments.plan_revision(s)}}))
+    assert job['state']=='queued'
+    assert job['data']['shot']['mask_empty_frames']==absent_frames
+    graph,files,stage=segment_jobs.graph(c,s,job['data']['segment_plan']['segments'],0,job,directory)
+    with np.load(files[job['id']+'-mask.npz']) as generated:
+        np.testing.assert_array_equal(generated['mask'],values[:124])
+    assert graph['43']['inputs']['source_frames']==124
+    assert store.clip_get('c')['shots'][0]['mask']==mask
+
+
+@pytest.mark.parametrize('missing_mask', [True,False])
+def test_target_absence_still_requires_saved_mask_and_applied_points(scene, missing_mask):
+    c,s,_=scene
+    s.update(use_mask=True,mask=None if missing_mask else c['reference'],mask_empty_frames=[100])
+    if not missing_mask:
+        s['mask_points']=[{'id':'pending','frame':100,'x':.5,'y':.5,'label':1}]
+    items=segments.current(s)
+    request={'mode':'segment','segment_id':items[0]['id'],'plan_revision':segments.plan_revision(s)}
+    with pytest.raises(ValueError,match='Create a person mask' if missing_mask else 'pending mask corrections'):
+        segment_jobs.freeze(c,s,request)
 
 
 def test_segment_edit_optimistic_conflict_and_invalid_patch(scene):
@@ -103,9 +204,9 @@ def test_segment_edit_optimistic_conflict_and_invalid_patch(scene):
     assert store.clip_get('c')['shots'][0]['segments'][1]['prompt']=='A quiet smile.'
 
 
-@pytest.mark.parametrize('target,h,expected',[(120,0,124),(120,18,124),(240,18,243),(360,18,362),(1,18,22),(362,0,362)])
+@pytest.mark.parametrize('target,h,expected',[(120,0,124),(120,18,124),(240,18,243),(360,18,362),(1,18,22),(362,0,362),(480,0,481),(480,18,481),(1440,35,1450)])
 def test_explicit_pass_keeps_target_history_and_padding_separate(target,h,expected):
-    plan=render_models._windowing['plan_segment'](target+h,h)
+    plan=segments.plan_segment(target+h,h)
     assert len(plan)==1
     entry=plan[0];assert entry['delivered_frames']==target;assert entry['window_frames']==expected
     assert entry['source_start']==(h-1 if h else 0)
@@ -113,8 +214,28 @@ def test_explicit_pass_keeps_target_history_and_padding_separate(target,h,expect
     assert entry['source_end_exclusive']-entry['source_start']-entry['discarded_overlap']==target
 
 
-def test_explicit_pass_rejects_hidden_overflow():
-    with pytest.raises(ValueError):render_models._windowing['plan_segment'](362+18,18)
+def test_segment_planner_matches_existing_supported_ranges_and_worker_contract():
+    from worker_nodes.h3_workbench_runtime.segment_planning import H3WorkbenchSegmentPlan
+    for h in render_models.HISTORY_FRAMES:
+        for target in [1,18,120,240,360]:
+            assert segments.plan_segment(target+h,h)==render_models._windowing['plan_segment'](target+h,h)
+    entries,timeline,count,windows=H3WorkbenchSegmentPlan().plan(498,17,initial_history=[None]*18)
+    assert count==1 and entries==windows['windows']==json.loads(timeline)['windows']
+    assert entries[0]['delivered_frames']==480 and entries[0]['window_frames']==481
+    assert entries[0]['initial_history_frames']==18 and entries[0]['contract']=='h3-relay-window-v2'
+    for source,h in [(0,0),(18,18),(100,2),(True,0)]:
+        with pytest.raises(ValueError):segments.plan_segment(source,h)
+
+
+def test_new_shot_defaults_to_one_full_length_segment_and_keeps_legacy_layouts(scene):
+    from h3workbench import cast
+    c,s,_=scene;legacy=segments.current(s)
+    cast.initialize_shot(c,s)
+    assert [(v['start'],v['end']) for v in s['segments']]==[(0,480)]
+    assert s['cast_setup']['characters']==[] and s['segments'][0]['cast_inputs']['characters']==[]
+    assert segments.view(c,s)['states'][0]['window_frames']==481
+    s['segments']=legacy
+    assert segments.current(s)==legacy
 
 
 def test_lossless_master_tail_roundtrips_exact_16bit_history(scene):
@@ -133,9 +254,10 @@ def test_lossless_master_tail_roundtrips_exact_16bit_history(scene):
 
 
 @pytest.mark.parametrize('masked',[False,True])
-def test_segment_graph_crops_source_and_separates_extra_anchor(scene,monkeypatch,masked):
+@pytest.mark.parametrize('audio',[False,True])
+def test_segment_graph_crops_source_and_separates_extra_anchor(scene,monkeypatch,masked,audio):
     import numpy as np
-    c,s,d=scene;items=segments.current(s);seg=items[1]
+    c,s,d=scene;s["use_source_audio"]=audio;items=segments.current(s);seg=items[1]
     if masked:
         spec={**media.render_spec(c,s),'dimensions':[64,64]}
         monkeypatch.setattr(media,'render_spec',lambda *args:spec)
@@ -152,8 +274,14 @@ def test_segment_graph_crops_source_and_separates_extra_anchor(scene,monkeypatch
     job={'id':'job-segment','data':{'snapshot':c,'shot':s,'segment_plan':{'segments':items}}}
     graph,files,stage=segment_jobs.graph(c,s,items,1,job,d)
     assert requested==[(106,247)]
-    assert graph['805']['inputs']['schedule'] == 'segment'
+    assert graph['805']['class_type'] == 'H3WorkbenchSegmentPlan'
     assert graph['history']['inputs']['first_frame_guide'] is True
+    assert graph['history']['inputs']['target_audio_guide'] is audio
+    assert ('audio' in graph['history']['inputs']) is audio
+    assert ('guide' in graph) is audio
+    assert ('ref_audios.ref_audio_0' in graph['801']['inputs']) is audio
+    assert graph['803']['inputs']['history_audio_mode']==('source' if audio else 'none')
+    assert graph['807']['inputs']['audio_mode']=='source'
     assert graph['801']['inputs']['ref_images.ref_image_2']==['309',0]
     assert graph['801']['inputs']['ref_images.ref_image_1']==['803',11]
     assert graph['load_history']['inputs']['history_file']=='job-segment-history.npz'
@@ -196,7 +324,7 @@ def test_select_old_take_restores_local_directions_and_checks_predecessors(scene
     c,s,_=scene;items=segments.current(s);s['segments']=items
     for i in range(len(items)):
         t=ready(c,s,items,i)
-        t['settings']={k:copy.deepcopy(items[i][k]) for k in segments.EDITABLE}
+        t['settings']={k:copy.deepcopy(items[i][k]) for k in segments.EDITABLE if k in items[i]}
     old=items[1]['selected_take'];items[1]['prompt']='Changed directions';items[1]['seed']=99
     store.clip_mutate('c',lambda c:c['shots'][0].update(segments=items))
     c=store.clip_get('c');result=select('c','s',items[1]['id'],{'revision':c['revision'],'take_id':old})
@@ -211,7 +339,7 @@ def test_select_old_take_restores_local_directions_and_checks_predecessors(scene
 def test_segment_dispatch_preserves_explicit_memory_policy(scene,monkeypatch,offload,profile):
     c,s,d=scene
     request={'mode':'all','segment_id':segments.current(s)[0]['id'],'plan_revision':segments.plan_revision(s)}
-    job_id=pipeline.queue('render','c','s',options={'model_offloading':offload,'segments':request})
+    job_id=pipeline.queue('render','c','s', worker="fey",options={'model_offloading':offload,'segments':request})
     job=store.job_get(job_id)
     monkeypatch.setattr(segment_jobs,'graph',lambda *a:({}, {},job))
     class ReachedWorker(Exception):pass
@@ -265,13 +393,52 @@ def test_segment_dialogue_and_speaker_do_not_silently_change_prompt(scene):
         assert stale.status_code==409
 
 
+@pytest.mark.parametrize("index", [0, 1])
+def test_update_prompt_respects_audio_toggle_without_erasing_dialogue(scene,index):
+    c,s,_=scene
+    key=segments.current(s)[index]["id"]
+    exact="My edited prompt with <Audio 1> and custom timing."
+    c=segments.edit("c","s",key,c["revision"],{
+        "dialogue":"These are song lyrics.", "speaker":"target",
+        "prompt":"Keep the hands visible.", "performance_prompt":exact})
+    with TestClient(app) as client:
+        disabled=client.patch("/api/clips/c/shots/s",json={
+            "revision":c["revision"],"changes":{"use_source_audio":False}})
+        assert disabled.status_code==200
+        c=disabled.json();s=c["shots"][0]
+        assert segments.prompt(c,s,s["segments"][index])==exact
+        updated=client.post(f"/api/clips/c/shots/s/segments/{key}/prompt",
+                           json={"revision":c["revision"]})
+        assert updated.status_code==200,updated.text
+        c=updated.json();s=c["shots"][0];seg=s["segments"][index]
+        text=segments.prompt(c,s,seg)
+        assert "<Audio" not in text and "audio" not in text.lower()
+        assert "song lyrics" not in text and "dialogue" not in text.lower()
+        assert "is speaking" not in text
+        assert "<Video 1> determines exact timing." in text
+        assert "mouth movement" in text and "Keep the hands visible." in text
+        assert seg["dialogue"]=="These are song lyrics."
+        assert s["segments"][1-index]["performance_prompt"] is None
+        if index:
+            assert "generated boundary" in text
+        enabled=client.patch("/api/clips/c/shots/s",json={
+            "revision":c["revision"],"changes":{"use_source_audio":True}})
+        c=enabled.json();s=c["shots"][0]
+        assert segments.prompt(c,s,s["segments"][index])==text
+        rebuilt=client.post(f"/api/clips/c/shots/s/segments/{key}/prompt",
+                           json={"revision":c["revision"]}).json()
+        s=rebuilt["shots"][0]
+        text=segments.prompt(rebuilt,s,s["segments"][index])
+        assert "<Audio 1>" in text and "These are song lyrics." in text
+
+
 def test_exact_segment_prompt_reaches_frozen_graph_unchanged(scene,monkeypatch):
     c,s,d=scene;key=segments.current(s)[0]['id']
     exact='  Replace only her.\nKeep <Picture 1> exactly.\n\nShe whispers: "Wait."  '
     c=segments.edit('c','s',key,c['revision'],{'performance_prompt':exact,'anchor_mode':'none'})
     s=c['shots'][0]
     request={'mode':'segment','segment_id':key,'plan_revision':segments.plan_revision(s)}
-    job_id=pipeline.queue('render','c','s',options={'segments':request});job=store.job_get(job_id)
+    job_id=pipeline.queue('render','c','s', worker="fey",options={'segments':request});job=store.job_get(job_id)
     # A later edit must not change the queued model input.
     segments.edit('c','s',key,c['revision'],{'performance_prompt':'Later prompt'})
     monkeypatch.setattr(media,'shot_media',lambda c,s,d,**kw:store.path(c['source']))
@@ -306,7 +473,7 @@ def test_restore_legacy_take_clears_new_prompt_override(scene):
     from h3workbench.segment_api import select
     c,s,_=scene;items=segments.current(s);s['segments']=items
     chosen=ready(c,s,items,0)
-    chosen['settings']={k:copy.deepcopy(items[0][k]) for k in segments.EDITABLE-segments.PROMPT_FIELDS}
+    chosen['settings']={k:copy.deepcopy(items[0][k]) for k in segments.EDITABLE-segments.PROMPT_FIELDS if k in items[0]}
     items[0]['performance_prompt']='A new exact prompt';items[0]['dialogue']='Changed words'
     c=store.clip_mutate('c',lambda c:c['shots'][0].update(segments=items))
     restored=select('c','s',items[0]['id'],{'revision':c['revision'],'take_id':chosen['id']})['clip']

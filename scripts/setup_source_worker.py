@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'runtime'))
@@ -22,6 +23,20 @@ def digest(path):
 
 def shared_paths():
     return json.loads(subprocess.check_output(['node', str(ROOT / 'scripts/ecosystem_paths.mjs')], text=True))
+
+
+def fleet_coordinator():
+    """Fleet integration is explicit; ordinary installations own their executor."""
+    origin = os.environ.get('H3_GPU_COORDINATOR')
+    if origin is None:
+        return None
+    url = urlsplit(origin)
+    if (url.scheme != 'http' or url.hostname not in {'127.0.0.1', 'localhost', '::1'}
+            or url.username or url.password or url.path not in {'', '/'} or url.query or url.fragment):
+        raise ValueError('H3_GPU_COORDINATOR must be a loopback HTTP origin')
+    if url.port is not None and not 1 <= url.port <= 65535:
+        raise ValueError('Invalid GPU coordinator port')
+    return origin.rstrip('/')
 
 
 @contextmanager
@@ -73,7 +88,8 @@ def runtime_revision(models, port, cache, tools_root):
     for name in ['runtime/comfyui', 'runtime/tools', 'worker_nodes', 'vendor']:
         files.extend(p for p in (ROOT / name).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc')
     identity = {'files': {str(p.relative_to(ROOT)): digest(p) for p in sorted(files)},
-        'modelsRoot': str(models), 'comfyPort': port, 'cache': str(cache), 'toolsRoot': str(tools_root)}
+        'modelsRoot': str(models), 'comfyPort': port, 'cache': str(cache), 'toolsRoot': str(tools_root),
+        'gpuCoordinator': fleet_coordinator()}
     return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
 
 
@@ -98,7 +114,13 @@ def prepare(root, models, port, uv_cache, tools_root):
     catalog = json.loads((root / 'recipe/model-identities.json').read_text())['models']
     contract_path = root / 'runtime/runtime-contract.json'
     contract = json.loads(contract_path.read_text())
+    gpu_uuid = subprocess.check_output(['nvidia-smi', '--query-gpu=uuid', '--format=csv,noheader'], text=True).strip().splitlines()
+    if len(gpu_uuid) != 1: raise ValueError('Select a GPU explicitly before configuring a multi-GPU worker')
     contract.update(models=catalog, stage_model_validation=True, startup_models=[])
+    coordinator = fleet_coordinator()
+    if coordinator is not None:
+        contract['gpu_uuid'] = gpu_uuid[0]
+        contract['launch_environment']['AKATZ_GPU_COORDINATOR'] = coordinator
     contract_path.write_text(json.dumps(contract, indent=2) + '\n')
     configuration = {'python': str(python), 'port': port, 'mediaRoot': str(root / 'media'),
         'ownerStateDirectory': str(root / 'owner'),
@@ -151,7 +173,7 @@ def setup(args):
             installation_id = prepare(root, models, args.comfy_port, cache, tools_root)
             files = ['binding/installation.json', 'binding/runtime-contract.json', 'binding/h3-adapter.mjs',
                 'binding/resources.json', 'runtime/installation-receipt.json', 'runtime/runtime-contract.json',
-                'runtime/tools/managed-comfy-session.py', 'runtime/tools/managed-comfy-cache.py',
+                'runtime/tools/managed-comfy-session.py', 'runtime/tools/managed-comfy-cache.py', 'runtime/tools/akatz_gpu.py',
                 'settings.json', 'resource-catalog.json']
             receipt = {'schemaVersion': 1, 'installation': selection, 'installationId': installation_id,
                 'files': {name: digest(root / name) for name in files}}

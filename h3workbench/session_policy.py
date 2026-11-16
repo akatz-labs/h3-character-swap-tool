@@ -36,7 +36,7 @@ def family(graph):
     """Model chains, not source/seed/output identities, determine compatibility."""
     model_classes = {
         "UNETLoader", "CLIPLoader", "VAELoader", "CheckpointLoaderSimple",
-        "LoraLoaderModelOnly", "LTXICLoRALoaderModelOnly", "MiniMaxH3SigmaShift",
+        "LoraLoaderModelOnly", "LoraLoaderBypassModelOnly", "H3RemakeKeyframeUntil", "LTXICLoRALoaderModelOnly", "MiniMaxH3SigmaShift",
         "ModelAttentionBackend",
     }
     models = []
@@ -48,14 +48,14 @@ def family(graph):
     stable = sorted(models, key=lambda n: json.dumps(n, sort_keys=True))
     digest = hashlib.sha256(json.dumps(stable, sort_keys=True).encode()).hexdigest()
     names = " ".join(str(n[1]) for n in stable).lower()
-    label = "SAM" if "sam3" in names else "AlphaGen" if "ltx" in names else "H3" if "minimax" in names else "Face tracking"
+    label = "SAM" if "sam3" in names else "AlphaGen" if "ltx" in names else "H3" if "minimax" in names else "Qwen Image" if "qwen_image_2.1" in names else "Face tracking"
     loras = sorted(n[1]["lora_name"] for n in stable if "lora_name" in n[1])
     return {"label": label, "key": digest, "loras": loras}
 
 
 def choose_worker(job, workers, excluded=()):
     """FIFO dispatch with an available compatible warm worker preference."""
-    label = {"mask": "SAM", "mask_edit": "SAM", "refine_mask": "SAM",
+    label = {"anchor_generate": "Qwen Image", "mask": "SAM", "mask_edit": "SAM", "refine_mask": "SAM",
              "render": "H3", "refine_extract": "AlphaGen", "backplate": "H3",
              "refine_face": "Face tracking"}.get(job["kind"])
     candidates = []

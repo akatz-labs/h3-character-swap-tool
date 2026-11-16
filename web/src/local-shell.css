@@ -1,0 +1,220 @@
+/* Local shell uses the website avatar and header hierarchy. Editor tokens stay shared. */
+.h3-local-shell {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--ak-bg);
+  color: var(--ak-text);
+}
+.h3-local-shell > .h3-shell {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+.h3-local-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 88px;
+  padding: 12px 24px;
+  box-sizing: border-box;
+  background: #030e14;
+  border-bottom: 1px solid #244658;
+  font-family: Inter, sans-serif;
+}
+.h3-local-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  color: #eaf0f5;
+  font:
+    700 24px Geist,
+    Inter,
+    sans-serif;
+  white-space: nowrap;
+}
+.h3-local-brand img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.h3-local-badge {
+  font-size: 12px;
+  color: #9bb0bf;
+  border: 1px solid #244658;
+  border-radius: 5px;
+  padding: 3px 7px;
+}
+.h3-local-header nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.h3-local-header nav a,
+.h3-local-header nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  color: #eaf0f5;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.h3-local-header nav button {
+  background: transparent;
+  border: 1px solid #24788a;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.h3-local-header :is(a, button):focus-visible {
+  outline: 2px solid #00d9ed;
+  outline-offset: 4px;
+}
+/* Only this dialog gets workspace sizing; nested confirmation dialogs stay compact. */
+.ak-dialog[open]:has(> .h3-local-settings) {
+  box-sizing: border-box;
+  width: min(1080px, calc(100vw - 32px));
+  height: min(820px, calc(100dvh - 32px));
+  max-width: none;
+  max-height: none;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+.h3-local-settings {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+}
+.h3-local-settings-content {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 4px;
+}
+.h3-local-settings-content .ak-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.h3-local-settings-content .ak-setup {
+  max-width: none;
+  margin: 0;
+}
+.h3-local-settings-content :is(.ak-worker-card, .ak-eyebrow, h2) {
+  overflow-wrap: anywhere;
+}
+.h3-local-settings-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--ak-border);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+.h3-local-settings-tabs button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+}
+.h3-local-settings-tabs button[aria-pressed="true"] {
+  background: var(--ak-selected);
+  color: var(--ak-accent);
+}
+.h3-local-execution {
+  max-width: 680px;
+  display: grid;
+  gap: 12px;
+}
+.h3-local-offloading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 16px 0;
+  cursor: pointer;
+}
+.h3-local-offloading input {
+  margin-top: 4px;
+  cursor: pointer;
+}
+.h3-local-offloading small {
+  display: block;
+  color: var(--ak-muted);
+  margin-top: 6px;
+}
+.h3-local-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--ak-border);
+  padding-top: 20px;
+}
+.h3-local-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--ak-border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 700px) {
+  .h3-local-header {
+    padding: 10px 14px;
+    gap: 10px;
+    min-height: 72px;
+  }
+  .h3-local-brand {
+    font-size: 18px;
+    gap: 8px;
+  }
+  .h3-local-brand img {
+    width: 32px;
+    height: 32px;
+  }
+  .h3-local-badge {
+    display: none;
+  }
+  .h3-local-header nav {
+    gap: 6px;
+  }
+  .h3-local-header nav :is(a, button) {
+    width: 40px;
+    padding: 8px;
+  }
+  .h3-local-header nav span {
+    display: none;
+  }
+  .ak-dialog[open]:has(> .h3-local-settings) {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+    padding: 16px;
+  }
+  .h3-local-settings-tabs {
+    gap: 4px;
+  }
+  .h3-local-settings-tabs button {
+    padding-inline: 10px;
+  }
+}
+
+.h3-local-guide-settings {
+  max-width: 680px;
+  display: grid;
+  gap: 16px;
+}
+.h3-local-guide-settings :is(h3, p) {
+  margin: 0;
+}
+.h3-local-guide-settings input {
+  width: 100%;
+  min-width: 0;
+}

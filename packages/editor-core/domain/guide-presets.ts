@@ -1,0 +1,17 @@
+export const PRESETS = [
+  {
+    id: "character-swap",
+    label: "Character swap",
+    text: "Edit Image 1 in place as a camera-locked character swap. Image 1 is the sole authority for the camera, composition, scene geometry and performance. Images 2 onward are the selected appearance references, in their displayed input order. There may be multiple references for one character or references for several different characters. Follow the edit instructions to map each replacement character to the intended person in Image 1, and to choose which reference details to use. Do not merge different identities or replace untargeted people. Use the designated references for identity, face, hair, clothing, accessories and visual style as requested. If a reference is another scene or an earlier edited frame, use only its requested appearance details; do not copy its camera, framing, background, body placement, pose or expression. If no references are provided, follow the character description in the edit instructions. Preserve the complete source canvas, camera position and angle, field of view, perspective, crop and subject scale. Do not pan, tilt, zoom, reframe, recenter, extend the sky or reveal additional scenery. Keep the horizon, background objects and untargeted people at the same pixel locations as Image 1. Keep each target actor’s on-screen placement, head center and angle, shoulder line, hands, elbows, knees and feet matched to the source. Preserve the exact body pose, facial expression, gaze, mouth shape, hand gesture, object contact and occlusions; do not substitute a reference pose or invent another moment in the action. Adapt the requested character appearance to the source lighting, perspective and shadows while preserving its intended style. Change only the requested people and appearance details. Do not redesign the scene, add extra people, text, borders or panels. Scene-specific edit instructions take priority for the requested changes; keep the source camera and all other content fixed unless those instructions explicitly request changing them.",
+  },
+  {
+    id: "motion-transfer",
+    label: "Motion transfer",
+    text: "Create one guide frame that preserves the performance shown in Image 1. Use Image 1 as the source of the exact pose, body silhouette and placement, head orientation, expression, gaze, mouth shape and hand configuration. Use the optional references for the requested character’s appearance and visual style, not for a new pose or action. Preserve contact with objects, occlusions, camera framing and all untargeted scene content. Do not invent an in-between pose or a different moment in the action. This is a single edited frame, not an animation or a contact sheet. The scene-specific edit instructions take priority over these defaults.",
+  },
+  {
+    id: "scene-edit",
+    label: "Scene edit",
+    text: "Apply only the scene changes described in the edit instructions to Image 1. Use the optional references for the requested objects, materials, palette or style. Keep the source camera, crop, perspective and composition. Preserve everything outside the requested change, including untargeted people and their poses and expressions. Integrate edited content with the scene’s lighting, shadows, reflections and occlusions. Do not add unrelated details, text, borders or extra panels. The scene-specific edit instructions take priority over these defaults.",
+  },
+];

@@ -8,9 +8,11 @@ KINDS = {
     "cuts",
     "transcribe",
     "anchor",
+    "anchor_generate",
     "mask",
     "render",
     "segment_assemble",
+    "shot_final",
     "assemble",
     "prompts",
     "mask_edit",
@@ -30,14 +32,14 @@ def fingerprint(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
-def queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_render=None):
+def queue(kind, clip_id, shot_id=None, worker="auto", options=None, expected_render=None):
     # Serialize admission with clip edits and job creation. Disjoint segment jobs
     # may coexist; each dependency refers to an already admitted immutable job.
     with store.LOCK:
         return _queue(kind, clip_id, shot_id, worker, options, expected_render)
 
 
-def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_render=None):
+def _queue(kind, clip_id, shot_id=None, worker="auto", options=None, expected_render=None):
     if kind not in KINDS:
         raise ValueError("Unknown stage")
     if kind not in remote_shared.GPU_KINDS:
@@ -46,11 +48,21 @@ def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_ren
         raise ValueError("Unknown worker")
     if worker == "auto":
         from . import remote_sessions
-        if not remote_sessions.enabled():
+        if not remote_sessions.enabled() and not remote_shared.enabled():
             raise ValueError("Auto placement requires unified workers")
     c = store.clip_get(clip_id)
     s = shot_of(c, shot_id) if shot_id else None
-    if kind in {"anchor", "mask", "render", "mask_edit"}:
+    if kind == 'transcribe':
+        from . import transcription_provider
+        options = dict(options or {})
+        options['transcription_provider'] = transcription_provider.resolve() if c.get('audio') else 'cpu'
+    track_id = (options or {}).get("track_id") if kind in {"mask", "mask_edit"} else None
+    if s and "cast_setup" in s and kind in {"mask", "mask_edit"}:
+        from . import cast
+        s = cast.virtual_track(s, track_id)
+        if kind == 'mask' and s.get('mask_segment_range'):
+            raise ValueError('Add an include point and use Track for this segment')
+    if kind in {"anchor", "anchor_generate", "mask", "render", "mask_edit"}:
         if not s or s["mode"] != "generate":
             raise ValueError("Select a generated shot")
     if kind in refinement.KINDS:
@@ -63,25 +75,32 @@ def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_ren
                 raise ValueError(
                     "Retry on the worker with the measured capacity failure"
                 )
-    if kind == "anchor" and not c.get("reference"):
+    if kind == "anchor" and not media.reference(c, s):
         raise ValueError("Add a reference image first")
     if kind == 'anchor' and options:
         from . import segments
         if set(options) != {'segment_id'} or not any(x['id']==options['segment_id'] for x in segments.current(s)):
             raise ValueError('Choose a current segment for the anchor')
+    if kind == "anchor_generate":
+        from . import anchor_jobs
+        options = anchor_jobs.freeze(c, s, options or {}, worker)
     if kind == "mask_edit":
         options = options or {}
-        if set(options) != {"mode", "frame"} or options["mode"] not in {
+        if set(options) - {"mode", "frame", "track_id"} or not {"mode", "frame"} <= set(options) or options["mode"] not in {
             "frame",
             "shot",
         }:
-            raise ValueError("Choose Update frame or Track shot")
+            raise ValueError("Choose Update frame or Track")
         if (
             type(options["frame"]) is not int
             or not 0 <= options["frame"] < s["end"] - s["start"]
         ):
             raise ValueError("Correction frame is outside the shot")
         masks.validate_points(s.get("mask_points", []), s["end"] - s["start"])
+        if s.get('mask_segment_range'):
+            begin, end = s['mask_segment_range']
+            if not begin <= options['frame'] < end:
+                raise ValueError('Place the playhead inside the selected segment before editing its mask')
         if not s.get("mask") and not s.get("mask_points"):
             raise ValueError("Add an include point or track the person first")
     if kind == "render":
@@ -91,18 +110,23 @@ def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_ren
         if type(options["model_offloading"]) is not bool:
             raise ValueError("Model offloading must be true or false")
         config = render_models.settings(s)
+        # Freeze the new default so queued work remains reproducible.
+        s["anchor_conditioning"] = config["anchor_conditioning"]
+        s["use_source_audio"] = config["use_source_audio"]
         if expected_render is not None:
             base_fields = {"seed", "prompt", "render_mp", "lora_id", "use_anchor", "use_mask"}
-            if not isinstance(expected_render, dict) or set(expected_render) not in (
-                base_fields, base_fields | {"window_frames", "history_frames"}
+            if not isinstance(expected_render, dict) or not base_fields <= set(expected_render) or set(expected_render) - (
+                base_fields | {"window_frames", "history_frames", "anchor_conditioning", "use_source_audio"}
             ):
                 raise ValueError("Invalid expected generation settings")
             # An already-open older client expects the original window defaults.
-            expected_render = {"window_frames": 124, "history_frames": 18, **expected_render}
+            expected_render = {"window_frames": 124, "history_frames": 18, "anchor_conditioning": "reference", "use_source_audio": True, **expected_render}
             actual = {"seed": s["seed"], "prompt": s["prompt"], "render_mp": s.get("render_mp", 1.0), **config}
             if actual != expected_render:
                 raise store.Conflict("Generation settings changed before submission; review your saved settings")
-        if not c.get("reference"):
+        if "cast_setup" in s and "segments" not in options:
+            raise ValueError("Choose segments to render a shot cast")
+        if "segments" not in options and "cast_setup" not in s and not media.reference(c, s):
             raise ValueError("Add a character reference before rendering")
         if "segments" not in options and config["use_anchor"] and not s.get("anchor"):
             raise ValueError("Select an anchor or disable anchor conditioning")
@@ -111,16 +135,17 @@ def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_ren
                 raise ValueError("Apply your point corrections before rendering")
             if not s.get("mask"):
                 raise ValueError("Create a mask or disable masked diffusion")
-            if s.get("mask_empty_frames"):
-                raise ValueError("Correct missing mask frames before rendering")
     segment_plan = None
     if kind == 'render' and 'segments' in options:
         from . import segment_jobs
         segment_plan = segment_jobs.freeze(c,s,options['segments'])
+    if kind == 'shot_final':
+        from . import shot_finals
+        options = shot_finals.freeze(c, s, options or {})
     if kind == 'segment_assemble':
         from . import segments
-        if not s or not all(v['current'] for v in segments.states(c,s)):
-            raise ValueError('Choose current takes for every segment before assembling')
+        if not s or not all(segments.compatible_take(c, s, seg) for seg in segments.current(s)):
+            raise ValueError('Choose takes with matching frames and resolution for every segment before assembling')
     if kind == "assemble":
         for x in c["shots"]:
             if x["mode"] == "generate" and not x.get("selected_render"):
@@ -149,13 +174,14 @@ def _queue(kind, clip_id, shot_id=None, worker="fey", options=None, expected_ren
         shot_id,
         {
             "options": options,
+            **({"mask_track_id": track_id} if track_id else {}),
             **({"segment_plan": segment_plan, "segment_scope": segment_jobs.scope(segment_plan),
                 "segment_dependencies": segment_plan['dependencies']} if segment_plan else {}),
             "snapshot": c,
             "shot": s,
             "worker": worker,
             "requested_worker": worker,
-            "execution_backend": "shared" if store.setting("shared_executor", False) and kind in {"mask", "render", "mask_edit", "refine_extract", "refine_mask", "refine_face", "backplate"} else "direct",
+            "execution_backend": "shared" if store.setting("shared_executor", False) and kind in remote_shared.GPU_KINDS else "direct",
             "fingerprint": fingerprint({"clip": c, "shot": s}),
             "frame_request": frame_request,
             "phase": "Queued",
@@ -186,6 +212,12 @@ def attach(job, fn):
                 s = shot_of(c, job["shot_id"])
             except StopIteration:
                 return
+            track_id = job["data"].get("mask_track_id")
+            actual_shot = s
+            if track_id:
+                from . import cast
+                try: s = cast.virtual_track(s, track_id)
+                except ValueError: return
             original = job["data"]["shot"]
             stable = (
                 all(
@@ -196,11 +228,15 @@ def attach(job, fn):
                         "selection",
                         "subject_index",
                         "source_frame",
+                        "mask_segment_range",
                     ]
                 )
-                and c["reference"] == job["data"]["snapshot"]["reference"]
+                and media.reference(c, s) == media.reference(job["data"]["snapshot"], original)
+                and media.character(c, s) == media.character(job["data"]["snapshot"], original)
             )
             fn(c, s, stable)
+            if track_id:
+                cast.save_track(actual_shot, track_id, s)
         else:
             fn(c, None, True)
 
@@ -226,11 +262,13 @@ def transcribe(job, d):
     )
     from . import transcription
 
-    result = transcription.transcribe(
-        audio,
-        progress=lambda phase: store.job_update(job["id"], phase=phase),
-        check_cancel=lambda: remote.check_cancel(job),
-    )
+    progress = lambda phase: store.job_update(job['id'], phase=phase)
+    check_cancel = lambda: remote.check_cancel(job)
+    if job['data'].get('options', {}).get('transcription_provider') == 'openai':
+        from . import openai_transcription
+        result = openai_transcription.transcribe(c, audio, d, progress=progress, check_cancel=check_cancel)
+    else:
+        result = transcription.transcribe(audio, progress=progress, check_cancel=check_cancel)
     (d / "transcript.json").write_text(json.dumps(result, indent=2))
     return result
 
@@ -499,7 +537,10 @@ def execute(id):
                 "assemble": "Assembling selected shots",
             }.get(kind, "Preparing inputs"),
         )
-        if kind in refinement.KINDS:
+        if kind in {'guide_generate', 'guide_render'}:
+            from . import guides, guide_render
+            result = (guides.execute if kind == 'guide_generate' else guide_render.execute)(job, d)
+        elif kind in refinement.KINDS:
             from . import refine_jobs
 
             result = refine_jobs.execute(job, d)
@@ -511,6 +552,9 @@ def execute(id):
         elif kind == 'render' and job['data'].get('segment_plan'):
             from . import segment_jobs
             result = segment_jobs.execute(job,d)
+        elif kind == 'shot_final':
+            from . import shot_finals
+            result = shot_finals.execute(job, d)
         elif kind == 'segment_assemble':
             from . import segment_jobs
             result = segment_jobs.assemble(c,s,d)
@@ -539,6 +583,9 @@ def execute(id):
                             sh["prompt"] = media.prompt(v, sh)
 
             attach(job, update)
+        elif kind == 'anchor_generate':
+            from . import anchor_jobs
+            result = anchor_jobs.execute(job, d)
         elif kind == 'anchor' and (job['data'].get('options') or {}).get('segment_id'):
             from . import segment_jobs
             result=segment_jobs.generate_anchor(job,d)
@@ -551,9 +598,9 @@ def execute(id):
                     ok
                     and all(
                         (sh.get(k) or "") == (s.get(k) or "")
-                        for k in ("anchor_instructions", "anchor_prompt")
+                        for k in ("anchor_instructions", "anchor_prompt", "anchor_source_frame")
                     )
-                    and v.get("character") == c.get("character")
+                    and media.character(v, sh) == media.character(c, s)
                 ):
                     sh.update(
                         anchor=result["asset"],
@@ -577,7 +624,7 @@ def execute(id):
                     and sh.get("mask_points", []) == s.get("mask_points", [])
                 )
                 label = (
-                    "Tracked shot"
+                    ("Tracked segment" if s.get('mask_segment_range') else "Tracked shot")
                     if job["data"]["options"]["mode"] == "shot"
                     else f"Edited frame {s['start'] + job['data']['options']['frame']}"
                 )
@@ -587,6 +634,9 @@ def execute(id):
                 with store.LOCK:
                     live = store.clip_get(job["clip_id"])
                     shot = next((x for x in live["shots"] if x["id"] == s["id"]), None)
+                    if shot and job["data"].get("mask_track_id"):
+                        from . import cast
+                        shot = cast.virtual_track(shot, job["data"]["mask_track_id"])
                     compatible = (
                         shot
                         and all(
@@ -597,6 +647,7 @@ def execute(id):
                                 "selection",
                                 "subject_index",
                                 "mask_text",
+                                "mask_segment_range",
                             ]
                         )
                         and live["source"] == c["source"]
@@ -638,7 +689,7 @@ def execute(id):
                     mask = z["mask"]
                     coverage = (mask > 0.5).sum(axis=(1, 2)).tolist()
                 missing = [i for i, n in enumerate(coverage) if n == 0]
-                if missing:
+                if missing and not job["data"].get("mask_track_id"):
                     store.job_update(
                         id, phase=f"Recovering {len(missing)} missing mask frames"
                     )
@@ -696,7 +747,7 @@ def execute(id):
                     "asset": store.asset_add(video),
                     "api": store.asset_add(d / "api.json"),
                     "seed": s["seed"],
-                    "prompt": s["prompt"],
+                    "prompt": graph["801"]["inputs"]["prompt"],
                     **spec,
                     "settings": {
                         "render_mp": spec["render_mp"],
@@ -716,7 +767,7 @@ def execute(id):
                             ]
                         },
                     },
-                    "reference": c["reference"],
+                    "reference": media.reference(c, s),
                     "created": store.now(),
                 }
                 result.update(
@@ -725,13 +776,13 @@ def execute(id):
                     **render_models.settings(s),
                     residency="offload" if render_models.offloading(job) else "full",
                 )
+                result["settings"]["prompt"] = result["prompt"]
 
                 def update(v, sh, ok):
                     sh["renders"].append(result)
                     if (
                         ok
-                        and (not render_models.settings(s)["use_mask"] or
-                             (not masks.pending_frames(sh) and not sh.get("mask_empty_frames")))
+                        and (not render_models.settings(s)["use_mask"] or not masks.pending_frames(sh))
                         and render_models.settings(sh) == render_models.settings(s)
                         and sh.get("render_mp", 1.0) == s.get("render_mp", 1.0)
                         and all(
@@ -782,7 +833,7 @@ def execute(id):
         (d / "failure.txt").write_text(traceback.format_exc())
         store.job_update(id, "failed", phase="Failed", error=str(e)[-4000:])
 
-        if kind in refinement.KINDS or kind == "render":
+        if kind in refinement.KINDS or kind in {"render", "guide_render", "anchor_generate"}:
             measured = refinement.capacity_failure(store.job_get(id))
             if measured:
                 store.job_update(
@@ -790,7 +841,7 @@ def execute(id):
                 )
     finally:
         from . import remote_sessions
-        if remote_sessions.enabled() and job["data"].get("execution_backend") != "shared":
+        if kind not in {'guide_generate', 'guide_render'} and remote_sessions.enabled() and job["data"].get("execution_backend") != "shared":
             try:
                 remote_sessions.finish_job(store.job_get(id))
             except Exception as cleanup_error:
@@ -798,12 +849,16 @@ def execute(id):
 
 
 def resource(job):
+    if job["kind"] == "guide_generate":
+        if job['data'].get('options', {}).get('provider') in {'private-openai', 'local-openai'}:
+            return 'guide-openai'
+        return "guide-comfy"
     if job.get("state") in {"running", "cancelling"} and job["data"].get("execution_resource"):
         return job["data"]["execution_resource"]
     return (
         job["data"]["worker"]
         if job["kind"]
-        in {"mask", "render", "mask_edit", "refine_extract", "refine_mask", "refine_face", "backplate"}
+        in remote_shared.GPU_KINDS
         else "image"
         if job["kind"] in {"anchor", "backplate_anchor"}
         else "cpu"
@@ -892,7 +947,7 @@ def start():
                 error="Service restarted during this job. Inspect its receipt before retrying.",
             )
     for j in store.jobs():
-        if j["kind"] == "render" and j["state"] == "failed" and not j["data"].get("capacity_failure"):
+        if j["kind"] in {"render", "guide_render"} and j["state"] == "failed" and not j["data"].get("capacity_failure"):
             measured = refinement.capacity_failure(j)
             if measured:
                 store.job_update(j["id"], capacity_failure=measured)

@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from . import remote, session_policy, store
 from .config import DATA, MEDIA, ROOT, WORKERS
 
-GPU_KINDS = {"mask", "render", "mask_edit", "refine_extract", "refine_mask", "refine_face", "backplate"}
+GPU_KINDS = {"anchor_generate", "mask", "render", "guide_render", "mask_edit", "refine_extract", "refine_mask", "refine_face", "backplate"}
 STAGE_PREPARATION = threading.BoundedSemaphore(1)
 
 
@@ -68,7 +68,8 @@ def status(worker):
         else:
             state = "available"
         gpu = next(iter(observed.get("gpus", [])), {})
-        return {"worker": worker, "state": state, "gpu": gpu.get("name"), "features": ready["features"] if ready else [],
+        return {"worker": worker, "state": state, "gpu": gpu.get("name"), "features": sorted({feature for row in result["installations"]
+                    if not selected or row["installation"]["id"] == selected for feature in row["features"]}),
                 "owned": bool(live and live.get("processIdentity")),
                 "executor_id": result["health"]["executorId"], "shared_jobs": jobs,
                 "auto_available": "auto-placement-v1" in result["health"].get("capabilities", []),
@@ -153,6 +154,12 @@ def call(value, job=None, staging_done=None):
 
 
 def operation(job, directory):
+    if job["kind"] == "guide_render":
+        segment = next(s for s in job["data"]["shot"]["segments"] if s["id"] == job["data"]["options"]["segment_id"])
+        if segment.get("lora_id") == "viggle-remake-swap": return "h3-swap-remake-v1"
+        return "h3-swap-pika-v1" if segment.get("render_mode") == "swap_pika" else "h3-ripple-v1"
+    if job["kind"] == "anchor_generate":
+        return "sam-anchor-v1" if directory.name == "foreground" else "qwen-anchor-v1"
     if job["kind"] == "render":
         return "h3-render-segments-v1" if job["data"].get("segment_plan") else "h3-render"
     if job["kind"] == "mask":
@@ -192,12 +199,13 @@ def _execute(job, graph, files, directory, profile, staging_done):
         worker = binding.get("worker", worker)
     else:
         remote.check_cancel(job)
-        selection = store.setting("shared_executor_installations", {}).get(worker)
+        operation_installations = store.setting("shared_executor_operation_installations", {}).get(feature, {})
+        installations = {**store.setting("shared_executor_installations", {}), **operation_installations}
+        selection = installations.get(worker)
         automatic = job["data"].get("requested_worker") == "auto" and not job["data"].get("shared_stages")
         if automatic:
             waiting = {j["data"].get("worker") for j in store.pending_jobs(("running", "cancelling"))
                        if j["id"] != job["id"] and j["data"].get("gpu_waiting")}
-            installations = store.setting("shared_executor_installations", {})
             candidates = [{"worker": w, "target": target(w), **({"installationId": installations[w]} if w in installations else {})}
                           for w in WORKERS if w not in waiting]
             if not candidates:
@@ -232,13 +240,17 @@ def _execute(job, graph, files, directory, profile, staging_done):
     job["data"]["worker"] = worker
     c, shot = job["data"]["snapshot"], job["data"]["shot"]
     spec = job["data"].get("render_spec") or {"dimensions": c["dimensions"]}
+    if feature == "qwen-anchor-v1":
+        from .anchor_jobs import canvas
+        spec = {"dimensions": canvas(c["dimensions"])}
     chain = {"recipeRevision": binding["recipeRevision"], "adapterRevision": binding["revision"],
              "modelDigest": binding["recipeRevision"], "modelConfigurationDigest": family["key"],
              "precision": "pinned-operation-model-dtypes", "residency": session_policy.placement(profile),
              "allocator": session_policy.allocator(profile)}
     inputs = {"version": 1, "operation": feature, "operationRevision": binding["revision"],
               "graphFile": "captured-api.json", "graphDigest": graph_digest, "runtimeCompatibility": chain,
-              "family": family, "profile": profile, "frames": shot["end"] - shot["start"], "dimensions": spec["dimensions"]}
+              "family": family, "profile": profile, "frames": (job["data"]["segment_scope"][0]["end"] - job["data"]["segment_scope"][0]["start"])
+              if job["kind"] == "guide_render" else 1 if job["kind"] == "anchor_generate" else shot["end"] - shot["start"], "dimensions": spec["dimensions"]}
     stages = list(store.job_get(job["id"])["data"].get("shared_stages") or [])
     if str(directory) not in stages:
         stages.append(str(directory))

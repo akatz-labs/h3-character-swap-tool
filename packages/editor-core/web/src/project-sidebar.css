@@ -1,0 +1,50 @@
+/* Shared project chrome: identical geometry inside React and the legacy editor. */
+.h3-shell .h3-project-sidebar{box-sizing:border-box;display:flex;flex-direction:column;gap:0;min-height:0;padding:18px 12px 14px;background:var(--ak-surface);border-right:1px solid var(--ak-border);overflow-y:auto}
+.h3-shell #h3-project-navigation{display:contents}
+.h3-shell .h3-project-navigation{padding:3px 4px 22px;margin:0 0 20px;border-bottom:1px solid var(--ak-border);flex:none}
+.h3-shell .h3-project-navigation h2{margin:8px 0 18px;font-size:19px;line-height:1.35;font-weight:700;letter-spacing:normal}
+.h3-shell .h3-project-eyebrow{font-size:11px;line-height:1.5;font-weight:400;letter-spacing:.07em}
+.h3-shell .h3-project-modes button{box-sizing:border-box;min-height:40px;padding:10px 4px;font-size:13px;line-height:18px;font-weight:400;border:0;border-radius:5px;cursor:pointer;user-select:none}
+.h3-shell .h3-project-modes button[aria-current=page]{font-weight:650}
+.h3-shell .h3-assets-categories{flex:1;min-height:0}
+.h3-shell #h3-project-footer{flex:none;margin-top:auto}
+.h3-shell .h3-project-sidebar-footer{flex:none;width:100%;margin-top:auto;padding-top:18px;display:flex;flex-direction:column;gap:8px}
+.h3-shell .h3-project-sidebar-footer>:is(a,button){box-sizing:border-box;display:flex;align-items:center;gap:8px;min-height:44px;padding:10px 12px;border:1px solid var(--ak-border);border-radius:6px;background:transparent;color:var(--ak-text);font-size:13px;font-weight:400;line-height:20px;text-decoration:none;cursor:pointer;user-select:none}
+.h3-shell .h3-project-sidebar-footer>:is(a,button):hover{background:var(--ak-raised)}
+.h3-shell .h3-project-sidebar-footer .ak-icon{width:16px;height:16px;flex:none}
+.h3-shell .h3-project-support .ak-icon{color:#ff547a;fill:currentColor;filter:drop-shadow(0 0 5px #ff547a66)}
+.h3-shell .h3-project-sidebar-footer footer{display:flex;justify-content:space-between;gap:8px;padding:8px 0 0;margin:0;border:0;font-size:10px;line-height:15px;color:var(--ak-muted)}
+.h3-shell .h3-project-sidebar-footer footer a{color:inherit;text-decoration:none}
+.h3-shell .h3-project-sidebar-footer a:focus-visible{outline:2px solid var(--ak-accent);outline-offset:2px}
+@media(max-width:760px){
+ .h3-shell .h3-project-sidebar{padding:16px}
+ .h3-shell .h3-project-navigation{padding:0;margin:0;border:0}
+ .h3-shell .h3-project-navigation:has(.h3-project-menu){display:block}
+ .h3-shell .h3-project-navigation h2{font-size:16px;margin:0}
+ .h3-shell .h3-project-eyebrow{font-size:10px}
+ .h3-shell .h3-project-modes button{font-size:12px;padding:9px 6px}
+}
+
+.h3-project-menu{position:relative;width:100%;margin:8px 0 18px}
+.h3-project-menu .ak-select-trigger{font-size:18px;font-weight:650;line-height:1.35;white-space:normal;text-align:left;width:100%;padding:10px;min-height:44px}
+.h3-project-menu .ak-select-listbox{font-size:13px;max-height:min(360px,55dvh);max-width:calc(100vw - 32px);overflow:auto;z-index:65}
+.h3-project-menu .ak-select-option{font-size:13px;padding:12px;white-space:normal;overflow-wrap:anywhere;cursor:pointer;user-select:none}
+.h3-project-menu .ak-select-option:last-child{border-top:1px solid var(--ak-border);margin-top:6px;color:var(--ak-accent)}
+.h3-project-sidebar-footer button:disabled{cursor:default;opacity:.55}
+.h3-project-sidebar-footer button:focus-visible{outline:2px solid var(--ak-accent);outline-offset:2px}
+.h3-queue-count{margin-left:auto;font-size:11px;color:var(--ak-muted)}
+.h3-shot-skeletons{display:grid;gap:12px;padding:8px 4px}
+.h3-shot-skeleton{display:flex;gap:10px;align-items:center;padding:9px 0}
+.h3-shot-skeleton>span{width:54px;height:48px;flex:none}
+.h3-shot-skeleton>div{display:grid;gap:9px;flex:1}
+.h3-shot-skeleton i{display:block;height:9px;width:85%}
+.h3-shot-skeleton i:last-child{width:40%}
+.h3-shot-skeleton>span,.h3-shot-skeleton i{background:var(--ak-raised);border-radius:4px;animation:h3-skeleton-pulse 1.6s ease-in-out infinite alternate}
+@keyframes h3-skeleton-pulse{to{opacity:.4}}
+@media(prefers-reduced-motion:reduce){.h3-shot-skeleton>span,.h3-shot-skeleton i{animation:none}}
+
+.h3-shell .h3-project-navigation .h3-project-menu{margin:8px 0 14px}
+.h3-shell .h3-project-navigation .h3-project-modes{margin-top:12px}
+
+.h3-shell .h3-model-credit{font-size:10px;line-height:15px;color:var(--ak-muted)}
+.h3-shell .h3-model-credit a{color:inherit}

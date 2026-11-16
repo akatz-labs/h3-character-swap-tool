@@ -1,0 +1,45 @@
+/* Approved card A and right-inspector composition. Shared styles: static/ui-components.css. */
+.h3-legacy #clips{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:block!important}
+.h3-legacy .h3-ui-shot-list{display:grid;gap:4px;margin-bottom:4px}
+.h3-legacy .h3-community-link{flex:none;background:transparent;border-color:transparent;text-align:left;justify-content:flex-start}
+.h3-legacy .h3-community-link:hover{background:var(--ak-raised)}
+.h3-legacy .render-results>.panel-title{display:flex;flex-direction:column;align-items:stretch;gap:18px;padding:18px 0;border:0}
+.h3-output-title,.h3-output-filters{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.h3-output-title h2{margin:0 auto 0 0;font-size:18px}
+.h3-output-filters>.note{margin-left:auto;font-size:12px}
+.h3-editor-workspace[data-shot-view=outputs] .render-results{border:0!important;background:transparent!important;padding:0 10px}
+.h3-legacy #render-history-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px 20px;align-content:start;padding:6px 2px 24px;overflow:visible}
+.h3-legacy .render-results{overflow:auto!important;min-height:0}
+.h3-legacy :is(#dialog.output-modal,#dialog.final-assembly-modal,.h3-output-preview){width:min(1400px,calc(100vw - 40px));max-width:none;height:min(850px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);padding:0;overflow:hidden;box-sizing:border-box}
+.h3-legacy :is(#dialog.output-modal,#dialog.final-assembly-modal,.h3-output-preview)[open]{display:flex;flex-direction:column}
+.h3-legacy :is(#dialog.output-modal,#dialog.final-assembly-modal,.h3-output-preview) .dialog-head{padding:16px 20px;border-bottom:1px solid var(--ak-border);margin:0;flex:none}
+.h3-legacy :is(#dialog.output-modal,#dialog.final-assembly-modal,.h3-output-preview) :is(#dialog-body,.h3-output-preview-body){display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+.h3-legacy :is(#dialog.output-modal,.h3-output-preview) .h3-ui-viewer{height:100%}
+.h3-output-view-mode{padding:10px 16px;flex:none;background:var(--ak-bg)}
+.h3-legacy #output-video{flex:1;min-height:0}
+/* The assembly keeps one bounded scroll list per segment and a persistent action footer. */
+.h3-legacy #dialog.final-assembly-modal #dialog-body{padding:0}
+.h3-output-preview-body{padding:0}
+.h3-final-body{flex:1;min-height:0;overflow:auto;padding:16px 20px 20px;scrollbar-width:thin;scrollbar-gutter:stable}
+.h3-final-summary{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;font-size:12px;color:var(--ak-muted)}
+.h3-final-segments{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.h3-final-segment{min-width:0;display:flex;flex-direction:column;height:clamp(240px,calc(100dvh - 240px),650px);box-sizing:border-box;border:1px solid var(--ak-border);border-radius:8px;padding:12px;background:var(--ak-bg)}
+.h3-legacy .h3-final-segment>header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;padding:4px 0 12px;height:auto;min-height:0;flex:none;flex-wrap:wrap;background:transparent;border:0;border-bottom:1px solid var(--ak-border)}
+.h3-final-segment h3{font-size:14px;margin:0}.h3-final-segment small{font-size:11px;color:var(--ak-muted)}
+.h3-final-choices{display:grid;align-content:start;gap:18px;flex:1;min-height:0;overflow:auto;padding:3px 4px;scrollbar-width:thin;scrollbar-gutter:stable}
+.h3-final-choices .h3-ui-poster{height:clamp(130px,22dvh,200px);aspect-ratio:auto}
+.h3-final-choices .h3-ui-card-title{margin-top:6px}
+.h3-legacy .h3-output-preview{background:var(--ak-bg);color:var(--ak-text);border:1px solid var(--ak-border);border-radius:10px}
+.h3-legacy .h3-output-preview .dialog-head h2{margin:0;font-size:17px}
+.h3-legacy .h3-output-preview .dialog-head button{flex:none;width:32px;height:32px;padding:0;border:1px solid var(--ak-border);border-radius:6px;background:transparent}
+.h3-final-footer{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none;border-top:1px solid var(--ak-border)}
+.h3-final-actions{display:flex;gap:10px;flex:none}.h3-final-warning{display:block;color:#f0c986;font-size:12px;line-height:1.5;margin-bottom:8px;max-width:70ch;cursor:pointer}
+#final-error{color:#f49b9b;margin:6px 0 0;font-size:12px;overflow-wrap:anywhere}
+@media(max-width:800px){.h3-editor-workspace[data-shot-view] .h3-project-tools{grid-template-columns:1fr auto}.h3-editor-workspace[data-shot-view] .h3-clip-heading h1{max-width:170px}.h3-legacy #render-history-cards{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px 12px}.h3-legacy :is(#dialog.output-modal,#dialog.final-assembly-modal,.h3-output-preview){width:calc(100vw - 16px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px)}.h3-final-footer{align-items:stretch;flex-direction:column}.h3-final-actions{justify-content:flex-end}.h3-legacy .render-results>.panel-title{padding:12px 0}.h3-output-filters{gap:8px}}
+@media(max-width:450px){.h3-legacy #render-history-cards{grid-template-columns:minmax(0,1fr)}.h3-output-filters>.note{display:none}.h3-output-filters .h3-ui-select{max-width:48%}}
+
+/* Empty results occupy the available panel, never a single output-card column. */
+.h3-legacy #render-history-cards:has(>.h3-ui-empty){flex:1;grid-template-columns:minmax(0,1fr);align-content:stretch;min-height:280px}
+.h3-legacy #render-history-cards>.h3-ui-empty{grid-column:1/-1;min-width:0}
+
+@media(max-width:600px){.h3-final-body{padding:12px}.h3-final-segments{grid-template-columns:minmax(0,1fr)}.h3-final-footer{padding:12px;gap:10px}.h3-final-summary{flex-direction:column}.h3-final-segment{height:350px}}

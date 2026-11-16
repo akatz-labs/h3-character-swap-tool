@@ -1,0 +1,40 @@
+{
+  "name": "@akatz/h3-editor-core",
+  "version": "0.2.0",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "static",
+    "README.md",
+    "LICENSE",
+    "workflow.json",
+    "recipes"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/web/src/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./domain": {
+      "types": "./dist/types/domain/index.d.ts",
+      "import": "./dist/domain/index.js"
+    },
+    "./styles.css": "./dist/index.css",
+    "./static/*": "./static/*",
+    "./workflow": "./workflow.json"
+  },
+  "peerDependencies": {
+    "@akatz/app-kit": "0.1.0-alpha.9-source.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.6.7"
+  },
+  "scripts": {
+    "build": "node scripts/build_legacy_bridge.mjs && node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1"
+  }
+}

@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 import numpy as np
-from . import media, masks, remote, render_models, segments, store
+from . import media, masks, remote, render_models, segments, store, cast
 from .config import MEDIA
 
 
@@ -30,8 +30,13 @@ def freeze(clip, shot, request):
     if start is None: raise ValueError('Choose a current segment')
     indices = [start] if mode == 'segment' else list(range(0 if mode == 'all' else start, len(items)))
     status = segments.states(clip,shot,items)
+    original_selections = {s['id']: s.get('selected_take') for s in items}
+    valid = segments.current_takes(clip, shot, items)
+    for item in items:
+        if item['id'] in valid:
+            item['selected_take'] = valid[item['id']]['id']
     active = [j for j in store.pending_jobs(ACTIVE_STATES, full=True)
-              if j['kind'] == 'render' and j['clip_id'] == clip['id'] and j['shot_id'] == shot['id']]
+              if j['kind'] in {'render', 'guide_render'} and j['clip_id'] == clip['id'] and j['shot_id'] == shot['id']]
     owners = {}
     covered = set()
     for job in active:
@@ -51,15 +56,26 @@ def freeze(clip, shot, request):
     bindings = {}
     for i in indices:
         seg = items[i]
-        if seg['anchor_mode'] != 'none' and not segments.anchor(shot,seg):
+        if segments.uses_guides(seg):
+            from . import guide_render
+            try:
+                guide_render.validate(clip, shot, seg)
+            except ValueError as error:
+                raise ValueError(f'Segment {i+1}: {error}') from error
+        if 'cast_setup' not in shot and not media.reference(clip, shot):
+            raise ValueError(f'Segment {i+1}: add a character reference before rendering')
+        if 'cast_setup' in shot:
+            from . import cast
+            cast.validate_generation(clip, shot, seg)
+        from . import guides
+        guides.selected(clip, shot, seg, strict=True, required=False)
+        if 'cast_setup' not in shot and seg['anchor_mode'] != 'none' and not segments.anchor(shot,seg):
             raise ValueError(f'Segment {i+1}: select an anchor or choose no anchor')
-        if shot.get('use_mask',True):
+        if 'cast_setup' not in shot and segments.render_shot(shot, seg).get('use_mask',True):
             if not shot.get('mask'): raise ValueError('Create a person mask or disable masking')
             begin = max(0, seg['start'] - bool(segments.effective_history(seg)))
             if any(begin <= f < seg['end'] for f in masks.pending_frames(shot)):
                 raise ValueError(f'Segment {i+1}: apply the pending mask corrections')
-            if any(begin <= f < seg['end'] for f in shot.get('mask_empty_frames',[])):
-                raise ValueError(f'Segment {i+1}: correct the missing mask frames')
         for predecessor, _ in segments.predecessors(items,i):
             j = items.index(predecessor)
             if j not in indices:
@@ -74,13 +90,10 @@ def freeze(clip, shot, request):
                     bindings[predecessor['id']] = {'job_id': owner['id'], 'segment_id': predecessor['id'],
                         'index': j, 'signature': signature, 'take_id': owner['id']+'-'+predecessor['id']}
                     continue
-                selected = segments.take(predecessor)
-                if not status[j]['current'] or not selected or not selected.get('master'):
-                    raise ValueError(f'Generate segment {j+1} first, or generate from an earlier segment')
-                if selected['dimensions'] != media.render_spec(clip,shot)['dimensions']:
-                    raise ValueError('Continuation resolution changed; regenerate the preceding segments')
+                if not segments.reusable_take(clip, shot, predecessor):
+                    raise ValueError(f'Generate segment {j+1} first, or select a take with a matching source range and resolution')
     return {'segments':items,'indices':indices,'mode':mode,'dependencies':list(bindings.values()),
-            'original_selections':{s['id']:s.get('selected_take') for s in items}}
+            'original_selections':original_selections}
 
 
 def resolve_dependencies(job):
@@ -145,20 +158,29 @@ def history_file(items,index,dimensions,directory):
 
 def graph(clip, shot, items, index, job, directory):
     seg = items[index]; h = segments.effective_history(seg)
+    shot = segments.render_shot(shot, seg)
     source_start = seg['start'] - h
     virtual = copy.deepcopy(shot)
     virtual.update(start=shot['start']+source_start,end=shot['start']+seg['end'],
                    prompt=segments.prompt(clip,shot,seg), seed=seg['seed'],
                    anchor=segments.anchor(shot,seg),use_anchor=bool(segments.anchor(shot,seg)))
     spec = media.render_spec(clip,shot)
+    if 'cast_setup' in shot:
+        from . import cast
+        chosen = cast.resolve(clip, shot, seg)
+        virtual['reference'] = chosen['characters'][0]['reference']
+        virtual['anchor'] = None
+        virtual['use_anchor'] = False
+        spec = {**spec, 'expansion': 0}
     if virtual.get('use_mask',True):
-        mask = masks.read(shot['mask'],shot['end']-shot['start'],spec['dimensions'])
-        path=directory/'segment-mask.npz';np.savez_compressed(path,mask=mask[source_start:seg['end']])
+        mask = cast.combined_mask(clip,shot,seg,spec['dimensions']) if 'cast_setup' in shot else masks.read(shot['mask'],shot['end']-shot['start'],spec['dimensions'])[source_start:seg['end']]
+        path=directory/'segment-mask.npz';np.savez_compressed(path,mask=mask)
         virtual['mask']=store.asset_add(path)
     stage=copy.deepcopy(job)
     stage['data'].update(shot=virtual,render_spec=spec,generation=render_models.settings(virtual))
     result,files=remote.graph_render(clip,virtual,stage,directory)
-    result['805']['inputs']['schedule'] = 'segment'
+    result['805'] = {'class_type': 'H3WorkbenchSegmentPlan', 'inputs': {
+        'source_frames': result['805']['inputs']['source_frames'], 'seed': seg['seed']}}
     result['save_history'] = {'class_type': 'H3RelaySaveHistory', 'inputs': {
         'frames': ['807', 0], 'filename_prefix': job['id']}}
     if h:
@@ -172,11 +194,42 @@ def graph(clip, shot, items, index, job, directory):
         if virtual['anchor']:
             result['801']['inputs']['ref_images.ref_image_2'] = ['309', 0]
         result['history']['inputs']['first_frame_guide'] = True
+    if 'cast_setup' in shot:
+        for key in list(result['801']['inputs']):
+            if key.startswith('ref_images.'):
+                del result['801']['inputs'][key]
+        for picture in cast.reference_plan(clip, shot, seg):
+            n = picture['picture'] - 1
+            if picture['role'] == 'history':
+                output = ['803', 11]
+            else:
+                node = f'cast_image_{n}'
+                name = f'{job["id"]}-cast-{n}.png'
+                files[name] = store.path(picture['asset'])
+                result[node] = {'class_type':'LoadImage', 'inputs':{'image':name}}
+                output = [node, 0]
+            result['801']['inputs'][f'ref_images.ref_image_{n}'] = output
+        result['801']['inputs']['prompt'] = segments.prompt(clip,shot,seg)
+    # Guides use source-clock positions in this single-pass segment, including
+    # the preceding history prefix. They never consume Picture reference slots.
+    from . import guides
+    positive = ['history', 0]
+    for i, guide in enumerate(guides.selected(clip, shot, seg, strict=True, required=False)):
+        name = f'{job["id"]}-guide-{i}.png'
+        files[name] = store.path(guide['asset'])
+        result[f'timed_image_{i}'] = {'class_type': 'LoadImage', 'inputs': {'image': name}}
+        result[f'timed_guide_{i}'] = {'class_type': 'MiniMaxH3AddGuide', 'inputs': {
+            'positive': positive, 'latent': ['history', 1], 'vae': ['7', 0],
+            'image': [f'timed_image_{i}', 0], 'frame_idx': guide['frame'] - shot['start'] - source_start}}
+        positive = [f'timed_guide_{i}', 0]
+    result['guider']['inputs'].update(positive=positive, negative=positive)
+    result['sampling_memory']['inputs']['conditioning'] = positive
     return result,files,stage
 
 
 def collect(job, clip, shot, items,index,directory,output,graph):
     seg=items[index]
+    shot = segments.render_shot(shot, seg)
     history=json.loads((output/'history.json').read_text())
     from . import relay_contract
     report, video, master = relay_contract.outputs(history, output/'output', continuation=True)
@@ -187,7 +240,12 @@ def collect(job, clip, shot, items,index,directory,output,graph):
             raise ValueError('Segment output differs from its exact source range')
     if len(report['windows']) != 1 or report['history_frames'] != segments.effective_history(seg):
         raise ValueError('Segment execution did not match the single-pass plan')
+    cast_inputs = cast.generation_inputs(clip,shot,seg) if 'cast_setup' in shot else None
+    selected_anchor = cast_inputs['scene_anchors'][0]['asset'] if cast_inputs and cast_inputs['scene_anchors'] else None
+    from . import guides
     return {**spec, **render_models.settings(shot),
+        'guide_inputs_snapshot': {'source': guides.source(clip), 'shot_start': shot['start'],
+                                  'guides': guides.selected(clip, shot, seg)},
         'id':job['id']+'-'+seg['id'],'segment_id':seg['id'], 'start':seg['start'],'end':seg['end'],
         'asset':store.asset_add(video),'master':store.asset_add(master),'api':store.asset_add(directory/'api.json'),
         'signature':segments.setting_signature(clip,shot,seg),'dependencies':segments.dependencies(items,index),
@@ -195,8 +253,11 @@ def collect(job, clip, shot, items,index,directory,output,graph):
         'anchor':segments.anchor(shot,seg),'history_frames':segments.effective_history(seg),
         'window_frames':report['windows'][0]['window_frames'],
         'use_anchor':bool(segments.effective_history(seg) or segments.anchor(shot,seg)),
-        'settings':{k:copy.deepcopy(seg.get(k)) for k in segments.EDITABLE|{'id','start','end'}},'created':store.now(),
-        'lora':render_models.identify(graph),'reference':clip['reference'],'raw_decoded':True,
+        'settings':{**{k:copy.deepcopy(seg.get(k)) for k in segments.EDITABLE|{'id','start','end','cast_prompt_signature','prompt_mode'}},
+                    **{k:render_models.settings(shot)[k] for k in segments.RENDER_FIELDS}},'created':store.now(),
+        'lora':render_models.identify(graph),'reference':media.reference(clip,shot),'raw_decoded':True,
+        **({'cast_inputs_snapshot': cast_inputs, 'reference': cast_inputs['characters'][0]['reference'],
+            'anchor': selected_anchor, 'use_anchor': bool(segments.effective_history(seg) or selected_anchor)} if cast_inputs else {}),
         'continuation_format':'ffv1-rgb48','worker':job['data']['worker']}
 
 
@@ -222,7 +283,7 @@ def attach_take(job,result):
 
 def assemble(clip,shot,directory):
     items=segments.current(shot)
-    if not all(s['current'] for s in segments.states(clip,shot,items)):
+    if not all(segments.compatible_take(clip, shot, s) for s in items):
         return None
     selected=[segments.take(s) for s in items]
     identity=segments.digest([t['id'] for t in selected])[:20]
@@ -243,8 +304,8 @@ def assemble(clip,shot,directory):
         raise ValueError('Selected segments do not assemble to the exact shot duration')
     return {'id':'segmented-'+identity,'asset':store.asset_add(movie),'master':store.asset_add(master),
         'segment_chain':identity,'segment_takes':[{'segment_id':s['id'],'take_id':t['id']} for s,t in zip(items,selected)],
-        'seed':shot['seed'],'prompt':shot['prompt'],'reference':clip['reference'],'created':store.now(),
-        'settings':{'segments':[{k:copy.deepcopy(s[k]) for k in segments.EDITABLE|{'id','start','end','selected_take'}} for s in items], **render_models.settings(shot)},
+        'seed':shot['seed'],'prompt':shot['prompt'],'reference':media.reference(clip,shot),'created':store.now(),
+        'settings':{'segments':[{k:copy.deepcopy(s.get(k)) for k in segments.EDITABLE|{'id','start','end','selected_take'}} for s in items], **render_models.settings(shot)},
         'lora':copy.deepcopy(render_models.LORAS[render_models.settings(shot)['lora_id']]),
         **media.render_spec(clip,shot), **render_models.settings(shot)}
 
@@ -255,7 +316,7 @@ def attach_assembly(job,clip,shot,result):
     def update(c,current,ok):
         if not any(r['id']==result['id'] for r in current['renders']):current['renders'].append(result)
         items=segments.current(current)
-        if (all(v['current'] for v in segments.states(c,current,items)) and
+        if (all(segments.compatible_take(c, current, s) for s in items) and
                 segments.digest([s.get('selected_take') for s in items])[:20]==result['segment_chain']):
             current['selected_render']=result['id'];c['result']=None
     pipeline.attach(job,update)
@@ -275,13 +336,20 @@ def execute(job,directory):
             result=json.loads(receipt.read_text())
         else:
             store.job_update(job['id'],phase=f'Generating segment {i+1} of {len(items)}')
-            graph_data,files,stage=graph(clip,shot,items,i,job,stage_dir)
-            output=remote.execute(stage,graph_data,files,stage_dir,
-                                  profile='full-offload' if render_models.offloading(job) else 'full')
+            if segments.uses_guides(items[i]):
+                from . import guide_render
+                stage = {**job, 'kind': 'guide_render', 'data': {**job['data'],
+                    'shot': {**shot, 'segments': items}, 'options': {**job['data']['options'], 'segment_id': items[i]['id']},
+                    'segment_scope': scope({'segments': items, 'indices': [i]})}}
+                result = guide_render.execute(stage, stage_dir, attach=False)
+            else:
+                graph_data,files,stage=graph(clip,shot,items,i,job,stage_dir)
+                output=remote.execute(stage,graph_data,files,stage_dir,
+                                      profile='full-offload' if render_models.offloading(job) else 'full')
+                result=collect(job,clip,shot,items,i,stage_dir,output,graph_data)
             # Preserve the worker resolved by Auto for subsequent segments.
             job['data']['worker']=stage['data']['worker']
             job['data']['shared_stages']=store.job_get(job['id'])['data'].get('shared_stages',[])
-            result=collect(job,clip,shot,items,i,stage_dir,output,graph_data)
             receipt.write_text(json.dumps(result,indent=2))
         pipeline.check_finalization_cancel(job)
         attach_take(job,result)
@@ -290,24 +358,23 @@ def execute(job,directory):
         outputs = store.job_get(job['id'])['data'].get('segment_outputs', {})
         outputs[items[i]['id']] = result
         store.job_update(job['id'],segment_results=completed,segment_outputs=outputs,finalizing=False)
-    current_clip=store.clip_get(job['clip_id']);current_shot=pipeline.shot_of(current_clip,job['shot_id'])
-    result=assemble(current_clip,current_shot,directory/'assembly')
-    attach_assembly(job,current_clip,current_shot,result)
-    return {'segments':completed,'assembly':result}
+    return {'segments':completed,'assembly':None}
+
 
 
 def generate_anchor(job,directory):
     from . import anchors,pipeline
     c=job['data']['snapshot'];shot=job['data']['shot'];key=job['data']['options']['segment_id']
     seg=next(s for s in segments.current(shot) if s['id']==key)
-    frame=media.frame(store.path(c.get('render_source') or c['source']),shot['start']+seg['start'],directory/'source-frame.png')
-    virtual={**shot,'source_frame':frame,'anchor_instructions':seg['prompt']}
+    index=shot.get('anchor_source_index', seg['start'])
+    frame=media.frame(store.path(c.get('render_source') or c['source']),shot['start']+index,directory/'source-frame.png')
+    virtual={**shot,'anchor_source_frame':frame,'anchor_source_index':index,'anchor_instructions':seg['prompt']}
     result=anchors.generate(c,virtual,directory)
     def update(v,sh,ok):
         items=segments.current(sh);target=next((s for s in items if s['id']==key),None)
         if target is None:return
         target['anchors'].append(result)
-        if ok and all(target[k]==seg[k] for k in ['start','end','prompt','anchor','anchor_mode']):
+        if ok and sh.get('anchor_source_index')==shot.get('anchor_source_index') and all(target[k]==seg[k] for k in ['start','end','prompt','anchor','anchor_mode']):
             target.update(anchor=result['asset'],anchor_mode='custom')
         sh['segments']=items
     pipeline.attach(job,update)

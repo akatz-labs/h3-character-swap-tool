@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import sys
 import signal
 import subprocess
 import time
@@ -66,8 +67,14 @@ def shared_cleanup(tmp_path):
                 pass
 
 
-def test_source_launch_duplicate_guard_and_restart(tmp_path, monkeypatch, shared_cleanup):
+@pytest.mark.parametrize("worker_kind", ["local", "ssh"])
+def test_source_launch_duplicate_guard_and_restart(tmp_path, monkeypatch, shared_cleanup, worker_kind):
     port, worker_port = free_port(), free_port()
+    if worker_kind == 'ssh':
+        project_root = tmp_path / 'projects'
+        project_root.mkdir()
+        (project_root / 'source-workers.json').write_text(json.dumps({
+            'local': {'target': {'kind': 'ssh', 'host': 'test-worker.invalid', 'port': worker_port}}}))
     media_port = free_port()
     ecosystem = tmp_path / 'ecosystem'
     monkeypatch.setenv('AKATZ_DATA_ROOT', str(ecosystem))
@@ -75,11 +82,12 @@ def test_source_launch_duplicate_guard_and_restart(tmp_path, monkeypatch, shared
     monkeypatch.setenv('AKATZ_MEDIA_URL', f'http://127.0.0.1:{media_port}')
     monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path / 'config'))
     command = ['node', str(ROOT / 'dist/runtime/source-app.js'), '--data', str(tmp_path / 'projects'),
-        '--port', str(port), '--worker-port', str(worker_port), '--python', str(ROOT / '.venv/bin/python')]
+        '--port', str(port), '--worker-port', str(worker_port), '--python', sys.executable]
     with (tmp_path / 'source.log').open('w') as log:
         proc = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=log, env=dict(os.environ))
         try:
             wait_ready(proc, port)
+            assert json.loads((tmp_path / 'projects/source-workers.json').read_text())['local']['target']['kind'] == worker_kind
             identity = request(port, '/api/health')['instanceId']
             created = request(port, '/api/batches', {'name': 'Source persistence'})
             # Another launcher may not adopt the same project data.

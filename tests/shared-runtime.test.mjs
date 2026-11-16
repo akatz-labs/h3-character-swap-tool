@@ -83,6 +83,21 @@ test('segments require the explicit single-pass worker operation',()=>{
   const nodes=Object.values(graph).map(n=>n.class_type);
   assert.deepEqual(validateGraph(graph,input,nodes),graph);
   assert.throws(()=>validateGraph({...graph,'5':{...graph['5'],inputs:{}}},input,nodes));
+  const longer={...graph,'5':{class_type:'H3WorkbenchSegmentPlan',inputs:{source_frames:1440,seed:194729}}};
+  assert.deepEqual(validateGraph(longer,input,[...nodes,'H3WorkbenchSegmentPlan']),longer);
+  assert.throws(()=>validateGraph(longer,input,nodes),/undeclared node/);
+});
+test('Ripple uses a separate managed operation without requiring a Relay segment loop',()=>{
+  for(const operation of ['h3-ripple-v1','h3-swap-pika-v1']){
+  const input=h3Input({...inputs(),operation});
+  const classes=['EmptyMiniMaxH3LatentAV','MiniMaxH3AddGuide','BasicGuider','SamplerCustomAdvanced','SaveVideo'];
+  const graph=Object.fromEntries(classes.map((class_type,i)=>[String(i),{class_type,inputs:{}}]));
+  assert.deepEqual(validateGraph(graph,input,classes),graph);
+  const withoutGuide={...graph,'1':{class_type:'CLIPTextEncode',inputs:{}}};
+  if(operation==='h3-ripple-v1')assert.throws(()=>validateGraph(withoutGuide,input,[...classes,'CLIPTextEncode']),/named operation/);
+  else assert.deepEqual(validateGraph(withoutGuide,input,[...classes,'CLIPTextEncode']),withoutGuide);
+  assert.throws(()=>validateGraph(graph,input,classes.slice(1)),/undeclared node/);
+  }
 });
 test('a mismatched named graph is terminal before any runtime enqueue',async t=>{
  const root=await mkdtemp(join(tmpdir(),'h3-invalid-operation-'));t.after(()=>rm(root,{recursive:true,force:true}));

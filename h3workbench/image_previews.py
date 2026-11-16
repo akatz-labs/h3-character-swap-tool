@@ -10,7 +10,7 @@ LOCKS = {}
 
 
 def prepare(asset_id, size):
-    if size not in {256, 640, 960, 1280}:
+    if size not in {256, 640, 960, 1280, 1920}:
         raise ValueError("Choose a supported image preview size")
     asset = store.asset(asset_id)
     if not asset["mime"].startswith("image/"):

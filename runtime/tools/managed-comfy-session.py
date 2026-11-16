@@ -174,10 +174,15 @@ def release_idle_orphan(spec):
         return receipt
 
 
-def resource_preflight(pid, args):
+def resource_preflight(pid, args, *, residency="full"):
     root = Path("/proc") / str(pid)
     assert args[args.index("--reserve-vram") + 1] == "0"
-    assert "--disable-smart-memory" not in args and "--highvram" in args
+    assert "--disable-smart-memory" not in args
+    if residency == "offload":
+        assert "--highvram" not in args and "--disable-dynamic-vram" not in args
+        assert "--enable-dynamic-vram" in args
+    else:
+        assert residency == "full" and "--highvram" in args
     assert "--cache-classic" in args and "--cache-none" not in args
     limits = (root / "limits").read_text()
     for name in ["Max cpu time", "Max data size", "Max resident set", "Max address space"]:
@@ -328,6 +333,7 @@ class Session:
         self.media = Path(spec["media_root"]).resolve()
         self.url = "http://127.0.0.1:" + str(spec["port"])
         self.contract = read(spec["contract"])
+        self.gpu_job = None
         self.process = None
         self.runtime_pid = None
         self.runtime_identity = None
@@ -463,6 +469,19 @@ class Session:
         raise RuntimeError("Executor cleanup was acknowledged but did not finish")
 
     def start(self):
+        if self.contract.get("gpu_uuid") and self.gpu_job is None:
+            import importlib.util
+            values = self.contract["launch_environment"]
+            client_path = Path(values["AKATZ_GPU_CLIENT"])
+            assert sha(client_path) == values["AKATZ_GPU_CLIENT_SHA256"], "GPU client revision drift"
+            module_spec = importlib.util.spec_from_file_location("h3_gpu_client", client_path)
+            module = importlib.util.module_from_spec(module_spec); module_spec.loader.exec_module(module)
+            self.gpu_job = module.GpuJob(key="h3-session:" + self.spec["session_id"],
+                purpose="H3 character swap worker session", app="h3-workbench",
+                gpu_uuid=self.contract["gpu_uuid"], priority=50,
+                origin=values.get("AKATZ_GPU_COORDINATOR"))
+            self.gpu_job.acquire(wait_seconds=0)
+            save(self.root / "gpu-admission.json", self.gpu_job.receipt)
         self.generation += 1
         assert not runtimes() and not compute_pids(), "Worker occupied before session launch"
         assert command(["git", "-C", str(self.env / "ComfyUI"), "rev-parse", "HEAD"]) == self.contract["comfy_revision"], "ComfyUI revision differs from pinned contract"
@@ -475,7 +494,11 @@ class Session:
         flags = [f for f in self.contract["required_launch_flags"] if f not in {"--cache-none", "--disable-smart-memory"}]
         if "--cache-classic" not in flags:
             flags.append("--cache-classic")
-        if "--highvram" not in flags:
+        if self.contract.get("launch_residency", "full") == "offload":
+            flags = [f for f in flags if f not in {"--highvram", "--gpu-only", "--disable-dynamic-vram"}]
+            if "--enable-dynamic-vram" not in flags:
+                flags.append("--enable-dynamic-vram")
+        elif "--highvram" not in flags:
             flags.append("--highvram")
         environment = {**os.environ, **self.contract["launch_environment"],
                        "AKATZ_MANAGED_SESSION_ID": self.spec["session_id"], "AKATZ_MANAGED_SESSION_ROOT": str(self.root)}
@@ -503,9 +526,10 @@ class Session:
         owned = [(pid, args) for pid, args in runtimes() if os.getpgid(pid) == self.process.pid]
         assert len(owned) == 1, "Cannot identify owned ComfyUI runtime"
         self.runtime_pid, args = owned[0]
+        if self.gpu_job: self.gpu_job.attach(self.runtime_pid)
         self.runtime_identity = process_identity(self.runtime_pid)
         assert args[args.index("--port") + 1] == str(self.spec["port"])
-        self.preflight = resource_preflight(self.runtime_pid, args)
+        self.preflight = resource_preflight(self.runtime_pid, args, residency=self.contract.get("launch_residency", "full"))
         save(self.root / "preflight.json", self.preflight)
         self.last_activity = time.monotonic()
         self.state = "ready"
@@ -745,6 +769,9 @@ class Session:
             except Exception as error:
                 self.release["input_cleanup_warning"] = str(error)
             self.state = "stopped"
+            if self.gpu_job:
+                self.gpu_job.close()
+                save(self.root / "gpu-admission.json", self.gpu_job.receipt)
         except BaseException as error:
             self.release = {"stopped": False, "gpu_released": False, "reason": str(error), "time": time.time()}
             self.state = "needs_inspection"

@@ -11,6 +11,17 @@ setup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setup)
 
 
+def test_fleet_coordination_is_explicit(monkeypatch):
+    monkeypatch.delenv('H3_GPU_COORDINATOR', raising=False)
+    assert setup.fleet_coordinator() is None
+    monkeypatch.setenv('H3_GPU_COORDINATOR', 'http://127.0.0.1:8871/')
+    assert setup.fleet_coordinator() == 'http://127.0.0.1:8871'
+    for value in ['https://example.com', 'http://user@localhost', 'http://localhost/path', '']:
+        monkeypatch.setenv('H3_GPU_COORDINATOR', value)
+        with pytest.raises(ValueError):
+            setup.fleet_coordinator()
+
+
 @pytest.fixture
 def installation(tmp_path, monkeypatch):
     monkeypatch.setenv('AKATZ_DATA_ROOT', str(tmp_path / 'shared'))
@@ -21,7 +32,7 @@ def installation(tmp_path, monkeypatch):
         calls.append(root)
         for name in ['binding/installation.json', 'binding/runtime-contract.json', 'binding/h3-adapter.mjs',
                 'binding/resources.json', 'runtime/installation-receipt.json', 'runtime/runtime-contract.json',
-                'runtime/tools/managed-comfy-session.py', 'runtime/tools/managed-comfy-cache.py', 'resource-catalog.json']:
+                'runtime/tools/managed-comfy-session.py', 'runtime/tools/managed-comfy-cache.py', 'runtime/tools/akatz_gpu.py', 'resource-catalog.json']:
             path = root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('{}')

@@ -1,0 +1,8 @@
+.h3-toast{position:fixed;inset:14px auto auto 50%;transform:translateX(-50%);margin:0;width:max-content;max-width:min(480px,calc(100vw - 32px));box-sizing:border-box;padding:10px 12px 10px 16px;border:1px solid #43605e;border-radius:9px;background:#192b30;color:#edf4f5;box-shadow:0 8px 28px #0005;font:13px/1.45 Inter,system-ui,sans-serif;z-index:10000}
+.h3-toast:popover-open{display:flex;align-items:center;gap:12px}
+.h3-toast[data-tone=error]{border-color:#a66d66;background:#302628}
+.h3-toast span{min-width:0;overflow-wrap:anywhere;user-select:text}
+.h3-toast button{display:grid;place-items:center;flex:none;width:26px;height:26px;padding:4px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;user-select:none}
+.h3-toast button svg{width:16px;height:16px}
+.h3-toast button:hover{background:#ffffff12}
+.h3-toast button:focus-visible{outline:2px solid #82d8c6;outline-offset:2px}

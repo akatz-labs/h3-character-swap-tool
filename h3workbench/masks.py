@@ -179,12 +179,13 @@ def graph(c, s, job, directory):
     """Point-only SAM detection; tracking resets at correction frames, never across cuts."""
     options = job["data"]["options"]
     nframes = s["end"] - s["start"]
+    begin, limit = s.get('mask_segment_range', [0, nframes])
     points = s.get("mask_points", [])
     grouped = defaultdict(list)
     for p in points:
         grouped[p["frame"]].append(p)
     chosen = [options["frame"]] if options["mode"] == "frame" else sorted(grouped)
-    chosen = [f for f in chosen if grouped[f]]
+    chosen = [f for f in chosen if grouped[f] and begin <= f < limit]
     if not chosen:
         return {}, {}, {"segments": [], "derived": []}
     single = options["mode"] == "frame"
@@ -203,7 +204,7 @@ def graph(c, s, job, directory):
             ]
         )
     else:
-        source = media.shot_media(c, s, directory)
+        source = media.shot_media(c, {**s, 'start': s['start'] + begin, 'end': s['start'] + limit}, directory)
     jid = job["id"]
     files = {f"{jid}-source.mkv": source}
     if s.get("mask"):
@@ -234,7 +235,7 @@ def graph(c, s, job, directory):
     derived = []
     for i, f in enumerate(chosen):
         image_id, detect_id = str(100 + i * 10), str(101 + i * 10)
-        g[image_id] = node("ImageFromBatch", image=["31", 0], batch_index=0 if single else f, length=1)
+        g[image_id] = node("ImageFromBatch", image=["31", 0], batch_index=0 if single else f - begin, length=1)
         coords, anchor = point_inputs(grouped[f], prior[f], c["dimensions"])
         if anchor:
             derived.append({"frame": f, **anchor})
@@ -255,10 +256,10 @@ def graph(c, s, job, directory):
             )
             segments.append({"file": prefix + ".npz", "start": f, "end": f + 1})
             continue
-        end = chosen[i + 1] if i + 1 < len(chosen) else nframes
+        end = chosen[i + 1] if i + 1 < len(chosen) else limit
         batch_id, track_id, mask_id, save_id = [str(102 + i * 10 + k) for k in range(4)]
         g[batch_id] = node(
-            "ImageFromBatch", image=["31", 0], batch_index=f, length=end - f
+            "ImageFromBatch", image=["31", 0], batch_index=f - begin, length=end - f
         )
         g[track_id] = node(
             "SAM3_VideoTrack",
@@ -276,14 +277,14 @@ def graph(c, s, job, directory):
             "H3RelaySaveMask", masks=[mask_id, 0], filename_prefix=prefix, frames=end - f
         )
         segments.append({"file": prefix + ".npz", "start": f, "end": end})
-        if i == 0 and f:
+        if i == 0 and f > begin:
             reverse = directory / "head-reverse.mkv"
             media.ff(
                 [
                     "-i",
                     source,
                     "-vf",
-                    f"trim=end_frame={f + 1},reverse,setpts=PTS-STARTPTS",
+                    f"trim=end_frame={f - begin + 1},reverse,setpts=PTS-STARTPTS",
                     "-an",
                     "-c:v",
                     "ffv1",
@@ -312,18 +313,18 @@ def graph(c, s, job, directory):
                 "H3RelaySaveMask",
                 masks=["44", 0],
                 filename_prefix=f"{jid}-edit-head",
-                frames=f + 1,
+                frames=f - begin + 1,
             )
             segments.append(
                 {
                     "file": f"{jid}-edit-head.npz",
-                    "start": 0,
+                    "start": begin,
                     "end": f,
                     "reverse": True,
-                    "frames": f + 1,
+                    "frames": f - begin + 1,
                 }
             )
-    return g, files, {"segments": segments, "derived": derived}
+    return g, files, {"segments": segments, "derived": derived, "tracking_range": [begin, limit]}
 
 
 def finish(c, s, job, directory, output, plan):
@@ -346,6 +347,10 @@ def finish(c, s, job, directory, output, plan):
         if part.get("reverse"):
             values = values[::-1][:-1]
         mask[part["start"] : part["end"]] = values
+    if s.get('mask_segment_range'):
+        begin, limit = s['mask_segment_range']
+        mask[:begin] = False
+        mask[limit:] = False
     result_file = directory / "edited-mask.npz"
     np.savez_compressed(result_file, mask=mask)
     points = s.get("mask_points", [])

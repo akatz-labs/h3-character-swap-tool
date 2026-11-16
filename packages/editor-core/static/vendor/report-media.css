@@ -1,0 +1,38 @@
+/* Optional tokens inherit the report's own palette; no global resets. */
+.ak-report-lightbox,.ak-report-wipe{--ak-media-bg:var(--report-media-bg,#151719);--ak-media-text:var(--report-media-text,#f0eee9);--ak-media-border:var(--report-media-border,#555b60);--ak-media-accent:var(--report-media-accent,#8ac7bd);color:var(--ak-media-text)}
+.ak-report-lightbox{max-width:96vw;max-height:96vh;padding:0;border:1px solid var(--ak-media-border);border-radius:6px;background:var(--ak-media-bg)}
+.ak-report-lightbox::backdrop{background:#000d}
+.ak-report-lightbox-bar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px;position:sticky;top:0;background:var(--ak-media-bg)}
+.ak-report-lightbox-bar strong{margin-right:auto;overflow-wrap:anywhere}
+.ak-report-lightbox-bar a{color:var(--ak-media-accent)}
+.ak-report-lightbox-bar button{font:inherit;min-height:44px;padding:8px 12px;background:var(--ak-media-bg);color:var(--ak-media-text);border:1px solid var(--ak-media-border);border-radius:4px;cursor:pointer}
+.ak-report-lightbox :focus-visible,.ak-report-wipe :focus-visible{outline:3px solid var(--ak-media-accent);outline-offset:3px}
+.ak-report-enlarged{display:block;max-width:92vw;max-height:80vh;width:auto;height:auto;object-fit:contain;margin:auto}
+.ak-report-enlarged:not([src]){display:none}
+.ak-report-media-status{padding:8px 12px;margin:0;font:inherit}
+.ak-report-media-status[hidden],.ak-report-lightbox [hidden]{display:none!important}
+.ak-report-wipe-stage{position:relative;overflow:hidden;background:var(--ak-media-bg);border:1px solid var(--ak-media-border)}
+.ak-report-wipe-stage img{display:block;width:100%;height:100%;object-fit:contain}
+.ak-report-wipe-top{position:absolute;inset:0}
+.ak-report-wipe-line{position:absolute;top:0;bottom:0;border-left:2px solid var(--ak-media-accent);pointer-events:none}
+.ak-report-wipe-label{position:absolute;top:8px;background:#151719e6;color:#f0eee9;padding:4px 8px;font-size:12px;pointer-events:none}
+.ak-report-left{left:8px}.ak-report-right{right:8px}
+.ak-report-wipe-control{display:flex;align-items:center;gap:12px;padding:12px 0;flex-wrap:wrap}
+.ak-report-wipe-control input{flex:1;min-width:120px;min-height:44px;accent-color:var(--ak-media-accent)}
+/* Primary wipe control stays on the visible part of tall media. Bottom range is secondary. */
+.ak-report-direct-wipe{position:relative;touch-action:pan-y pinch-zoom;cursor:ew-resize;user-select:none;-webkit-user-select:none}
+.ak-report-direct-wipe img,.ak-report-direct-wipe canvas{user-select:none;-webkit-user-drag:none}
+.ak-report-wipe-handle{position:absolute;z-index:5;transform:translate(-50%,-50%);width:44px;height:44px;display:grid;place-items:center;box-sizing:border-box;border:2px solid var(--ak-media-accent,#8ac7bd);border-radius:50%;background:#151719ed;color:#fff;font:22px/1 system-ui;box-shadow:0 1px 8px #0008;cursor:ew-resize;touch-action:none;user-select:none}
+.ak-report-wipe-handle:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.ak-report-direct-line{position:absolute;z-index:3;top:0;bottom:0;border-left:2px solid var(--ak-media-accent,#8ac7bd);pointer-events:none}
+.ak-report-video{--ak-media-bg:var(--report-media-bg,#151719);--ak-media-text:var(--report-media-text,#f0eee9);--ak-media-border:var(--report-media-border,#555b60);--ak-media-accent:var(--report-media-accent,#8ac7bd);color:var(--ak-media-text)}
+.ak-report-video-stage{position:relative;width:100%;background:var(--ak-media-bg);overflow:hidden}
+.ak-report-video-stage>canvas:first-child{display:block;width:100%;height:auto}
+.ak-report-video-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.ak-report-video-stage .ak-report-wipe-label{z-index:3}
+.ak-report-video-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 0}
+.ak-report-video-controls button{font:inherit;min-width:44px;min-height:44px;padding:8px 12px;background:var(--ak-media-bg);color:var(--ak-media-text);border:1px solid var(--ak-media-border);border-radius:4px;cursor:pointer}
+.ak-report-video-controls input[type=range]{flex:1;min-width:140px;min-height:44px;accent-color:var(--ak-media-accent)}
+.ak-report-video-controls label{display:flex;align-items:center;gap:6px;min-height:44px}
+.ak-report-video :focus-visible{outline:3px solid var(--ak-media-accent);outline-offset:3px}
+.ak-report-video [hidden]{display:none!important}

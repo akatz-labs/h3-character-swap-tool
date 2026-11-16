@@ -37,3 +37,20 @@ def test_preparation_is_bounded_but_independent_gpu_observation_can_overlap(monk
         assert not one.done(), "A second worker can prepare while the first GPU attempt is observed"
         finish_gpu.set()
         assert one.result() == "one" and two.result() == "two"
+
+
+@pytest.mark.parametrize('selected,expected', [(None, ['h3-swap-pika-v1', 'sam-frame']), ('mask', ['sam-frame'])])
+def test_worker_status_combines_operation_installations_without_overriding_selection(monkeypatch, selected, expected):
+    monkeypatch.setattr(remote_shared, 'target', lambda _: {'kind': 'local', 'port': 8841})
+    monkeypatch.setattr(remote_shared.store, 'setting', lambda *_: {'local': selected} if selected else {})
+    monkeypatch.setattr(remote_shared, 'call', lambda _: {
+        'health': {'executorId': 'test-executor'},
+        'status': {'jobs': [], 'sessions': [], 'gpus': [{'name': 'test GPU'}], 'gpuCompute': []},
+        'installations': [
+            {'installation': {'id': 'mask'}, 'features': ['sam-frame']},
+            {'installation': {'id': 'swap'}, 'features': ['h3-swap-pika-v1']},
+        ],
+    })
+    result = remote_shared.status('local')
+    assert result['state'] == 'available'
+    assert result['features'] == expected

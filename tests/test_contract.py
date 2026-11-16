@@ -115,7 +115,7 @@ def test_unchanged_dialogue_does_not_lock_out_asr(setup):
     assert r.json()["shots"][0]["selected_render"] == "old"
 
 
-def test_mask_holes_cannot_be_approved(setup):
+def test_target_absence_does_not_prevent_mask_approval(setup):
     client, c = setup
     c = store.clip_mutate(
         "test",
@@ -125,24 +125,24 @@ def test_mask_holes_cannot_be_approved(setup):
         "/api/clips/test/shots/s",
         json={"revision": c["revision"], "changes": {"mask_approved": True}},
     )
-    assert r.status_code == 400
-    assert not store.clip_get("test")["shots"][0]["mask_approved"]
+    assert r.status_code == 200
+    shot = store.clip_get("test")["shots"][0]
+    assert shot["mask_approved"]
+    assert shot["mask_empty_frames"] == [3, 4]
 
 
-def test_render_uses_selected_inputs_without_review_flags(setup):
+def test_retained_render_uses_selected_inputs_without_review_flags(setup):
     client, c = setup
     store.clip_mutate("test", lambda v: v["shots"][0].update(anchor_approved=False, mask_approved=False))
-    r = client.post(
-        "/api/jobs", json={"kind": "render", "clip_id": "test", "shot_id": "s"}
-    )
-    assert r.status_code == 200 and len(store.jobs()) == 1
+    job_id = pipeline.queue("render", "test", "s", worker="fey")
+    assert store.job_get(job_id)["state"] == "queued" and len(store.jobs()) == 1
     shot = store.clip_get("test")["shots"][0]
     assert not shot["anchor_approved"] and not shot["mask_approved"]
 
 
 def test_running_work_cannot_be_cancelled_as_queued(setup):
     client, c = setup
-    id = pipeline.queue("render", "test", "s")
+    id = pipeline.queue("render", "test", "s", worker="fey")
     store.job_update(id, "running")
     assert client.post(f"/api/jobs/{id}/cancel").status_code == 400
     assert store.job_get(id)["state"] == "running"
@@ -150,15 +150,15 @@ def test_running_work_cannot_be_cancelled_as_queued(setup):
 
 def test_duplicate_click_does_not_queue_two_renders(setup):
     client, c = setup
-    assert pipeline.queue("render", "test", "s") == pipeline.queue(
-        "render", "test", "s"
+    assert pipeline.queue("render", "test", "s", worker="fey") == pipeline.queue(
+        "render", "test", "s", worker="fey"
     )
     assert len(store.jobs()) == 1
 
 
 def test_queued_shared_observation_cancels_accepted_identity_without_claiming_terminal(setup, tmp_path):
     client, _ = setup
-    id = pipeline.queue("render", "test", "s")
+    id = pipeline.queue("render", "test", "s", worker="fey")
     stage = tmp_path / "accepted-stage"
     stage.mkdir()
     (stage / "shared-binding.json").write_text("{}")
@@ -174,7 +174,7 @@ def test_queued_shared_observation_cancels_accepted_identity_without_claiming_te
 
 def test_verified_shared_completion_wins_finalization_cancel_race(setup):
     _, _ = setup
-    id = pipeline.queue("render", "test", "s")
+    id = pipeline.queue("render", "test", "s", worker="fey")
     store.job_update(id, "running", execution_backend="shared", shared_phase="completed", cancel_requested=True)
     pipeline.check_finalization_cancel(store.job_get(id))
     assert store.job_get(id)["data"]["completion_won_cancellation"]
@@ -195,7 +195,7 @@ def test_cross_origin_write_rejected(setup):
 
 def test_changed_shot_does_not_receive_stale_anchor(setup):
     client, c = setup
-    id = pipeline.queue("anchor", "test", "s")
+    id = pipeline.queue("anchor", "test", "s", worker="fey")
     j = store.job_get(id)
     store.clip_mutate("test", lambda v: v["shots"][0].update(start=5))
     received = []
@@ -468,7 +468,7 @@ def test_video_thumbnail_is_cached_and_rejects_other_assets(
     )
     id = store.asset_add(source)
     first = client.get(f"/api/assets/{id}/thumbnail")
-    assert first.status_code == 200 and first.headers["content-type"] == "image/jpeg"
+    assert first.status_code == 200 and first.headers["content-type"] == "image/webp"
     monkeypatch.setattr(
         media, "ff", lambda *args: pytest.fail("Cached thumbnail must not decode again")
     )
@@ -539,6 +539,7 @@ def test_point_edits_require_application_and_preserve_existing_outputs(setup, tm
         "/api/jobs",
         json={
             "kind": "mask_edit",
+            "worker": "fey",
             "clip_id": "test",
             "shot_id": "s",
             "options": {"mode": "frame", "frame": 6},
@@ -741,12 +742,7 @@ def test_padding_preserves_coverage_review_and_queued_snapshot(setup):
     updated = r.json()
     s = updated["shots"][0]
     assert s["mask_approved"] and s["mask"] == "mask" and s["expansion"] == 12
-    queued = client.post(
-        "/api/jobs",
-        json={"kind": "render", "clip_id": "test", "shot_id": "s", "worker": "fey"},
-    )
-    assert queued.status_code == 200
-    job = store.job_get(queued.json()["id"])
+    job = store.job_get(pipeline.queue("render", "test", "s", "fey"))
     assert job["data"]["shot"]["expansion"] == 12
     assert job["data"]["shot"]["mask"] == "mask"
     points = [{"id": "point", "frame": 0, "x": 0.5, "y": 0.5, "label": 1}]

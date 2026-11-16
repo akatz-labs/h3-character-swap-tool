@@ -33,3 +33,12 @@ jobs:
           python3 scripts/check_source.py --tracked
           uv run --no-project --python 3.12 python scripts/verify_vendor.py --rebuild
           test -z "$(git status --porcelain)"
+      - name: Build the distributable source export
+        run: |
+          export_root="$(mktemp -d)/source"
+          python3 scripts/export_source.py "$export_root"
+          cd "$export_root"
+          npm ci
+          npm run source:build
+          uv sync --locked --extra test --python 3.12
+          uv run --locked --extra test pytest

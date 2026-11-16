@@ -68,7 +68,7 @@ def install(recipe, workspace_path, name, models_directory, *, reuse_root=None,
     package_root.mkdir(parents=True, exist_ok=True)
     tools = package_root / "tools"
     tools.mkdir(exist_ok=True)
-    for source_path in [Path(controller), Path(cache)]:
+    for source_path in [Path(controller), Path(cache), Path(controller).with_name("akatz_gpu.py")]:
         target = tools / source_path.name
         if target.exists():
             assert sha(target) == sha(source_path), "Existing immutable tool revision differs"
@@ -149,9 +149,10 @@ def install(recipe, workspace_path, name, models_directory, *, reuse_root=None,
               "TMPDIR": str(temporary_root), "TRITON_CACHE_DIR": str(workspace_path / "kernel-cache/triton"),
               "TORCHINDUCTOR_CACHE_DIR": str(workspace_path / "kernel-cache/torchinductor"),
               "CUDA_CACHE_PATH": str(workspace_path / "kernel-cache/cuda"),
+              "AKATZ_GPU_CLIENT": str(tools / "akatz_gpu.py"), "AKATZ_GPU_CLIENT_SHA256": sha(tools / "akatz_gpu.py"),
               "AKATZ_SESSION_CACHE_MODULE": str(Path(cache).resolve()), "AKATZ_SESSION_CACHE_SHA256": sha(cache),
               "AKATZ_SESSION_MODEL_NODES": json.dumps(["UNETLoader", "CLIPLoader", "VAELoader", "CheckpointLoaderSimple",
-                 "LoraLoaderModelOnly", "MiniMaxH3SigmaShift", "ModelAttentionBackend"])}
+                 "LoraLoaderModelOnly", "LoraLoaderBypassModelOnly", "H3RemakeKeyframeUntil", "MiniMaxH3SigmaShift", "ModelAttentionBackend"])}
     contract = {"schema_version": 1, "comfygit_environment": name, "environment_path": str(environment_path),
         "comfy_revision": captured["comfy_revision"], "runtime_sources": runtime_sources,
         "required_launch_flags": ["--disable-dynamic-vram", "--reserve-vram", "0", "--enable-triton-backend", "--cache-classic", "--highvram"],

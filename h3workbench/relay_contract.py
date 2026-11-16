@@ -8,9 +8,9 @@ IDS = dict(model='1', shift='2', attention='3', turbo='4', text='6', video_vae='
            reference_conditioning='801', window='803', finish='807', video='808', save='809')
 
 
-def recipe(use_anchor=True, use_mask=True):
+def recipe(use_anchor=True, use_mask=True, use_source_audio=True):
     graph = pure_module('workflows').character_swap_graph(
-        use_anchor=use_anchor, use_mask=use_mask, saved_mask=True)
+        use_anchor=use_anchor, use_mask=use_mask, audio_guide=use_source_audio, saved_mask=True)
     def remap(value):
         if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str) and type(value[1]) is int:
             return [IDS.get(value[0], value[0]), value[1]]

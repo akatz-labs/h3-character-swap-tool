@@ -2,7 +2,7 @@
 
 import json, subprocess, shutil
 from pathlib import Path
-from . import store
+from . import store, media
 from .config import PORTABLE
 
 
@@ -37,7 +37,7 @@ def anchor_brief(clip, shot):
         else f"the selected person ({shot.get('selection', 'largest')} person)"
     )
     brief = shot.get("anchor_prompt") or (
-        f"Image 1 is the source frame to edit. Image 2 is character identity only: {clip.get('character') or 'the reference character'}. "
+        f"Image 1 is the source frame to edit. Image 2 is character identity only: {media.character(clip, shot) or 'the reference character'}. "
         f"Replace ONLY {target} with that single character. "
         "Match the exact source pose, face angle, gaze, mouth opening, expression, limb placement, scale and occlusions. "
         "Preserve all other people, the entire original scene, camera framing, lighting and aspect ratio. "
@@ -55,10 +55,11 @@ def anchor_brief(clip, shot):
 
 
 def _generate_codex(clip, shot, directory, clean=False):
-    if not clean and not clip.get("reference"):
+    if not clean and not media.reference(clip, shot):
         raise ValueError("Choose a character reference first")
-    source = store.path(shot["source_frame"])
-    ref = store.path(clip["reference"]) if not clean else None
+    source_id = shot["source_frame"] if clean else media.anchor_source(shot)
+    source = store.path(source_id)
+    ref = store.path(media.reference(clip, shot)) if not clean else None
     brief = anchor_brief(clip, shot)
     if clean:
         brief = (
@@ -144,8 +145,9 @@ def _generate_codex(clip, shot, directory, clean=False):
         "asset": store.asset_add(target),
         "prompt": brief,
         "anchor_instructions": shot.get("anchor_instructions", "") if not clean else "",
-        "source_sha256": store.asset(shot["source_frame"])["sha256"],
-        "reference_sha256": store.asset(clip["reference"])["sha256"] if ref else None,
+        "source_sha256": store.asset(source_id)["sha256"],
+        "source_frame_index": shot["start"] + (0 if clean else shot.get("anchor_source_index", 0)),
+        "reference_sha256": store.asset(media.reference(clip, shot))["sha256"] if ref else None,
         "generator": "Codex builtin imagegen",
         "provider": {"id": "codex-local", "revision": 1},
         "note": response["note"],

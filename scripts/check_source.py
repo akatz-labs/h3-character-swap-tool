@@ -20,6 +20,16 @@ def check(tracked=False):
     if len(set(files)) != len(files):
         raise ValueError('Duplicate source entries')
     errors = []
+    # Runtime modules must travel together. A checkout build can otherwise pass
+    # while the exported install is missing imports or ComfyUI node definitions.
+    for directory in ['h3workbench', 'runtime', 'web/src', 'packages/editor-core/web/src',
+                      'packages/editor-core/static', 'packages/editor-core/domain',
+                      'packages/editor-core/recipes', 'worker_nodes']:
+        for path in (ROOT / directory).rglob('*'):
+            if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
+                relative = str(path.relative_to(ROOT))
+                if relative not in files:
+                    errors.append(relative + ': runtime source omitted from export')
 
     def inspect(name, data):
         if SECRET.search(data) or PRIVATE.search(data):

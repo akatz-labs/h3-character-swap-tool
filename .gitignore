@@ -18,8 +18,8 @@ desktop/src-tauri/target/
 runtime/tooling/.venv/
 .source/
 
-!vendor/akatz-app-config-0.11.0-alpha.10-source.3.tgz
-!vendor/akatz-app-config-0.11.0-alpha.10-source.3-source.tar.gz
+!vendor/akatz-app-config-0.11.0-alpha.10-source.5.tgz
+!vendor/akatz-app-config-0.11.0-alpha.10-source.5-source.tar.gz
 !vendor/akatz-app-kit-0.1.0-alpha.9-source.4.tgz
 !vendor/akatz-app-kit-0.1.0-alpha.9-source.4-source.tar.gz
 
@@ -34,3 +34,10 @@ web/generated/
 *.sqlite-wal
 *.sqlite-shm
 .DS_Store
+
+packages/editor-core/web/generated/
+
+.local/
+
+# Local runner credentials never belong in source control.
+.credentials/

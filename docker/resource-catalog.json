@@ -2,18 +2,17 @@
   "schemaVersion": 1,
   "appId": "h3-workbench",
   "title": "H3 Character Swap",
-  "description": "Models for SAM masking and MiniMax H3 character swaps. Setup downloads both character-swap LoRAs; V1.5 is the default for new shots. Existing verified files are reused.",
+  "description": "Models for the shared character swap workflow and segment masks.",
   "models": [
     {
       "id": "model-0",
-      "name": "sam3.1_multiplex_fp16.safetensors",
+      "name": "SAM 3.1 \u00b7 masks",
       "relativePath": "checkpoints/sam3.1_multiplex_fp16.safetensors",
       "sizeBytes": 1745546848,
       "sha256": "9ba99c92703c2e8b4f47de2d34a539bb8e18923049e238b780d70dbe6368eb03",
       "shortHash": "2dcf1a348965ff7e",
       "requirement": "required",
       "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
       "stages": [
         "sam-frame",
         "sam-track",
@@ -22,109 +21,78 @@
       "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors"
     },
     {
-      "id": "model-3",
-      "name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-      "relativePath": "diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-      "sizeBytes": 20970379616,
-      "sha256": "9255f52b6677845ad238f20dfaafa94727053694127ab7f255c048f0f9365779",
-      "shortHash": "7b215765d8096a3a",
-      "requirement": "required",
-      "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
-      "stages": [
-        "h3-render",
-        "h3-render-v1",
-        "h3-render-v2-1000",
-        "h3-render-segments-v1"
-      ],
-      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors"
-    },
-    {
-      "id": "model-4",
-      "name": "Character Swap LoRA V1",
-      "relativePath": "loras/h3-character-swap-v1/h3_character_swap_pro4500_1000.safetensors",
-      "sizeBytes": 155110320,
-      "sha256": "4b2a3f420ae804c0aa3422761ff84dbd1bf52eef6900ffab6d2e66df63cb4e79",
-      "shortHash": "8799c890745aaa0f",
-      "requirement": "required",
-      "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
-      "stages": [
-        "h3-render-v1"
-      ],
-      "url": "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/a665bb7e3bb9804e487d2925f67744f554c8ad49/h3_character_swap_pro4500_1000.safetensors"
-    },
-    {
-      "id": "model-8",
-      "name": "minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
-      "relativePath": "loras/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors",
-      "sizeBytes": 1956193000,
-      "sha256": "08cfe946033af7d27719b964b6e0a0e50c32138daabbd6ce4137e23df6bf9980",
-      "shortHash": "1ed6aac3e2731abe",
-      "requirement": "required",
-      "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
-      "stages": [
-        "h3-render",
-        "h3-render-v1",
-        "h3-render-v2-1000",
-        "h3-render-segments-v1"
-      ],
-      "url": "https://huggingface.co/lightx2v/Minimax-h3-Turbo/resolve/3ec17a324ced54151364f24f8b5fb6bf7e26414f/minimax_h3_fl2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors"
-    },
-    {
       "id": "model-10",
-      "name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "name": "H3 text encoder",
       "relativePath": "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
       "sizeBytes": 15687142551,
       "sha256": "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6",
       "shortHash": "a4cf1cbacc4d48be",
       "requirement": "required",
       "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
       "stages": [
-        "h3-render",
-        "h3-render-v1",
-        "h3-render-v2-1000",
-        "h3-render-segments-v1"
+        "h3-swap-remake-v1",
+        "h3-swap-pika-v1"
       ],
       "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
     },
     {
       "id": "model-13",
-      "name": "minimax_h3_audio_vae_fp32.safetensors",
+      "name": "H3 audio VAE",
       "relativePath": "vae/minimax_h3_audio_vae_fp32.safetensors",
       "sizeBytes": 605254808,
       "sha256": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
       "shortHash": "07e4b8bf3c3bf35a",
       "requirement": "required",
       "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
       "stages": [
-        "h3-render",
-        "h3-render-v1",
-        "h3-render-v2-1000",
-        "h3-render-segments-v1"
+        "h3-swap-remake-v1",
+        "h3-swap-pika-v1"
       ],
       "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_audio_vae_fp32.safetensors"
     },
     {
       "id": "model-14",
-      "name": "minimax_h3_video_vae_fp16.safetensors",
+      "name": "H3 video VAE",
       "relativePath": "vae/minimax_h3_video_vae_fp16.safetensors",
       "sizeBytes": 5207808496,
       "sha256": "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522",
       "shortHash": "b14d650b0a0e9d3a",
       "requirement": "required",
       "acquisition": "download",
-      "sourceNote": "Exact public source verified against size and SHA-256; review upstream model terms before use.",
       "stages": [
-        "h3-render",
-        "h3-render-v1",
-        "h3-render-v2-1000",
-        "h3-render-segments-v1"
+        "h3-swap-remake-v1",
+        "h3-swap-pika-v1"
       ],
       "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_fp16.safetensors"
+    },
+    {
+      "id": "model-fl2va",
+      "name": "MiniMax H3 FL2VA",
+      "relativePath": "diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors",
+      "sizeBytes": 34038892334,
+      "sha256": "7ad4c73e6e378b822ffd1629f27f632d3787d95f5e468e3af958f98c58df96a5",
+      "shortHash": "2f73b3e8513b1d8a",
+      "requirement": "required",
+      "acquisition": "download",
+      "stages": [
+        "h3-swap-remake-v1",
+        "h3-swap-pika-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/54472221d27c695fca9621b0c3ed52f06c4af707/diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors"
+    },
+    {
+      "id": "model-remake-swap",
+      "shortHash": "6eb342239da65204",
+      "name": "Viggle Remake Swap",
+      "relativePath": "loras/viggle-remake/comfyui/viggle_remake_swap_comfyui.safetensors",
+      "sizeBytes": 3773044920,
+      "sha256": "9967f1cd71a81d9263d1148e3eebb951e24579d9388b9ae671b966ca1f0a1c3b",
+      "requirement": "required",
+      "acquisition": "download",
+      "stages": [
+        "h3-swap-remake-v1"
+      ],
+      "url": "https://huggingface.co/Viggle/Viggle-Remake/resolve/7e5be143702dd53b9154482de673b8519ed2d4d6/comfyui/viggle_remake_swap_comfyui.safetensors"
     },
     {
       "id": "model-v1-5",
@@ -133,14 +101,27 @@
       "sizeBytes": 155110792,
       "sha256": "8f2c3c3eba161df8d0c6099598b4730f641f5ce01e04cd16d2427cff8a35218f",
       "shortHash": "99e924951391e9a6",
-      "requirement": "required",
+      "requirement": "optional",
       "acquisition": "download",
-      "sourceNote": "MiniMax H3 character-swap LoRA. Published checkpoint pinned by revision, size and SHA-256; uses the MiniMax H3 community license.",
       "stages": [
-        "h3-render-v2-1000"
+        "h3-swap-pika-v1"
       ],
       "revision": "0f409f0c2a18f123f3985041ec52982c813f5a9c",
       "url": "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/0f409f0c2a18f123f3985041ec52982c813f5a9c/h3_character_swap_v1.5.safetensors"
+    },
+    {
+      "id": "model-pika-fl2va",
+      "name": "Pika H3 Flex FL2VA",
+      "relativePath": "loras/pika_h3_flex_fl2va_v1_bf16.safetensors",
+      "sizeBytes": 1956172304,
+      "sha256": "cc5453aeecd6189468409003fe4cf1b57e52ff3a830a0a154b87decbe07358b7",
+      "shortHash": "b1e86b102d7ed556",
+      "requirement": "optional",
+      "acquisition": "download",
+      "stages": [
+        "h3-swap-pika-v1"
+      ],
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/54472221d27c695fca9621b0c3ed52f06c4af707/loras/pika_h3_flex_fl2va_v1_bf16.safetensors"
     }
   ],
   "features": [
@@ -169,53 +150,28 @@
       ]
     },
     {
-      "id": "h3-render",
-      "label": "H3 render \u00b7 no character LoRA",
+      "id": "h3-swap-remake-v1",
+      "label": "Character swap \u00b7 Viggle Remake \u00b7 MiniMax H3",
       "optional": false,
       "models": [
-        "model-3",
-        "model-8",
+        "model-fl2va",
+        "model-remake-swap",
         "model-10",
-        "model-13",
-        "model-14"
-      ]
-    },
-    {
-      "id": "h3-render-v1",
-      "label": "MiniMax H3 \u00b7 Character Swap LoRA V1",
-      "optional": false,
-      "models": [
-        "model-10",
-        "model-13",
         "model-14",
-        "model-3",
-        "model-4",
-        "model-8"
+        "model-13"
       ]
     },
     {
-      "id": "h3-render-v2-1000",
-      "label": "MiniMax H3 \u00b7 Character Swap LoRA V1.5",
-      "optional": false,
+      "id": "h3-swap-pika-v1",
+      "label": "Character swap \u00b7 Pika FL2VA \u00b7 V1.5",
+      "optional": true,
       "models": [
-        "model-3",
-        "model-8",
+        "model-fl2va",
+        "model-pika-fl2va",
+        "model-v1-5",
         "model-10",
-        "model-13",
         "model-14",
-        "model-v1-5"
-      ]
-    },
-    {
-      "id": "h3-render-segments-v1",
-      "label": "Editable H3 render segments",
-      "optional": false,
-      "models": [
-        "model-3",
-        "model-8",
-        "model-10",
-        "model-13",
-        "model-14"
+        "model-13"
       ]
     }
   ],

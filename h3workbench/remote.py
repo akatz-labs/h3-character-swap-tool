@@ -283,7 +283,7 @@ def execute(job, graph, files, d, profile="legacy"):
 def graph_render(clip, shot, job, d):
     from . import render_models, relay_contract
     config = render_models.settings(job["data"].get("generation") or shot)
-    g = relay_contract.recipe(config["use_anchor"], config["use_mask"])
+    g = relay_contract.recipe(config["use_anchor"], config["use_mask"], config["use_source_audio"])
     sid = job["id"]
     spec = job["data"].get("render_spec") or media.render_spec(clip, shot)
     source = media.shot_media(clip, shot, d, dimensions=spec["dimensions"])
@@ -297,11 +297,17 @@ def graph_render(clip, shot, job, d):
         del g["850"]
         for key in ("sampling_memory", "schedule"):
             g[key]["inputs"]["model"] = ["4", 0]
-    files = {f"{sid}-source.mkv": source, f"{sid}-reference.png": store.path(clip["reference"])}
+    files = {f"{sid}-source.mkv": source, f"{sid}-reference.png": store.path(media.reference(clip, shot))}
     g["9"]["inputs"]["image"] = f"{sid}-reference.png"
     if config["use_anchor"]:
         files[f"{sid}-anchor.png"] = store.path(shot["anchor"])
         g["309"]["inputs"]["image"] = f"{sid}-anchor.png"
+        if config["anchor_conditioning"] == "reference":
+            # Keep the full anchor as a reference, out of the frame-zero/history path.
+            # Real generated history still applies on subsequent windows.
+            g["803"]["inputs"].pop("anchor", None)
+            g["801"]["inputs"]["ref_images.ref_image_1"] = ["309", 0]
+            g["history"]["inputs"]["first_frame_guide"] = False
     if config["use_mask"]:
         mask_path = store.path(shot["mask"])
         if spec["dimensions"] != clip["dimensions"]:
@@ -315,7 +321,7 @@ def graph_render(clip, shot, job, d):
     # Staging already supplies exact 24fps, 32px-grid pixels and source audio.
     g["31"] = {"class_type": "GetVideoComponents", "inputs": {"video": ["30", 0]}}
     g["803"]["inputs"]["fps"] = ["31", 2]
-    g["801"]["inputs"]["prompt"] = shot["prompt"]
+    g["801"]["inputs"]["prompt"] = media.reference_prompt(shot["prompt"], config)
     g["809"]["inputs"]["filename_prefix"] = sid
     return g, files
 

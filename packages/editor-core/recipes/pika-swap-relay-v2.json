@@ -1,0 +1,15 @@
+{
+  "id": "h3-pika-swap-relay-v2",
+  "render_mode": "swap_pika",
+  "lora_id": "v2-1000",
+  "model": "minimax_h3_fl2va_int8_convrot.safetensors",
+  "pika": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+  "pika_strength": 1,
+  "swap_strength": 1,
+  "steps": 6,
+  "sampler": "lcm",
+  "scheduler": "simple",
+  "min_frames": 5,
+  "max_frames": 362,
+  "history_frames": 18
+}

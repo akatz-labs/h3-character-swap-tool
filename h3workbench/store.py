@@ -47,11 +47,26 @@ def init():
         CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY, path TEXT UNIQUE NOT NULL, sha256 TEXT NOT NULL, bytes INTEGER, mime TEXT, name TEXT);
         CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, kind TEXT NOT NULL, clip_id TEXT, shot_id TEXT, state TEXT NOT NULL, created REAL, updated REAL, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS project_characters(id TEXT PRIMARY KEY, batch_id TEXT NOT NULL, revision INTEGER NOT NULL, created REAL NOT NULL, data TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS characters_project ON project_characters(batch_id);
+        CREATE TABLE IF NOT EXISTS character_versions(character_id TEXT NOT NULL, revision INTEGER NOT NULL, created REAL NOT NULL, data TEXT NOT NULL, PRIMARY KEY(character_id,revision));
         CREATE INDEX IF NOT EXISTS jobs_state ON jobs(state,created);
         """)
         if PORTABLE:
             for key in ('shared_executor', 'unified_workers'):
                 c.execute('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)', (key, 'true'))
+
+    from . import cast
+    cast.migrate_store()
+    from . import project_characters
+    project_characters.migrate_store()
+    from . import guides
+    guides.migrate_store()
+    from . import segment_masks
+    segment_masks.migrate_store()
+    from . import guide_prompts
+    guide_prompts.migrate_store()
+    cleanup_deleted_projects()
 
 
 def batch_create(name):
@@ -75,6 +90,63 @@ def batch_rename(id, name, expected_name):
         if not changed:
             raise Conflict("The project name changed elsewhere; refresh before renaming")
     return {"id": id, "name": name}
+
+
+def batch_delete(id):
+    """Remove one project, retaining media referenced by any other project."""
+    with LOCK, db() as con:
+        con.execute('BEGIN IMMEDIATE')
+        if not con.execute('SELECT id FROM batches WHERE id=?', (id,)).fetchone():
+            raise KeyError('Project not found')
+        jobs = con.execute('SELECT id,state FROM jobs WHERE clip_id IN (SELECT id FROM clips WHERE batch_id=?)', (id,)).fetchall()
+        if any(j['state'] in ('queued','waiting','running','submitting','cancelling') for j in jobs):
+            raise Conflict('Wait for this project’s active jobs to finish before deleting it')
+        con.execute('DELETE FROM jobs WHERE clip_id IN (SELECT id FROM clips WHERE batch_id=?)', (id,))
+        con.execute('DELETE FROM character_versions WHERE character_id IN (SELECT id FROM project_characters WHERE batch_id=?)', (id,))
+        con.execute('DELETE FROM project_characters WHERE batch_id=?', (id,))
+        con.execute('DELETE FROM clips WHERE batch_id=?', (id,))
+        con.execute('DELETE FROM batches WHERE id=?', (id,))
+        retained = set()
+        def references(value):
+            if isinstance(value, str): retained.add(value)
+            elif isinstance(value, list):
+                for item in value: references(item)
+            elif isinstance(value, dict):
+                for item in value.values(): references(item)
+        for table in ('clips','project_characters','character_versions','jobs'):
+            for row in con.execute('SELECT data FROM '+table): references(json.loads(row['data']))
+        roots = [MEDIA/'batches'/id, *[MEDIA/'jobs'/j['id'] for j in jobs]]
+        protected = set()
+        for asset in con.execute('SELECT id,path FROM assets').fetchall():
+            path=Path(asset['path']).resolve()
+            if asset['id'] in retained: protected.add(path)
+            elif any(path.is_relative_to(root.resolve()) for root in roots):
+                con.execute('DELETE FROM assets WHERE id=?',(asset['id'],))
+        # A durable cleanup record survives filesystem errors or process exit.
+        con.execute('CREATE TABLE IF NOT EXISTS project_deletions(id TEXT PRIMARY KEY, data TEXT NOT NULL)')
+        con.execute('INSERT INTO project_deletions VALUES(?,?)',(id,json.dumps({'roots':[str(r) for r in roots],'protected':[str(p) for p in protected]})))
+    cleanup_deleted_projects()
+    return {'id':id}
+
+
+def cleanup_deleted_projects():
+    with db() as con:
+        con.execute('CREATE TABLE IF NOT EXISTS project_deletions(id TEXT PRIMARY KEY, data TEXT NOT NULL)')
+        rows=con.execute('SELECT * FROM project_deletions').fetchall()
+    for row in rows:
+        data=json.loads(row['data']);protected=set(data['protected'])
+        try:
+            for root in map(Path,data['roots']):
+                if not root.is_relative_to(MEDIA) or not root.exists(): continue
+                for path in sorted(root.rglob('*'),key=lambda p:len(p.parts),reverse=True):
+                    if path.is_symlink(): path.unlink()
+                    elif path.is_file() and str(path.resolve()) not in protected: path.unlink()
+                    elif path.is_dir() and not any(path.iterdir()): path.rmdir()
+                if not any(root.iterdir()): root.rmdir()
+            with db() as con: con.execute('DELETE FROM project_deletions WHERE id=?',(row['id'],))
+        except OSError:
+            # Retry at next startup/deletion; project access is already revoked.
+            continue
 
 
 def batches():
@@ -163,6 +235,8 @@ def clip_mutate(id, fn, revision=None):
             )
         data = json.loads(row["data"])
         fn(data)
+        from .segments import refresh_auto_prompts
+        refresh_auto_prompts(data)
         c.execute(
             "UPDATE clips SET data=?,revision=revision+1 WHERE id=?",
             (json.dumps(data), id),
@@ -275,8 +349,8 @@ def job_get(id):
     return {**dict(row), "data": json.loads(row["data"])}
 
 
-PUBLIC_JOB_FIELDS = ("phase", "error", "worker", "requested_worker", "auto_placement", "execution_resource", "gpu_waiting", "options", "runtime_status",
-                     "progress", "segment_progress", "segment_scope", "segment_results", "segment_dependencies", "capacity_failure", "render_spec", "generation", "lora", "execution_backend", "shared_phase", "shared_job_id")
+PUBLIC_JOB_FIELDS = ("mask_track_id", "phase", "error", "worker", "requested_worker", "auto_placement", "execution_resource", "gpu_waiting", "options", "runtime_status",
+                     "progress", "segment_progress", "segment_scope", "comfy_prompt_id", "guide_service_job", "segment_results", "segment_dependencies", "capacity_failure", "render_spec", "generation", "lora", "execution_backend", "shared_phase", "shared_job_id")
 PUBLIC_FOREGROUND_FIELDS = ("mask_points", "face", "gate_px", "core_px", "mask_text",
                             "selection", "subject_index", "alpha_seed", "auto_face")
 
@@ -291,7 +365,7 @@ def public_job(job):
                  "refine": {side: {k: v for k, v in value.items() if k in PUBLIC_FOREGROUND_FIELDS and v is not None}
                             for side, value in (shot.get("refine") or {}).items()
                             if side in {"source", "character"} and isinstance(value, dict)}},
-        "result": {k: result[k] for k in ("asset", "result", "attachment") if k in result},
+        "result": {k: result[k] for k in ("asset", "result", "attachment", "anchor_candidate") if k in result},
     }}
 
 
@@ -301,7 +375,7 @@ def public_jobs():
     fields = list(PUBLIC_JOB_FIELDS) + ["shot.seed", "shot.prompt", "shot.mask_points"]
     fields += [f"shot.refine.{side}.{key}" for side in ("source", "character")
                for key in PUBLIC_FOREGROUND_FIELDS]
-    fields += ["result.asset", "result.result", "result.attachment"]
+    fields += ["result.asset", "result.result", "result.attachment", "result.anchor_candidate"]
     pairs = ",".join(f"'$.{key}',json_extract(data,'$.{key}')" for key in fields)
     with db() as c:
         rows = c.execute(f"SELECT id,kind,clip_id,shot_id,state,created,updated,"
@@ -311,18 +385,34 @@ def public_jobs():
 
 def job_create(kind, clip_id=None, shot_id=None, data=None):
     with LOCK, db() as c:
+        kinds = ('render', 'guide_render') if kind in {'render', 'guide_render'} else (kind,)
         rows = c.execute(
-            "SELECT id,data FROM jobs WHERE kind=? AND clip_id IS ? AND shot_id IS ? AND state IN ('queued','running','waiting','cancelling')",
-            (kind, clip_id, shot_id),
+            f"SELECT id,kind,data FROM jobs WHERE kind IN ({','.join('?' for _ in kinds)}) AND clip_id IS ? AND shot_id IS ? AND state IN ('queued','running','waiting','cancelling')",
+            (*kinds, clip_id, shot_id),
         ).fetchall()
         for row in rows:
             previous = json.loads(row["data"])
-            if kind == 'render' and (data or {}).get('segment_plan') and previous.get('segment_plan'):
+            if kind in {'guide_generate', 'guide_render'} and row['kind'] == kind:
+                incoming = (data or {}).get('options', {})
+                old = previous.get('options', {})
+                same = old.get('guide', {}).get('id') == incoming.get('guide', {}).get('id') if kind == 'guide_generate' else old.get('segment_id') == incoming.get('segment_id')
+                if same:
+                    if old == incoming: return row['id']
+                    raise Conflict('This guide or segment already has a generation in progress')
+                continue
+            if kind == 'anchor_generate':
+                if previous.get('options') == (data or {}).get('options'): return row['id']
+                raise Conflict('An anchor is already queued for this shot')
+            if kind in {'render', 'guide_render'} and (data or {}).get('segment_plan') and previous.get('segment_plan'):
                 incoming = {data['segment_plan']['segments'][i]['id'] for i in data['segment_plan']['indices']}
                 occupied = {previous['segment_plan']['segments'][i]['id'] for i in previous['segment_plan']['indices']
                             if row['id']+'-'+previous['segment_plan']['segments'][i]['id'] not in previous.get('segment_results', [])}
                 if incoming & occupied:
                     raise Conflict('This segment is already queued or generating')
+                continue
+            if row['kind'] != kind:
+                raise Conflict('A whole-shot render is active; wait for it before queueing segments')
+            if kind in {"mask", "mask_edit"} and previous.get("mask_track_id") != (data or {}).get("mask_track_id"):
                 continue
             # Source and character extraction are independent jobs. Identical
             # clicks remain idempotent while their stage is active.

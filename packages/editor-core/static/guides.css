@@ -1,0 +1,85 @@
+/* Guided edit uses the existing slate/mint workspace palette. */
+.h3-legacy .shot-guides{--guide-size:56px;--guide-top:105px;min-width:0;height:24px;touch-action:pan-y}
+.h3-legacy .shot-guides:has(.guide-position){height:calc(var(--guide-size) + 37px)}
+.h3-legacy .guide-toolbar{display:flex;align-items:center;gap:12px;margin-left:auto}
+.h3-legacy .guide-toolbar .note{font-size:10px;margin:0}
+.h3-legacy .guide-toolbar button{font-size:11px;padding:6px 9px;cursor:pointer;user-select:none}
+.h3-legacy .guide-position{--guide-color:#7d8b9b}
+.h3-legacy .guide-position.guide-approved{--guide-color:#83d9c4}
+.h3-legacy .guide-position.guide-edited{--guide-color:#e1b36b}
+.h3-legacy .guide-line{position:absolute;left:var(--guide-x);top:18px;height:calc(80px + var(--guide-lane)*66px);width:1px;background:var(--guide-color);pointer-events:none;z-index:3;opacity:.8}
+.h3-legacy .guide-line::before{content:'';position:absolute;width:5px;height:5px;border-radius:50%;background:var(--guide-color);left:-2px;top:0}
+.h3-legacy .guide-marker{position:absolute;left:var(--guide-left);top:calc(var(--guide-top) + var(--guide-lane,0)*66px);width:var(--guide-size);height:var(--guide-size);padding:0;border:2px solid var(--guide-color);background:#10151b;border-radius:5px;overflow:hidden;cursor:pointer;user-select:none;z-index:4}
+.h3-legacy .guide-marker img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.h3-legacy .guide-inactive .guide-marker img{opacity:.65}
+.h3-legacy .guide-toggle{position:absolute;left:calc(var(--guide-left) + var(--guide-size) - 22px);top:calc(var(--guide-top) + var(--guide-size) - 22px + var(--guide-lane,0)*66px);display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid var(--guide-color);border-radius:3px;background:#10151b;color:var(--guide-color);font-size:12px;line-height:1;z-index:5;cursor:pointer;user-select:none}
+.h3-legacy .guide-toggle:disabled{cursor:default}
+.h3-legacy .guide-disabled .guide-line{opacity:.35}
+.h3-legacy .guide-disabled .guide-marker{border-style:dashed}
+.h3-legacy .guide-frame-label{position:absolute;left:var(--guide-left);top:calc(var(--guide-top) + var(--guide-size) + 3px + var(--guide-lane,0)*66px);width:var(--guide-size);text-align:center;font-size:9px;color:#9baabd;pointer-events:none;font-variant-numeric:tabular-nums}
+.h3-legacy .segment-timeline-surface .segment-playhead{bottom:auto;height:84px}
+.h3-legacy .unified-shot-layout .segment-timeline>.row{flex-wrap:wrap;gap:8px}
+.h3-legacy #dialog.guide-modal{width:min(1320px,calc(100vw - 40px));max-width:1320px;max-height:calc(100dvh - 40px);padding:24px;background:#19212b;color:#e9eef4;border:1px solid #303e4c;overflow:auto}
+.h3-legacy .guide-editor{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;margin-top:18px}
+.h3-legacy .guide-review,.h3-legacy .guide-inspector{min-width:0}
+.h3-legacy .guide-comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.h3-legacy .guide-comparison figure{margin:0;min-width:0;background:#10151b;border:1px solid #303e4c;border-radius:10px;overflow:hidden}
+.h3-legacy .guide-comparison figcaption{padding:12px;color:#9baabd;font-size:12px;border-bottom:1px solid #303e4c}
+.h3-legacy .guide-comparison img{display:block;width:100%;height:280px;object-fit:contain}
+.h3-legacy .guide-result-empty{height:280px;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;text-align:center;padding:22px;color:#9baabd;font-size:13px}
+.h3-legacy .guide-result-empty strong{color:#e9eef4;font-size:15px}
+.h3-legacy .guide-review-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:16px 0 20px}
+.h3-legacy .guide-review-actions .primary{margin-left:auto}
+.h3-legacy .guide-inspector{display:flex;flex-direction:column;gap:12px;border-left:1px solid #303e4c;padding-left:24px}
+.h3-legacy .guide-inspector textarea{min-height:135px;resize:vertical;width:100%}
+.h3-legacy .guide-inspector .note{margin:0;font-size:12px;line-height:1.5}
+.h3-legacy .guide-inspector summary,.h3-legacy .guide-video-instructions>summary{padding:10px 0;font-weight:600}
+.h3-legacy .guide-reference-list{max-height:218px;overflow-y:auto;display:grid;gap:8px;margin:12px 0;overscroll-behavior:contain}
+.h3-legacy .guide-reference{display:flex;align-items:center;gap:9px;padding:8px;border:1px solid #303e4c;border-radius:7px;cursor:pointer;user-select:none;font-size:12px}
+.h3-legacy .guide-reference.selected{border-color:#83d9c4;background:#203731}
+.h3-legacy .guide-reference img{width:38px;height:40px;object-fit:contain;background:#10151b;border-radius:4px}
+.h3-legacy .guide-reference span{min-width:0;overflow-wrap:anywhere}.h3-legacy .guide-reference small{display:block;color:#9baabd;margin-top:4px;font-size:11px}
+.h3-legacy .guide-reference input{width:16px;flex:none}
+.h3-legacy .guide-model{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;margin-top:8px}
+.h3-legacy .guide-model strong{grid-column:1/-1;font-size:14px}.h3-legacy .guide-model select{width:130px}
+.h3-legacy .guide-versions{max-height:290px;overflow:auto;display:grid;gap:10px;overscroll-behavior:contain}
+.h3-legacy .guide-version{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:8px 12px 8px 8px;border:1px solid #303e4c;border-radius:8px;background:#10151b}
+.h3-legacy .guide-version.selected{border-color:#83d9c4}
+.h3-legacy .guide-version button{display:flex;align-items:center;gap:12px;text-align:left;background:none;border:0;padding:0;width:100%}
+.h3-legacy .guide-version button img{width:68px;height:45px;object-fit:contain}.h3-legacy .guide-version small{display:block;color:#9baabd;font-size:11px;margin-top:4px}
+.h3-legacy .guide-version details,.h3-legacy .guide-version p{grid-column:1/-1;font-size:12px;margin:0}.h3-legacy .guide-version details p{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px 0;user-select:text}
+.h3-legacy .guide-marker-settings{border-top:1px solid #303e4c;padding-top:15px;display:grid;gap:12px;font-size:12px}
+.h3-legacy .guide-job{margin-top:12px;padding:12px;border:1px solid #303e4c;border-radius:8px;overflow-wrap:anywhere}
+.h3-legacy .guide-video-instructions{margin:16px 0}.h3-legacy .guide-video-instructions textarea{width:100%;margin-top:10px}
+.h3-legacy .guide-editor button,.h3-legacy .guide-editor summary,.h3-legacy .guide-editor .button,.h3-legacy .shot-guides button{cursor:pointer;user-select:none}
+.h3-legacy .guide-editor button:disabled{cursor:default;opacity:.5}
+.h3-legacy .guide-editor :is(input,textarea){cursor:text}.h3-legacy .guide-editor input[type=checkbox]{cursor:pointer}
+.h3-legacy .guide-editor :focus-visible,.h3-legacy .shot-guides :focus-visible{outline:2px solid #83d9c4;outline-offset:3px}
+@media(max-width:950px){.h3-legacy .guide-editor{grid-template-columns:1fr;gap:24px}.h3-legacy .guide-inspector{border-left:0;border-top:1px solid #303e4c;padding:20px 0 0}.h3-legacy .guide-comparison img,.h3-legacy .guide-result-empty{height:230px}}
+@media(max-width:540px){.h3-legacy #dialog.guide-modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:16px}.h3-legacy .guide-comparison{grid-template-columns:1fr}.h3-legacy .guide-review-actions{gap:10px}.h3-legacy .guide-review-actions .primary{margin-left:0;width:100%}}
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) #segment-controls .segment-inputs,
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) #segment-performance,
+.h3-legacy .guided-edit-mode .segment-continuity-row,
+.h3-legacy .guided-edit-mode .segment-continuity-options,
+.h3-legacy .guided-edit-mode .segment-pass-summary,
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) .mask-tools,
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) .mask-control-deck,
+.h3-legacy .guided-edit-mode .generation-conditioning,
+.h3-legacy .guided-edit-mode #source-audio-help,
+.h3-legacy .guided-edit-mode #source-audio-help + .note{display:none!important}
+.h3-legacy .guide-editor button.primary:disabled{background:#29443e;color:#bfd8d1;border-color:#3c5b53;opacity:1}
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) #mask-preview,
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) #mask-points,
+.h3-legacy .guided-edit-mode:not(.pika-edit-mode) #cast-mask-selector{display:none!important}
+
+.h3-legacy .guide-history>summary{padding:12px 0;cursor:pointer;user-select:none;font-size:12px;font-weight:600}
+.h3-legacy .guide-history{border-top:1px solid #303e4c}
+.h3-legacy .guide-history .guide-versions{margin-bottom:12px}
+.h3-legacy .guide-version button.guide-restore{grid-column:1/-1;width:auto;padding:6px 8px;border:1px solid #303e4c;font-size:12px}
+.h3-legacy .saved-guide-reference{display:flex;gap:8px;align-items:center;margin:8px 0;cursor:pointer;user-select:none}
+.h3-legacy .segment-saved-references label[for=anchor-conditioning]{display:block;margin:12px 0 6px}
+.h3-legacy .guide-editor [hidden]{display:none!important}
+@media(max-width:540px){.h3-legacy .guide-toolbar{gap:8px}.h3-legacy .guide-toolbar .note{display:none}}
+
+.h3-legacy .segment-saved-references{font-size:11px;color:#9baabd}
+.h3-legacy .segment-timeline-surface:has(.shot-guides){touch-action:pan-y}

@@ -1,5 +1,98 @@
 # Source release qualification — 2026-10-15
 
+## Local parity and transcription refresh — 2026-11-16
+
+The updated public export was installed with separate app/config/runtime state on
+Linux x86-64 / RTX 4090 (24 GB), using the existing shared model store and uv cache.
+This run used a fresh source tree and virtual environments, not a new OS container.
+No model weights were copied or downloaded. All eight pinned model download URLs
+responded successfully to unauthenticated HEAD requests with matching sizes.
+
+Release-blocking omissions in the source allowlist were fixed: the Viggle renderer,
+custom nodes and license, both recipe files, frontend upload helpers, and the current
+App Config archives now ship. Export checks reject omitted runtime modules, shared
+editor sources/assets and worker nodes before copying the release tree.
+
+Verified behavior:
+
+- Clean npm install, Python 3.12 locked install, runtime/frontend builds and worker
+  setup/registration completed using only the exported source and public dependencies.
+- Resources discovered all six required GPU models (56.9 GiB) and both optional Pika
+  LoRAs (about 2.0 GiB). Whisper remains a separate optional ~1.5 GB CPU model.
+- Real 24-frame, 704×704, six-step Viggle and Pika renders completed with offloading.
+  Both H.264 outputs have exactly 24 frames and decode fully with FFmpeg.
+- Real SAM tracking completed and produced a segment mask. A final assembled from
+  a selected take completed successfully; its Outputs viewer played the final in
+  Chromium with the parameters sidebar visible. These small synthetic canaries establish
+  execution and output integrity, not character-swap visual quality.
+- Local Whisper transcribed an 11-second speech fixture with word timestamps. A
+  separate local harness transcribed the same fixture using its saved OpenAI key.
+- A real medium-quality direct OpenAI guide edit returned an image, retained the
+  version and automatically selected it. The key remained in backend storage.
+- Browser checks verified the Transcription preference, persistence after reopening,
+  provider availability, required model discovery and a usable 390-pixel layout.
+  Auto chose local Whisper where installed and OpenAI where only the key existed.
+- Focused tests cover all four availability combinations, explicit overrides without
+  fallback, immutable queued provider selection and same-origin settings writes.
+
+Validation included 228 shared-core tests, 12 runtime tests, and the Python suite
+(564 passed plus one stale expectation that references were required). That stale
+expectation was corrected to match optional references; the affected migration,
+recipe, credential and transcription tests then passed (29 tests). The initial
+clean-tree setup/launcher subset passed 14 tests. Export safety and source build
+checks passed after the corrections.
+
+Local Settings → Transcription is independent of the guide provider. Auto prefers
+installed local Whisper, then the saved OpenAI key. Explicit selections never
+silently fall back; missing prerequisites return an actionable error. The selected
+provider is frozen when a job is admitted. The local API now also defaults model
+offloading on, matching the editor's execution preference.
+
+Boundaries: Linux NVIDIA is qualified; Windows/macOS are not. Local Whisper is
+English-only. Reusing pinned weights and verifying their download endpoints does
+not test a fresh 57 GiB download on another user's connection. The fleet render
+opted into its coordinator; ordinary standalone setup defaults remain covered by
+unit tests. Long renders and all possible hardware/footage combinations are not
+certified by these bounded canaries. No repository push or public release was made.
+
+## Clean Linux source candidate — 2026-11-15
+
+The current exported source was installed in a fresh Debian Bookworm container
+with Node 24, uv and Python 3.12 on an RTX 4090. Separate app/config/runtime state
+and ports were used. Seven existing model files (55.3 GiB) were mounted read-only;
+the existing uv cache was shared. No model weights were downloaded or copied.
+
+This test exposed missing files in the export allowlist and an unconditional
+dependency on a private GPU coordinator. Both are corrected: current frontend
+and OpenAI modules ship in the export; fleet coordination requires an explicit
+loopback setup option. The managed GPU test opted in to that coordinator. Normal
+standalone setup defaults are unit-tested, not a second physical-host test.
+
+Browser checks covered project creation, video import, model discovery, character
+reference upload/assignment, a real 17-frame 512×960 six-step render with explicit
+offloading, final assembly/playback, SAM tracking, guide upload/selection and
+remembered guide drafts. The generated content is a functional canary, not visual
+quality acceptance. Setup was idempotent after a container restart, and the app
+retained its instance, project, masks, guides and completed outputs.
+
+A disposable non-secret credential verified the local OpenAI settings UI, write-only
+status response, guide-button enablement and deletion. It was never used for a
+provider request. Transport tests verify request construction and error handling;
+fresh-account paid OpenAI editing/transcription remains unqualified by this run.
+
+Checks: source build passed, 215 shared-core tests and 12 runtime tests passed;
+27 targeted Python tests passed inside the clean Python 3.12 container. After
+reconciling historical fixtures, all **543 development Python tests pass** (3.13).
+Historical queue snapshot tests now exercise the retained pipeline directly;
+HTTP rejection of retired workflows remains covered and unchanged. Migration
+fixtures include required frame geometry, mask assignments assert union-region
+semantics, and inventory expectations use the current seven-model catalog.
+The source build passes again. The reviewed 291-file export passes the bounded
+source scan; the development branch retains lab/design files outside it.
+
+This candidate has not been published. Linux x86-64 NVIDIA is the tested platform;
+long clips, alternate drivers and other operating systems need separate checks.
+
 ## Public source candidate v0.1.0 — 2026-10-16
 
 This candidate includes independent segment queueing, exact queued prompts,

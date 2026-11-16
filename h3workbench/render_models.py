@@ -22,6 +22,9 @@ def window_plan(shot, config=None):
             "window_choices": WINDOW_FRAMES, "history_choices": HISTORY_FRAMES}
 
 LORAS = {
+    "viggle-remake-swap": {"id": "viggle-remake-swap", "label": "Viggle Remake Swap",
+        "filename": "viggle-remake/comfyui/viggle_remake_swap_comfyui.safetensors",
+        "sha256": "9967f1cd71a81d9263d1148e3eebb951e24579d9388b9ae671b966ca1f0a1c3b"},
     "none": {"id": "none", "label": "No character-swap LoRA", "filename": None, "sha256": None},
     "v1-1000": {
         "id": "v1-1000",
@@ -46,13 +49,17 @@ def sha(path):
 def settings(shot):
     result = {"lora_id": shot.get("lora_id", "v1-1000"),
               "use_anchor": shot.get("use_anchor", True),
+              "anchor_conditioning": shot.get("anchor_conditioning", "reference"),
               "use_mask": shot.get("use_mask", True),
+              "use_source_audio": shot.get("use_source_audio", True),
               "window_frames": shot.get("window_frames", 124),
               "history_frames": shot.get("history_frames", 18)}
     if not isinstance(result["lora_id"], str) or result["lora_id"] not in LORAS:
         raise ValueError("Choose V1, V1.5, or no character-swap LoRA")
-    if any(type(result[k]) is not bool for k in ("use_anchor", "use_mask")):
+    if any(type(result[k]) is not bool for k in ("use_anchor", "use_mask", "use_source_audio")):
         raise ValueError("Conditioning switches must be true or false")
+    if result["anchor_conditioning"] not in ("reference", "first_frame"):
+        raise ValueError("Choose appearance reference or first-frame guide")
     if any(type(result[k]) is not int for k in ("window_frames", "history_frames")):
         raise ValueError("Diffusion window and history must be whole frame counts")
     _windowing["validate_settings"](result["window_frames"], result["history_frames"])
@@ -95,16 +102,22 @@ def retry_offload(id):
 
     previous = store.job_get(id)
     failure = refinement.capacity_failure(previous)
-    if previous["kind"] != "render" or not failure or failure["offloading"]:
+    if previous["kind"] not in {"render", "guide_render"} or not failure or failure["offloading"]:
         raise ValueError("Model offloading requires this render's recorded full-resource GPU memory failure")
     data = previous["data"]
     current = store.clip_get(previous["clip_id"])
     shot = next((s for s in current["shots"] if s["id"] == previous["shot_id"]), None)
     if not shot or any(shot.get(k) != data["shot"].get(k) for k in ("start", "end")):
         raise ValueError("Shot boundaries changed; the failed render cannot be retried here")
-    queued = {k: copy.deepcopy(data[k]) for k in ("snapshot", "shot", "worker", "render_spec", "generation", "lora", "segment_plan") if k in data}
+    queued = {k: copy.deepcopy(data[k]) for k in ("snapshot", "shot", "worker", "render_spec", "generation", "lora", "segment_plan", "segment_scope") if k in data}
+    # Historical jobs used the anchor as a frame-zero guide. Retrying their
+    # recorded settings must not silently opt into the new reference default.
+    if previous["kind"] == "render":
+        queued["shot"].setdefault("anchor_conditioning", "first_frame")
+    if "generation" in queued:
+        queued["generation"].setdefault("anchor_conditioning", queued["shot"]["anchor_conditioning"])
     options = {**copy.deepcopy(data.get("options") or {}), "model_offloading": True, "offload_after": id}
     queued.update(options=options, phase="Queued · model offloading after measured GPU limit")
     queued.update(execution_backend="shared" if store.setting("shared_executor", False) else "direct",
                   requested_worker=data.get("requested_worker", data["worker"]))
-    return store.job_create("render", previous["clip_id"], previous["shot_id"], queued)
+    return store.job_create(previous["kind"], previous["clip_id"], previous["shot_id"], queued)

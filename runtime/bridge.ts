@@ -14,6 +14,10 @@ function target(value: unknown): ExecutorTarget {
   const v = record(value), port = v.port;
   if (!['local','ssh'].includes(String(v.kind)) || typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid executor target');
   const result: ExecutorTarget = {kind: v.kind as ExecutorTarget['kind'], port};
+  if (v.tokenFile !== undefined) {
+    if (typeof v.tokenFile !== 'string' || !isAbsolute(v.tokenFile)) throw new Error('Executor credential requires an absolute file path');
+    result.tokenFile = v.tokenFile;
+  }
   if (v.kind === 'ssh') {
     if (typeof v.host !== 'string' || !/^(?:[a-zA-Z0-9_][a-zA-Z0-9_.-]*@)?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(v.host)) throw new Error('Invalid executor SSH alias');
     result.host = v.host;
@@ -189,6 +193,16 @@ export async function bridge(value: unknown): Promise<unknown> {
     return client.json('/v1/install', {planId: identifier(plan.id), digest: hash(plan.digest)});
   }
   if (v.action === 'job') {const b = binding(v.binding); return (await boundClient(b)).job(identifier(v.jobId));}
+  if (v.action === 'collected') {
+    const b = binding(v.binding), client = await boundClient(b);
+    const job = await client.job(identifier(v.jobId));
+    if (job.sourceJobId !== identifier(v.sourceJobId) || job.phase !== 'completed' ||
+        job.instanceId !== identifier(v.instanceId) || job.installationId !== b.installationId)
+      throw new Error('Collected job identity differs');
+    const manifestDigest = hash(v.manifestDigest);
+    if (digest(job.result?.files) !== manifestDigest) throw new Error('Collected manifest differs');
+    return client.json('/v1/jobs/' + encodeURIComponent(job.id) + '/collected', {sourceJobId: job.sourceJobId, manifestDigest});
+  }
   if (v.action === 'cancel') {const b = binding(v.binding); return (await boundClient(b)).json('/v1/jobs/' + encodeURIComponent(identifier(v.jobId)) + '/cancel', {});}
   throw new Error('Unknown H3 bridge operation');
 }

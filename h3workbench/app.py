@@ -37,6 +37,14 @@ async def life(app):
 app = FastAPI(lifespan=life)
 from .segment_api import router as segment_router
 app.include_router(segment_router)
+from .guide_api import router as guide_router
+app.include_router(guide_router)
+from .local_credentials_api import router as local_credentials_router
+app.include_router(local_credentials_router)
+from .cast_api import router as cast_router
+app.include_router(cast_router)
+from .project_character_api import router as project_character_router
+app.include_router(project_character_router)
 app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=4)
 
 
@@ -52,13 +60,13 @@ async def trusted_origin(request, call_next):
 @app.exception_handler(ValueError)
 async def invalid(req, e):
     return JSONResponse(
-        {"detail": str(e)}, 409 if isinstance(e, store.Conflict) else 400
+        {"detail": str(e), "message": str(e)}, 409 if isinstance(e, store.Conflict) else 400
     )
 
 
 @app.exception_handler(KeyError)
 async def missing(req, e):
-    return JSONResponse({"detail": str(e)}, 404)
+    return JSONResponse({"detail": str(e), "message": str(e)}, 404)
 
 
 @app.get("/api/state")
@@ -108,7 +116,10 @@ def select_anchor_provider(body: dict):
 @app.get("/api/transcription-resource")
 def transcription_resource():
     from . import transcription_resources as resources
-    return {"model": resources.inventory(), "jobs": resources.resource_jobs()}
+    from . import guide_provider, local_openai
+    return {"model": resources.inventory(), "jobs": resources.resource_jobs(),
+            "provider": "openai" if guide_provider.provider() == "local-openai" else "cpu",
+            "configured": local_openai.configured()}
 
 
 @app.post("/api/transcription-resource/{action}")
@@ -152,6 +163,11 @@ def release_worker(worker: str):
 @app.post("/api/batches")
 def create_batch(body: dict):
     return {"id": store.batch_create(body.get("name", "Untitled batch"))}
+
+
+@app.delete("/api/batches/{id}")
+def delete_batch(id: str):
+    return store.batch_delete(id)
 
 
 @app.patch("/api/batches/{id}")
@@ -254,13 +270,19 @@ def render_plan(id: str, sid: str, window_frames: int | None = None, history_fra
 
 
 @app.patch("/api/clips/{id}/shots/{sid}")
-def patch_shot(id: str, sid: str, body: dict):
+def patch_shot(id: str, sid: str, body: dict, track_id: str | None = None):
+    if track_id:
+        from .cast_api import patch_track
+        return patch_track(id, sid, track_id, body)
     fields = {
         "dialogue",
         "speaker",
         "prompt",
         "anchor_prompt",
         "anchor_instructions",
+        "reference",
+        "character",
+        "anchor_conditioning",
         "seed",
         "render_mp",
         "window_frames",
@@ -268,6 +290,7 @@ def patch_shot(id: str, sid: str, body: dict):
         "lora_id",
         "use_anchor",
         "use_mask",
+        "use_source_audio",
         "expansion",
         "selection",
         "subject_index",
@@ -283,9 +306,11 @@ def patch_shot(id: str, sid: str, body: dict):
     x = body["changes"]
     if not set(x) <= fields:
         raise ValueError("Unknown shot field")
-    for k in ("anchor_prompt", "anchor_instructions"):
+    for k in ("anchor_prompt", "anchor_instructions", "character"):
         if k in x and (not isinstance(x[k], str) or len(x[k]) > 20000):
             raise ValueError("Anchor instructions must be text of at most 20,000 characters")
+    if "reference" in x:
+        store.asset(x["reference"])
     from . import render_models
     render_models.settings({**pipeline.shot_of(store.clip_get(id), sid), **x})
     if "render_mp" in x:
@@ -303,6 +328,9 @@ def patch_shot(id: str, sid: str, body: dict):
 
     def mutate(c):
         s = pipeline.shot_of(c, sid)
+        if any(k in x and x[k] != s.get(k, c.get(k)) for k in ("reference", "character")):
+            s["anchor_approved"] = False
+            c["result"] = None
         masks.preserve(s)
         if "mask_points" in x:
             masks.validate_points(x["mask_points"], s["end"] - s["start"])
@@ -325,10 +353,6 @@ def patch_shot(id: str, sid: str, body: dict):
             raise ValueError("Track a mask first")
         if x.get("mask_approved") and masks.pending_frames({**s, **x}):
             raise ValueError("Apply the pending point corrections first")
-        if x.get("mask_approved") and s.get("mask_empty_frames"):
-            raise ValueError(
-                "Mask has empty frames. Retrack with a clearer subject description or split around target absence."
-            )
         if any(
             k in x and x[k] != s.get(k)
             for k in ["selection", "subject_index", "mask_text"]
@@ -348,6 +372,26 @@ def patch_shot(id: str, sid: str, body: dict):
             c["result"] = None
 
     return store.clip_mutate(id, mutate, body["revision"])
+
+
+@app.post("/api/clips/{id}/shots/{sid}/anchor-source")
+def select_anchor_source(id: str, sid: str, body: dict):
+    """Choose a full-quality reference frame without moving the shot boundary."""
+    c = store.clip_get(id)
+    s = pipeline.shot_of(c, sid)
+    if body.get("revision") != c["revision"]:
+        raise store.Conflict("Shot changed; reopen the source frame picker")
+    index = body.get("frame")
+    if type(index) is not int or not 0 <= index < s["end"] - s["start"]:
+        raise ValueError("Choose a frame inside this shot")
+    directory = MEDIA / "batches" / c["batch_id"] / id / "anchor-sources"
+    directory.mkdir(parents=True, exist_ok=True)
+    frame = media.frame(store.path(c.get("render_source") or c["source"]),
+                        s["start"] + index, directory / f"{store.uid()}.png")
+    def change(v):
+        target = pipeline.shot_of(v, sid)
+        target.update(anchor_source_frame=frame, anchor_source_index=index)
+    return store.clip_mutate(id, change, body["revision"])
 
 
 @app.get("/api/refine-defaults")
@@ -634,11 +678,15 @@ def prompts(id: str, body: dict):
 
 @app.post("/api/jobs")
 def queue(body: dict):
+    if body.get('kind') in {'render','guide_render'}:
+        from . import workflow
+        workflow.require(pipeline.shot_of(store.clip_get(body['clip_id']),body['shot_id']))
+        body={**body,'options':{'model_offloading':True,**body.get('options',{})}}
     id = pipeline.queue(
             body["kind"],
             body["clip_id"],
             body.get("shot_id"),
-            body.get("worker", "fey"),
+            body.get("worker", "auto"),
             body.get("options"),
             body.get("expected_render"),
         )
@@ -661,7 +709,7 @@ def cancel(id: str, body: dict = None):
             else:
                 store.job_update(id, "cancelled", phase="Cancelled")
         elif (j["state"] == "running" and not j["data"].get("finalizing")
-              and j["kind"] in {"mask", "mask_edit", "render", "refine_extract", "refine_mask", "refine_face", "backplate"}
+              and j["kind"] in {"mask", "mask_edit", "render", "guide_render", "refine_extract", "refine_mask", "refine_face", "backplate"}
               and pipeline.resource(j) in {j["data"].get("worker"), "prep", "cpu"}):
             if not (body or {}).get("confirm_running"):
                 raise ValueError("Confirm stopping this running job")
@@ -800,7 +848,11 @@ def upload_image(
     asset = store.asset_add(dest)
 
     def mutate(v):
-        if role == "reference":
+        if role == "reference" and shot_id:
+            s = pipeline.shot_of(v, shot_id)
+            s.update(reference=asset, anchor_approved=False)
+            v["result"] = None
+        elif role == "reference":
             v["reference"] = asset
             for s in v["shots"]:
                 s.update(anchor_approved=False)
@@ -819,8 +871,9 @@ def upload_image(
             s["anchors"].append(
                 {"id": store.uid(), "asset": asset, "generator": "Manual import",
                  "provider": {"id": "manual", "revision": 1},
-                 "source_sha256": store.asset(s["source_frame"])["sha256"],
-                 "reference_sha256": store.asset(v["reference"])["sha256"] if v.get("reference") else None}
+                 "source_sha256": store.asset(media.anchor_source(s))["sha256"],
+                 "source_frame_index": s["start"] + s.get("anchor_source_index", 0),
+                 "reference_sha256": store.asset(media.reference(v, s))["sha256"] if media.reference(v, s) else None}
             )
             s.update(anchor=asset, anchor_approved=False)
 
@@ -839,6 +892,15 @@ def still_preview(id: str, size: int = 960):
                         headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
+@app.post("/api/assets/{id}/video-preview")
+def video_preview(id: str, body: dict):
+    from . import video_previews
+
+    if set(body) - {'retry'} or type(body.get('retry', False)) is not bool:
+        raise ValueError('Invalid video preview request')
+    return video_previews.prepare(id, body.get('retry', False))
+
+
 @app.get("/api/assets/{id}/thumbnail")
 def asset_thumbnail(id: str):
     a = store.asset(id)
@@ -846,23 +908,25 @@ def asset_thumbnail(id: str):
         raise ValueError("Thumbnails require a video asset")
     directory = MEDIA / "thumbnails"
     directory.mkdir(exist_ok=True)
-    dest = directory / (a["sha256"] + ".jpg")
+    dest = directory / (a["sha256"] + "-v2.webp")
     with THUMBNAIL_LOCK:
         key_lock = THUMBNAIL_KEYS.setdefault(a["sha256"], threading.Lock())
     with key_lock:
         if not dest.exists():
-            pending = dest.with_suffix(".pending.jpg")
+            pending = dest.with_suffix(".pending.webp")
             try:
                 media.ff(
                     [
                         "-i",
                         a["path"],
                         "-vf",
-                        "scale=512:-2",
+                        "scale=512:512:force_original_aspect_ratio=decrease",
                         "-frames:v",
                         "1",
-                        "-q:v",
-                        "3",
+                        "-c:v",
+                        "libwebp",
+                        "-quality",
+                        "82",
                         pending,
                     ]
                 )
@@ -871,7 +935,7 @@ def asset_thumbnail(id: str):
                 pending.unlink(missing_ok=True)
     return FileResponse(
         dest,
-        media_type="image/jpeg",
+        media_type="image/webp",
         headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
 
@@ -880,7 +944,9 @@ def asset_thumbnail(id: str):
 def asset(id: str, download: bool = False):
     a = store.asset(id)
     return FileResponse(
-        a["path"], media_type=a["mime"], filename=a["name"] if download else None
+        a["path"], media_type=a["mime"], filename=a["name"] if download else None,
+        headers={"Cache-Control": "private, max-age=31536000, immutable"}
+        if not download and Path(a['path']).is_relative_to(store.MEDIA / 'previews') else None,
     )
 
 
@@ -889,10 +955,14 @@ MASK_FRAME_LOCK = threading.Lock()
 
 @app.post("/api/clips/{id}/shots/{sid}/mask-playback")
 def mask_playback(id: str, sid: str, body: dict):
-    if set(body) - {"retry"} or not isinstance(body.get("retry", False), bool):
+    if set(body) - {"retry", "track_id"} or not isinstance(body.get("retry", False), bool):
         raise ValueError("Invalid preview request")
     c = store.clip_get(id)
-    return previews.prepare_mask(c, pipeline.shot_of(c, sid), body.get("retry", False))
+    s = pipeline.shot_of(c, sid)
+    if body.get("track_id"):
+        from . import cast
+        s = cast.virtual_track(s, body["track_id"])
+    return previews.prepare_mask(c, s, body.get("retry", False))
 
 
 @app.get("/api/clips/{id}/shots/{sid}/mask")
@@ -907,9 +977,13 @@ def mask(
     mask_asset: str | None = Query(None, alias="mask"),
     dimensions: str | None = None,
     range_key: str | None = Query(None, alias="range"),
+    track_id: str | None = None,
 ):
     c = store.clip_get(id)
     s = pipeline.shot_of(c, sid)
+    if track_id:
+        from . import cast
+        s = cast.virtual_track(s, track_id)
     if view not in {"overlay", "source", "layer"}:
         raise ValueError("Unknown mask view")
     padding = s["expansion"] if padding is None else padding
@@ -1007,13 +1081,13 @@ def health():
     }
 
 
-app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+app.mount("/static", StaticFiles(directory=ROOT / "packages/editor-core/static"), name="static")
 
 
 @app.get("/")
 def index():
     return HTMLResponse(
-        (ROOT / "static/index.html")
+        (ROOT / "packages/editor-core/static/index.html")
         .read_text()
         .replace('href="/h3-workbench/"', f'href="{BASE_PATH}/"')
         .replace('{{APP_VERSION}}', json.loads((ROOT / 'package.json').read_text())['version'])

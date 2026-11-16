@@ -1,0 +1,25 @@
+{
+  "id": "h3-viggle-remake-swap-v1",
+  "render_mode": "swap_pika",
+  "lora_id": "viggle-remake-swap",
+  "model": "minimax_h3_fl2va_int8_convrot.safetensors",
+  "lora": "viggle-remake/comfyui/viggle_remake_swap_comfyui.safetensors",
+  "lora_sha256": "9967f1cd71a81d9263d1148e3eebb951e24579d9388b9ae671b966ca1f0a1c3b",
+  "strength": 1,
+  "steps": 6,
+  "sampler": "euler",
+  "sigmas": [
+    1,
+    0.990476,
+    0.965243,
+    0.923077,
+    0.8,
+    0.631579,
+    0
+  ],
+  "keyframe_until": 0.9,
+  "min_frames": 5,
+  "max_frames": 362,
+  "history_frames": 18,
+  "upstream_revision": "7e5be143702dd53b9154482de673b8519ed2d4d6"
+}

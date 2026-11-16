@@ -189,10 +189,39 @@ def import_clip(batch, src, name=None):
 
 
 def dialogue(clip, start, end):
-    words = (clip.get("transcript") or {}).get("words", [])
+    transcript = clip.get("transcript") or {}
+    if transcript.get('segments'):
+        return ' '.join(part['text'] for part in transcript['segments']
+                        if part['end'] > start / 24 and part['start'] < end / 24).strip()
+    words = transcript.get("words", [])
     return "".join(
         w["word"] for w in words if start / 24 <= (w["start"] + w["end"]) / 2 < end / 24
     ).strip()
+
+
+def reference(clip, shot):
+    """A shot overrides the legacy clip-wide identity without changing siblings."""
+    return shot.get("reference", clip.get("reference"))
+
+
+def character(clip, shot):
+    return shot.get("character", clip.get("character", ""))
+
+
+def anchor_source(shot):
+    return shot.get("anchor_source_frame") or shot.get("source_frame")
+
+
+FIRST_FRAME_ANCHOR = '<Picture 2> is the exact first-frame scene and pose anchor.'
+REFERENCE_ANCHOR = ('<Picture 2> is an appearance reference for the replacement character in this scene, '
+                    'not a timed guide frame. Follow <Video 1> for pose, visibility, background geometry '
+                    'and camera movement; do not force the reference composition onto the video.')
+
+
+def reference_prompt(text, shot):
+    # Only migrate our known generated sentence; preserve all other user wording.
+    return text.replace(FIRST_FRAME_ANCHOR, REFERENCE_ANCHOR) if shot.get(
+        "anchor_conditioning", "reference") == "reference" else text.replace(REFERENCE_ANCHOR, FIRST_FRAME_ANCHOR)
 
 
 def prompt(clip, shot):
@@ -202,7 +231,15 @@ def prompt(clip, shot):
         "other": "Another person is speaking; preserve the selected character’s actual mouth performance.",
         "none": "No dialogue; preserve the visible source performance.",
     }[shot.get("speaker", "target")]
-    return f'Replace only the selected person in <Video 1> with the single character in <Picture 1>: {clip.get("character") or "the reference character"}. <Picture 2> is the exact first-frame scene and pose anchor. Keep the reference identity and costume throughout. Match source posture, gaze, blinks, facial emotion, mouth movement, hand contacts and camera movement. {speech} Current shot dialogue: "{shot.get("dialogue", "")}". <Audio 1> and source video determine exact timing. Do not repeat earlier dialogue or invent words, gestures, people or camera cuts. Retain the scene outside the person region. Output the raw decoded generation.'
+    performance = (
+        f'{speech} Current shot dialogue: "{shot.get("dialogue", "")}". '
+        '<Audio 1> and source video determine exact timing. '
+        'Do not repeat earlier dialogue or invent words, gestures, people or camera cuts.'
+        if shot.get("use_source_audio", True) else
+        'Preserve the visible source performance. <Video 1> determines exact timing. '
+        'Do not invent mouth movements, gestures, people or camera cuts.'
+    )
+    return reference_prompt(f'Replace only the selected person in <Video 1> with the single character in <Picture 1>: {character(clip, shot) or "the reference character"}. {FIRST_FRAME_ANCHOR} Keep the reference identity and costume throughout. Match source posture, gaze, blinks, facial emotion, mouth movement, hand contacts and camera movement. {performance} Retain the scene outside the person region. Output the raw decoded generation.', shot)
 
 
 def set_cuts(clip, cuts, modes=None, reviewed=False):
@@ -247,8 +284,8 @@ def set_cuts(clip, cuts, modes=None, reviewed=False):
             "speaker": "target" if clip["audio"] else "none",
             "dialogue": dialogue(clip, a, b),
             "seed": 194729,
-            "render_mp": 1.0,
-            "lora_id": "v2-1000",
+            "render_mp": 0.5,
+            "lora_id": "viggle-remake-swap",
             "use_anchor": True,
             "use_mask": True,
             "expansion": 64,
@@ -263,6 +300,8 @@ def set_cuts(clip, cuts, modes=None, reviewed=False):
             "selected_render": None,
         }
         s["prompt"] = prompt(clip, s)
+        from . import cast
+        cast.initialize_shot(clip, s)
         shots.append(s)
     if modes is not None:
         for s, mode in zip(shots, modes):
@@ -328,10 +367,7 @@ def frozen_file(target, recipe, build):
     return target
 
 
-def shot_media(clip, shot, d, dimensions=None):
-    target = d / "source.mkv"
-    start = shot["start"]
-    end = shot["end"]
+def canvas_filter(clip, dimensions=None):
     w, h = clip["dimensions"]
     spatial = (
         f"scale={w}:{h}:flags=lanczos"
@@ -340,6 +376,22 @@ def shot_media(clip, shot, d, dimensions=None):
     )
     if dimensions and dimensions != clip["dimensions"]:
         spatial += f",scale={dimensions[0]}:{dimensions[1]}:flags=lanczos"
+    return spatial
+
+
+def shot_frame(clip, shot, index, destination):
+    """Capture the exact H3 canvas, including the same source fit and padding."""
+    source = store.path(clip.get("render_source") or clip["source"])
+    ff(["-i", source, "-vf", f"select=eq(n\\,{shot['start'] + index}),{canvas_filter(clip)},setsar=1",
+        "-frames:v", "1", destination])
+    return store.asset_add(destination)
+
+
+def shot_media(clip, shot, d, dimensions=None):
+    target = d / "source.mkv"
+    start = shot["start"]
+    end = shot["end"]
+    spatial = canvas_filter(clip, dimensions)
     source_id = clip.get("render_source") or clip["source"]
     source = store.path(source_id)
     source_stat = source.stat()

@@ -10,7 +10,7 @@ from pathlib import Path
 import shutil
 
 
-FEATURES = ["sam-frame", "sam-track", "sam-recover", "h3-render", "h3-render-v1"]
+FEATURES = ["sam-frame", "sam-track", "sam-recover", "h3-swap-remake-v1", "h3-swap-pika-v1"]
 
 
 def sha(path):
@@ -18,13 +18,26 @@ def sha(path):
 
 
 def features_for_model(path):
+    if "viggle_remake_swap" in path: return ["h3-swap-remake-v1"]
+    if path == "diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors":
+        return ["h3-swap-remake-v1", "h3-ripple-v1", "h3-swap-pika-v1"]
+    if path in {"diffusion_models/minimax_h3_fl2va_int8_convrot.safetensors",
+                "loras/pika_h3_flex_fl2va_v1_bf16.safetensors"}:
+        return ["h3-ripple-v1", "h3-swap-pika-v1"]
+    if path == "loras/minimax_H3_Ripple-v1.safetensors":
+        return ["h3-ripple-v1"]
+    if "qwen_image_2.1" in path or "qwen3vl_8b" in path or "qwen21_character_swap" in path:
+        return ["qwen-anchor-v1"]
     if "sam3" in path:
-        return ["sam-frame", "sam-track", "sam-recover"]
+        return ["sam-frame", "sam-track", "sam-recover", "sam-anchor-v1", "qwen-anchor-v1"]
     if "character-swap" in path:
         return ["h3-render-v1"]
-    if "v2-1000" in path:
-        return ["h3-render-v2-1000"]
-    return ["h3-render", "h3-render-v1", "h3-render-segments-v1"]
+    if "v2-1000" in path or path.endswith("/h3_character_swap_v1.5.safetensors"):
+        return ["h3-render-v2-1000", "h3-swap-pika-v1"]
+    features = ["h3-render", "h3-render-v1", "h3-render-segments-v1"]
+    if path in {"text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "vae/minimax_h3_video_vae_fp16.safetensors", "vae/minimax_h3_audio_vae_fp32.safetensors"}:
+        features.extend(["h3-swap-remake-v1", "h3-ripple-v1", "h3-swap-pika-v1"])
+    return features
 
 
 def configure(package, output, adapter, configuration, *, model_names=None, features=None):

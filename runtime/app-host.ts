@@ -68,7 +68,7 @@ async function snapshot(id:string){
   const selected=row.installations.find(r=>r.installation.runtime?.managed);
   if(selected){
     const session=observed.sessions.find(s=>s.installationId===selected.installation.id&&s.status?.phase!=='stopped')?.status;
-    const featureSet=new Set(selected.features);
+    const featureSet=new Set(row.installations.filter(r=>r.installation.runtime?.managed).flatMap(r=>r.features));
     const runtimeInstalled=featureSet.has('runtime-installed')||selected.ready;
     const modelsReady=raw.summary.requiredInstalled===raw.summary.requiredTotal;
     const requiredFeaturesReady=raw.features.filter(f=>!f.optional).every(f=>featureSet.has(f.id));

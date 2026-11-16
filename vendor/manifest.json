@@ -3,14 +3,14 @@
   "packages": [
     {
       "name": "@akatz/app-config",
-      "version": "0.11.0-alpha.10-source.3",
+      "version": "0.11.0-alpha.10-source.5",
       "license": "MIT",
-      "archive": "akatz-app-config-0.11.0-alpha.10-source.3.tgz",
-      "sha256": "969f2bec023370f2c73c3f6975bafc33563169bc4e3e7c44526b5524728625f8",
-      "sourceArchive": "akatz-app-config-0.11.0-alpha.10-source.3-source.tar.gz",
-      "sourceSha256": "7e810007bcf65ff06de5ccdaef5b9814a1f9b2e360ec2c9803368e8760904ffc",
+      "archive": "akatz-app-config-0.11.0-alpha.10-source.5.tgz",
+      "sha256": "0778d05afd1e17ced9729d348c20ae1d0bd2c756f4599cac5a6cab009e12972e",
+      "sourceArchive": "akatz-app-config-0.11.0-alpha.10-source.5-source.tar.gz",
+      "sourceSha256": "6cae827f8a2754edf83008b791bedec1622de5846f941732bd31816d6eeec0ed",
       "upstreamBaseCommit": "446277254ad3d42b27c04056f9db4d61dfeba678",
-      "provenance": "Prior reviewed source.1 snapshot plus shared ecosystem paths, completed-installation discovery, existing service reuse, independent systemd user units and cross-process Hugging Face cache coordination. Focused integration tests included. Unrelated upstream changes excluded.",
+      "provenance": "Prior reviewed source.1 snapshot plus shared ecosystem paths, completed-installation discovery, existing service reuse, independent systemd user units and cross-process Hugging Face cache coordination. Focused integration tests included. Unrelated upstream changes excluded. Adds authenticated execution-only policy and manifest acknowledgement cleanup. Preserves source.3 local ecosystem fixes; excludes unrelated cloud-routing experiments. Preserves preparation failure diagnostics and permits physically verified cancellation after controller stop.",
       "build": "npm ci --ignore-scripts && npm run build"
     },
     {

@@ -9,7 +9,7 @@ const root=fileURLToPath(new URL('.',import.meta.url)),repo=resolve(root,'..');
 const exec=promisify(execFile);
 function legacyEditorDev():Plugin {
   return {name:'h3-legacy-editor-dev',apply:'serve',async configureServer(server){
-    const script=resolve(repo,'scripts/build_legacy_bridge.mjs'),staticRoot=resolve(repo,'static');
+    const script=resolve(repo,'scripts/build_legacy_bridge.mjs'),staticRoot=resolve(repo,'packages/editor-core/static');
     const generated=new Set(['app-kit-icons.js','app-kit-icons.LICENSE.txt'].map(name=>resolve(staticRoot,'vendor',name)));
     const rebuild=()=>exec(process.execPath,[script],{cwd:repo});
     await rebuild();
@@ -40,7 +40,7 @@ function legacyEditorDev():Plugin {
 export default defineConfig(()=>{
   const backend=process.env.H3_DEV_API_ORIGIN||'http://127.0.0.1:8081';
   const publicUrl=process.env.H3_DEV_PUBLIC_ORIGIN?new URL(process.env.H3_DEV_PUBLIC_ORIGIN):null;
-  return {root,publicDir:false as const,plugins:[react(),legacyEditorDev()],
+  return {root,base:process.env.H3_WEB_BASE||'./',publicDir:false as const,plugins:[react(),legacyEditorDev()],
     cacheDir:process.env.H3_DEV_CACHE||resolve(repo,'node_modules/.vite'),
     build:{outDir:'../dist/web',emptyOutDir:true},
     server:{host:process.env.H3_DEV_HOST||'127.0.0.1',port:Number(process.env.H3_DEV_PORT||5173),strictPort:true,

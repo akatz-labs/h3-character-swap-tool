@@ -5,7 +5,8 @@ and App Config package archives, their corresponding source, and locked npm,
 Python, ComfyGit and ComfyUI dependencies. No sibling Akatz repositories or private
 package registries are needed. Internet is required for public dependencies,
 ComfyUI source and missing model weights; this is not an offline dependency mirror.
-Docker is the [prebuilt alternative](docker/README.md).
+Docker packaging is [experimental](docker/README.md); no public prebuilt image
+is supplied by this release.
 
 ## Supported host and prerequisites
 
@@ -20,7 +21,7 @@ Ubuntu, the system packages include `git ffmpeg build-essential libgl1 libglib2.
 libgomp1`. Node/npm and uv are separate prerequisites. The browser UI needs no
 Rust or desktop WebKit development packages.
 
-Allow about 43.3 GiB for the eight required models, plus ComfyUI, Python/CUDA dependencies,
+Allow about 56.9 GiB for the six required models, plus ComfyUI, Python/CUDA dependencies,
 package caches and media. Existing matching model files can be reused directly.
 Use a drive with adequate free space; setup does not download models automatically.
 
@@ -119,26 +120,38 @@ For an alternate executor port, pass `--executor-port` during setup. Use
 An existing project folder remembers its worker port and refuses an accidental
 change; `--worker-port` selects the matching worker when opening such a folder.
 
-In **Resources**, scan existing models or install missing required models.
-Whisper Medium.en is an optional CPU transcription model (about 1.5 GB). Install
-it from Resources before transcribing. New downloads use the shared Hugging Face
-cache at an exact model revision, so another SDK app can reuse the same files.
-Existing app-local downloads are preserved. Reviewed removal reports shared use;
-active SDK consumers and downloads block removal across processes. Apps accessing
-the cache outside this SDK must coordinate their own use.
+In **Settings → Models**, scan existing models or install missing required models.
+For guide image generation, optionally save your OpenAI API key in
+**Settings → OpenAI**. It is stored privately on the backend machine, never returned
+to the browser or included in projects. Requests are billed to your OpenAI account.
+Uploading guides and rendering swaps do not require a key.
 
-Then create a project, import a video and character reference, optionally import
-an anchor, prepare the SAM mask, and render. Model source revisions, checksums and
-terms are listed in [the model catalog](docker/models-v1.json). No model weights,
-user media, hosted inference account or API key is bundled or required by this flow.
+**Settings → Transcription → Auto** uses installed Whisper Medium.en first,
+otherwise your OpenAI key. Install Whisper separately under **Models → Optional**
+for English CPU transcription without an API. You can explicitly choose Local or
+OpenAI; an unavailable choice produces an actionable error instead of silently
+switching providers. Existing app-local Whisper caches remain usable.
 
-The default worker uses full GPU residency (`--highvram --reserve-vram 0`). The
-previous 24 GB test ran out of VRAM with full residency. Report an actual memory
-failure before changing the memory policy or generation settings. The app’s
-explicit model-offloading setting and capacity-failure retry use the existing
-shared runtime policy; they do not require another environment installation.
-They preserve the model, resolution, frame count and sampling settings. The
-earlier offload validation is not a promise that every input fits.
+Create a project, import a video, optionally add characters, guides and masks,
+then render. **Viggle Remake Swap** is the default recipe. **Pika + Character Swap
+V1.5** uses the same base resources plus two optional LoRAs. Install those under
+Models before selecting Pika. The required setup does not download them or Whisper.
+Pinned revisions, download sources and checksums are in
+[the model catalog](docker/resource-catalog.json). Review
+[model terms](docker/MODEL_TERMS.md) before downloading. No weights, private
+inference account or API key is bundled.
+
+**Settings → Execution → Model offloading** defaults on for local 24 GB GPUs.
+It preserves model, resolution, frame count and sampling settings. Full residency
+is available by switching it off, but previously exhausted 24 GB VRAM at 1 MP.
+The runtime has no artificial CPU/RAM quota or VRAM reservation. A short passing
+render does not promise that every duration and resolution fits.
+
+Normal source installs do not require Akatz's private fleet coordinator. A managed
+fleet operator can explicitly set `H3_GPU_COORDINATOR=http://127.0.0.1:8871`
+**during setup** to integrate with an already-installed coordinator on that worker.
+Only loopback HTTP origins are accepted. This setting becomes part of the immutable
+worker revision; do not set it on a normal standalone installation.
 
 ## Develop and verify
 

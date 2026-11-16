@@ -60,7 +60,7 @@ def test_size_is_frozen_when_queued_and_draft_keeps_previous_selection(setup):
     )
     c = response.json()
     assert c["result"] == "old-result" and c["shots"][0]["selected_render"] == "old"
-    jid = pipeline.queue("render", "test", "s")
+    jid = pipeline.queue("render", "test", "s", worker="fey")
     store.clip_mutate("test", lambda v: v["shots"][0].update(render_mp=1.0))
     job = store.job_get(jid)
     assert job["data"]["shot"]["render_mp"] == 0.5
@@ -94,8 +94,9 @@ def test_low_resolution_graph_has_exact_source_and_mask_geometry(scene, tmp_path
         == graph["43"]["inputs"]["source_frames"]
         == 3
     )
-    assert graph["803"]["inputs"]["anchor"] == ["309", 0]
-    assert graph["history"]["inputs"]["first_frame_guide"] is True
+    assert "anchor" not in graph["803"]["inputs"]
+    assert graph["801"]["inputs"]["ref_images.ref_image_1"] == ["309", 0]
+    assert graph["history"]["inputs"]["first_frame_guide"] is False
     assert graph["43"]["inputs"]["expansion_px"] == spec["expansion"]
     with np.load(files["low-mask.npz"]) as z:
         assert z["mask"].shape == (3, 832, 576)
@@ -217,7 +218,7 @@ def test_completed_render_records_frozen_size_and_preserves_newer_settings(
         )
 
     store.clip_mutate(c["id"], prepare)
-    jid = pipeline.queue("render", c["id"], s["id"], options=None if model_offloading else {"model_offloading": False})
+    jid = pipeline.queue("render", c["id"], s["id"], worker="fey", options=None if model_offloading else {"model_offloading": False})
     monkeypatch.setattr(pipeline, "MEDIA", tmp_path)
     (tmp_path / "jobs").mkdir()
     real_run = media.run

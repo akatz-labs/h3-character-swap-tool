@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUTS = ['web/src', 'web/index.html', 'web/vite.config.ts',
-          'static', 'scripts/build_legacy_bridge.mjs']
+          'packages/editor-core', 'scripts/build_legacy_bridge.mjs']
 
 
 def fingerprint():

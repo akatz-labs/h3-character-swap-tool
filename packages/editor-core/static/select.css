@@ -1,0 +1,81 @@
+/* Shared by the React shell and standalone editor. Native popup windows can
+   scale independently of their controls; style the in-page picker where supported. */
+select option,
+select optgroup {
+  font: inherit;
+}
+
+@supports (appearance: base-select) {
+  select:not([multiple]):is(:not([size]), [size="1"]),
+  select:not([multiple]):is(:not([size]), [size="1"])::picker(select) {
+    appearance: base-select;
+  }
+
+  select:not([multiple]):is(:not([size]), [size="1"]) {
+    align-items: center;
+    gap: 8px;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  select::picker(select) {
+    font: inherit;
+    color: var(--ak-text, #202936);
+    background: var(--ak-surface, #fff);
+    border: 1px solid var(--ak-border, #d9dee5);
+    border-radius: 6px;
+    padding: 4px;
+    min-inline-size: anchor-size(self-inline);
+    max-inline-size: calc(100dvw - 16px);
+    max-block-size: min(320px, 50dvh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 8px 24px #0005;
+  }
+
+  select::picker-icon {
+    flex: none;
+    color: var(--ak-muted, #747e8b);
+  }
+
+  select:not([multiple]):is(:not([size]), [size="1"]) option {
+    min-block-size: 32px;
+    padding: 7px 10px;
+    border-radius: 3px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  select option:checked {
+    background: var(--ak-selected, #edf3ff);
+    color: var(--ak-accent, #2866d8);
+  }
+
+  select option:not(:disabled):is(:hover, :focus-visible) {
+    background: var(--ak-raised, #f0f4fa);
+    outline: 1px solid var(--ak-accent, #2866d8);
+    outline-offset: -1px;
+  }
+
+  select option:disabled {
+    color: var(--ak-muted, #747e8b);
+    opacity: 0.6;
+  }
+
+  @media (pointer: coarse) {
+    select:not([multiple]):is(:not([size]), [size="1"]) option {
+      min-block-size: 44px;
+    }
+  }
+}
+
+/* The mask picker has a fixed toolbar footprint, including its chevron. */
+#mask-track-select {position:relative;padding-right:30px;overflow:hidden;text-overflow:ellipsis}
+@supports (appearance: base-select) {
+  #mask-track-select>button {display:flex;min-width:0;width:100%;max-width:100%;min-height:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
+  #mask-track-select selectedcontent {display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #mask-track-select::picker-icon {position:absolute;right:10px;top:50%;translate:0 -50%;margin:0}
+}

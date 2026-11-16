@@ -1,3 +1,5 @@
+# Historical snapshot compatibility tests call the retained pipeline directly.
+# New HTTP render admission and cutover are exercised in test_workflow.py.
 import copy
 import importlib.util
 import json
@@ -34,20 +36,21 @@ def scene(tmp_path, monkeypatch):
 @pytest.mark.parametrize("lora", ["v1-1000", "v2-1000", "none"])
 @pytest.mark.parametrize("anchor", [True, False])
 @pytest.mark.parametrize("mask", [True, False])
-def test_generation_graph_and_snapshot(scene, lora, anchor, mask):
+@pytest.mark.parametrize("audio", [True, False])
+def test_generation_graph_and_snapshot(scene, lora, anchor, mask, audio):
     c, directory = scene
     def edit(v):
-        v["shots"][0].update(lora_id=lora, use_anchor=anchor, use_mask=mask)
+        v["shots"][0].update(lora_id=lora, use_anchor=anchor, use_mask=mask, use_source_audio=audio)
         if not anchor:
             v["shots"][0]["anchor"] = None
         if not mask:
             v["shots"][0].update(mask=None, mask_empty_frames=[3], mask_points=[{"frame": 3, "x": .2, "y": .3, "label": 1}])
     c = store.clip_mutate("c", edit)
-    id = pipeline.queue("render", "c", "s")
+    id = pipeline.queue("render", "c", "s", worker="fey")
     job = store.job_get(id)
-    config = {"lora_id": lora, "use_anchor": anchor, "use_mask": mask, "window_frames": 124, "history_frames": 18}
+    config = {"lora_id": lora, "use_anchor": anchor, "use_mask": mask, "window_frames": 124, "history_frames": 18, "anchor_conditioning": "reference", "use_source_audio": audio}
     assert job["data"]["generation"] == config
-    store.clip_mutate("c", lambda v: v["shots"][0].update(lora_id="v2-1000", use_mask=True))
+    store.clip_mutate("c", lambda v: v["shots"][0].update(lora_id="v2-1000", use_mask=True, use_source_audio=not audio))
     g, files = remote.graph_render(job["data"]["snapshot"], job["data"]["shot"], job, directory)
     assert job["data"]["generation"] == config
     assert g["4"]["inputs"]["lora_name"].startswith("minimax_h3_fl2v_turbo")
@@ -60,8 +63,15 @@ def test_generation_graph_and_snapshot(scene, lora, anchor, mask):
     assert ("43" in g) is mask
     assert any("anchor" in name for name in files) is anchor
     assert any("mask" in name for name in files) is mask
-    assert g["801"]["inputs"]["ref_audios.ref_audio_0"] == ["803", 6]
-    assert g["guide"]["inputs"]["audio"] == ["803", 2]
+    assert ('ref_audios.ref_audio_0' in g['801']['inputs']) is audio
+    assert ('guide' in g) is audio
+    assert ('audio' in g['history']['inputs']) is audio
+    assert g['history']['inputs']['target_audio_guide'] is audio
+    assert g['803']['inputs']['history_audio_mode'] == ('source' if audio else 'none')
+    assert g['807']['inputs']['audio_mode'] == 'source'
+    if audio:
+        assert g["801"]["inputs"]["ref_audios.ref_audio_0"] == ["803", 6]
+        assert g["guide"]["inputs"]["audio"] == ["803", 2]
     assert g["803"]["inputs"]["source_audio"] == ["31", 1]
     for node in g.values():
         for value in node["inputs"].values():
@@ -69,28 +79,147 @@ def test_generation_graph_and_snapshot(scene, lora, anchor, mask):
                 assert value[0] in g
 
 
-def test_conditioning_validation_and_immediate_queue_record(scene):
+def test_retained_conditioning_validation_and_immediate_queue_record(scene):
+    store.clip_mutate("c", lambda c: c["shots"][0].update(anchor=None))
+    with pytest.raises(ValueError, match="anchor"):
+        pipeline.queue("render", "c", "s", worker="fey")
+    store.clip_mutate("c", lambda c: c["shots"][0].update(use_anchor=False, use_mask=False, mask=None))
+    job = store.job_get(pipeline.queue("render", "c", "s", worker="fey"))
+    assert job["state"] == "queued"
+    assert "snapshot" not in store.public_job(job)["data"]
+
+
+def test_retained_whole_shot_generation_allows_target_absence(scene):
+    store.clip_mutate('c',lambda c:c['shots'][0].update(mask_empty_frames=[20,21,22,23]))
+    job=store.job_get(pipeline.queue('render','c','s', worker="fey"))
+    assert job['state']=='queued'
+    assert job['data']['shot']['mask_empty_frames']==[20,21,22,23]
+    assert job['data']['generation']['use_mask'] is True
+
+
+@pytest.mark.parametrize("mode", ["reference", "first_frame"])
+def test_anchor_reference_is_separate_from_initial_frame_guide(scene, mode):
+    c, directory = scene
+    s = c["shots"][0]
+    s.update(use_mask=False, anchor_conditioning=mode, prompt=media.FIRST_FRAME_ANCHOR)
+    graph, _ = remote.graph_render(c, s, {"id": "mode", "data": {}}, directory)
+    assert graph["history"]["inputs"]["first_frame_guide"] is (mode == "first_frame")
+    assert graph["801"]["inputs"]["ref_images.ref_image_1"] == (
+        ["309", 0] if mode == "reference" else ["803", 11])
+    assert ("anchor" in graph["803"]["inputs"]) is (mode == "first_frame")
+    assert graph["history"]["inputs"]["history_frames"] == ["803", 7]
+    assert graph["guide"]["inputs"]["audio"] == ["803", 2]
+    assert graph["801"]["inputs"]["ref_videos.ref_video_0"] == ["803", 5]
+    assert ("exact first-frame" in graph["801"]["inputs"]["prompt"]) is (mode == "first_frame")
+
+
+def test_shot_identity_isolated_and_frozen_in_queued_graph(scene, monkeypatch):
+    import importlib, io
+    from h3workbench import anchors, segments
+    c, directory = scene
+    monkeypatch.setattr(importlib.import_module("h3workbench.app"), "MEDIA", directory)
+    def setup(v):
+        v["character"] = "Original character"
+        v["shots"].append({**copy.deepcopy(v["shots"][0]), "id": "other"})
+    c = store.clip_mutate("c", setup)
+    data = io.BytesIO()
+    Image.new("RGB", (64, 64), "blue").save(data, format="PNG")
     with TestClient(app) as client:
-        for changes in ({"lora_id": "file/path"}, {"lora_id": []}, {"use_anchor": "false"}, {"use_mask": 0}):
-            response = client.patch("/api/clips/c/shots/s", json={"revision": store.clip_get("c")["revision"], "changes": changes})
-            assert response.status_code == 400
-        store.clip_mutate("c", lambda c: c["shots"][0].update(anchor=None))
-        assert client.post("/api/jobs", json={"kind": "render", "clip_id": "c", "shot_id": "s"}).status_code == 400
-        store.clip_mutate("c", lambda c: c["shots"][0].update(use_anchor=False, use_mask=False, mask=None))
-        response = client.post("/api/jobs", json={"kind": "render", "clip_id": "c", "shot_id": "s"}).json()
-        assert response["job"]["id"] == response["id"]
-        assert response["job"]["state"] == "queued"
-        assert "snapshot" not in response["job"]["data"]
+        uploaded = client.post("/api/clips/c/image", data={
+            "revision": c["revision"], "role": "reference", "shot_id": "s"},
+            files={"file": ("new.png", data.getvalue(), "image/png")})
+        assert uploaded.status_code == 200, uploaded.text
+        c = uploaded.json()
+        changed = client.patch("/api/clips/c/shots/s", json={"revision": c["revision"],
+            "changes": {"character": "A blue astronaut", "use_mask": False}})
+        assert changed.status_code == 200, changed.text
+        c = changed.json()
+    s, other = c["shots"]
+    assert c["reference"] == media.reference(c, other) != media.reference(c, s)
+    assert media.character(c, other) == "Original character"
+    assert "A blue astronaut" in anchors.anchor_brief(c, s)
+    assert "A blue astronaut" in segments.build_prompt(c, s, segments.current(s)[0])
+    job = store.job_get(pipeline.queue("render", "c", "s", worker="fey"))
+    saved_ref = s["reference"]
+    store.clip_mutate("c", lambda v: v["shots"][0].update(reference=v["reference"]))
+    graph, files = remote.graph_render(job["data"]["snapshot"], job["data"]["shot"], job, directory)
+    assert files[job["id"] + "-reference.png"] == store.path(saved_ref)
+    assert job["data"]["shot"]["character"] == "A blue astronaut"
+
+
+def test_later_anchor_source_preserves_shot_boundary_and_anchor_history(scene, monkeypatch):
+    import importlib, io
+    c, directory = scene
+    monkeypatch.setattr(importlib.import_module("h3workbench.app"), "MEDIA", directory)
+    original = c["reference"]
+    c = store.clip_mutate("c", lambda v: v["shots"][0].update(
+        start=100, end=124, source_frame=original, anchors=[{"asset": original}]))
+    captured = []
+    def frame(source, index, path):
+        captured.append(index)
+        Image.new("RGB", (64, 64), "green").save(path)
+        return store.asset_add(path)
+    monkeypatch.setattr(media, "frame", frame)
+    monkeypatch.setattr(store, "path", lambda key: directory / "reference.png")
+    with TestClient(app) as client:
+        for bad in [-1, 24, 1.5, True]:
+            result = client.post("/api/clips/c/shots/s/anchor-source",
+                                 json={"revision": c["revision"], "frame": bad})
+            assert result.status_code == 400
+        result = client.post("/api/clips/c/shots/s/anchor-source",
+                             json={"revision": c["revision"], "frame": 20})
+        assert result.status_code == 200, result.text
+        updated = result.json()
+        s = updated["shots"][0]
+        assert captured == [120]
+        assert (s["start"], s["end"], s["source_frame"]) == (100, 124, original)
+        assert media.anchor_source(s) != original
+        assert s["anchor"] == original and s["anchors"] == [{"asset": original}]
+        assert s["anchor_source_index"] == 20
+        stale = client.post("/api/clips/c/shots/s/anchor-source",
+                            json={"revision": c["revision"], "frame": 21})
+        assert stale.status_code == 409
+        assert captured == [120]
+        data = io.BytesIO()
+        Image.new("RGB", (64, 64), "red").save(data, format="PNG")
+        uploaded = client.post("/api/clips/c/image", data={
+            "revision": updated["revision"], "role": "anchor", "shot_id": "s"},
+            files={"file": ("anchor.png", data.getvalue(), "image/png")})
+        assert uploaded.status_code == 200, uploaded.text
+        assert uploaded.json()["shots"][0]["anchors"][-1]["source_frame_index"] == 120
 
 
 def test_submission_rejects_settings_changed_after_save(scene):
     expected = {"seed": 42, "prompt": "Preserve performance", "render_mp": 1.0,
                 "lora_id": "v1-1000", "use_anchor": True, "use_mask": True}
     store.clip_mutate("c", lambda c: c["shots"][0].update(lora_id="v2-1000"))
-    with TestClient(app) as client:
-        response = client.post("/api/jobs", json={"kind": "render", "clip_id": "c", "shot_id": "s", "expected_render": expected})
-    assert response.status_code == 409
+    with pytest.raises(store.Conflict):
+        pipeline.queue("render", "c", "s", worker="fey", expected_render=expected)
     assert not store.jobs()
+
+
+def test_audio_toggle_is_revision_guarded_and_frozen_for_generation(scene):
+    c, _ = scene
+    expected = {"seed": 42, "prompt": "Preserve performance", "render_mp": 1.0,
+                **render_models.settings(c["shots"][0])}
+    with TestClient(app) as client:
+        response = client.patch("/api/clips/c/shots/s", json={
+            "revision": c["revision"], "changes": {"use_source_audio": False}})
+        assert response.status_code == 200, response.text
+        assert response.json()["shots"][0]["use_source_audio"] is False
+        with pytest.raises(store.Conflict):
+            pipeline.queue("render", "c", "s", worker="fey", expected_render=expected)
+        # An older tab cannot silently turn audio back on by omitting the field.
+        expected.pop("use_source_audio")
+        with pytest.raises(store.Conflict):
+            pipeline.queue("render", "c", "s", worker="fey", expected_render=expected)
+        expected["use_source_audio"] = False
+        job_id = pipeline.queue("render", "c", "s", worker="fey", expected_render=expected)
+    job = store.job_get(job_id)
+    assert job["data"]["shot"]["use_source_audio"] is False
+    assert job["data"]["generation"]["use_source_audio"] is False
+    store.clip_mutate("c", lambda v: v["shots"][0].update(use_source_audio=True))
+    assert store.job_get(job["id"])["data"]["generation"]["use_source_audio"] is False
 
 
 def test_compact_state_preserves_rerun_and_canonical_evidence(scene):
@@ -136,6 +265,8 @@ def test_still_previews_preserve_alpha_cache_and_master(scene):
     with TestClient(app) as client:
         response = client.get(f"/api/assets/{c['reference']}/preview?size=256")
         assert response.status_code == 200
+        assert response.headers['content-type'] == 'image/webp'
+        assert client.get(f"/api/assets/{c['reference']}/preview?size=1920").status_code == 200
         assert "immutable" in response.headers["cache-control"]
         assert client.get(f"/api/assets/{c['reference']}/preview?size=999").status_code == 400
     preview = image_previews.prepare(c["reference"], 256)
@@ -155,7 +286,7 @@ def test_offload_retry_requires_capacity_receipt_and_preserves_failed_inputs(sce
     options={'model_offloading':False}
     if segmented:
         options['segments']={'mode':'all','segment_id':segments.current(shot)[0]['id'],'plan_revision':segments.plan_revision(shot)}
-    id = pipeline.queue("render", "c", "s", options=options)
+    id = pipeline.queue("render", "c", "s", worker="fey", options=options)
     original=store.job_get(id)
     with pytest.raises(ValueError, match="recorded"):
         render_models.retry_offload(id)
@@ -190,11 +321,11 @@ def test_native_recipe_preserves_source_audio_and_optional_guides(anchor, mask):
 
 def test_offloading_default_explicit_opt_out_and_legacy_jobs(scene):
     from h3workbench import session_policy
-    default = store.job_get(pipeline.queue('render', 'c', 's'))
+    default = store.job_get(pipeline.queue('render', 'c', 's', worker="fey"))
     assert default['data']['options'] == {'model_offloading': True}
     assert render_models.offloading(default)
     store.job_update(default['id'], 'success')
-    explicit = store.job_get(pipeline.queue('render', 'c', 's', options={'model_offloading': False}))
+    explicit = store.job_get(pipeline.queue('render', 'c', 's', worker="fey", options={'model_offloading': False}))
     assert not render_models.offloading(explicit)
     assert default['data']['generation'] == explicit['data']['generation']
     assert default['data']['render_spec'] == explicit['data']['render_spec']
@@ -206,7 +337,7 @@ def test_offloading_default_explicit_opt_out_and_legacy_jobs(scene):
     assert session_policy.choose_worker(explicit, workers) == 'a-full'
     for options in ({'model_offloading': 'false'}, {'offload_after': 'fake'}, []):
         with pytest.raises(ValueError):
-            pipeline.queue('render', 'c', 's', options=options)
+            pipeline.queue('render', 'c', 's', worker="fey", options=options)
 
 
 @pytest.mark.parametrize('frames,window,history,count', [(459,124,18,4),(480,124,18,4),(360,362,18,1),(120,56,18,3),(459,243,35,2),(459,124,0,4)])
@@ -242,9 +373,7 @@ def test_window_controls_freeze_in_queue_and_reach_actual_graph(scene):
         assert response.status_code == 200
         expected = {'seed':42,'prompt':'Preserve performance','render_mp':1.0,
                     **render_models.settings(response.json()['shots'][0])}
-        queued = client.post('/api/jobs',json={'kind':'render','clip_id':'c','shot_id':'s','expected_render':expected})
-        assert queued.status_code == 200, queued.text
-        job = store.job_get(queued.json()['id'])
+        job = store.job_get(pipeline.queue('render','c','s', worker="fey",expected_render=expected))
     store.clip_mutate('c', lambda c: c['shots'][0].update(window_frames=362,history_frames=18))
     graph, _ = remote.graph_render(job['data']['snapshot'],job['data']['shot'],job,directory)
     assert graph['805']['inputs']['window_frames'] == '243'
@@ -255,7 +384,7 @@ def test_window_controls_freeze_in_queue_and_reach_actual_graph(scene):
 
 def test_old_queued_render_keeps_original_window_defaults(scene):
     _, directory = scene
-    job = store.job_get(pipeline.queue('render','c','s'))
+    job = store.job_get(pipeline.queue('render','c','s', worker="fey"))
     job['data']['generation'].pop('window_frames')
     job['data']['generation'].pop('history_frames')
     job['data']['shot'].update(window_frames=362,history_frames=35)
@@ -268,7 +397,6 @@ def test_stale_client_cannot_silently_queue_different_window_settings(scene):
     store.clip_mutate('c', lambda c: c['shots'][0].update(window_frames=362,history_frames=18))
     old_expected = {'seed':42,'prompt':'Preserve performance','render_mp':1.0,
                     'lora_id':'v1-1000','use_anchor':True,'use_mask':True}
-    with TestClient(app) as client:
-        response=client.post('/api/jobs',json={'kind':'render','clip_id':'c','shot_id':'s','expected_render':old_expected})
-    assert response.status_code == 409
+    with pytest.raises(store.Conflict):
+        pipeline.queue('render','c','s', worker="fey",expected_render=old_expected)
     assert not store.jobs()

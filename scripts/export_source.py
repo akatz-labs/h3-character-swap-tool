@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def export(destination):
     subprocess.run([sys.executable, str(ROOT / 'scripts/verify_vendor.py')], check=True)
+    subprocess.run([sys.executable, str(ROOT / 'scripts/check_source.py')], check=True)
     files = json.loads((ROOT / 'release/source-files.json').read_text())['files']
     if destination.exists():
         raise ValueError('Source export destination must be new')

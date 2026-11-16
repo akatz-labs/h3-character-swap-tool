@@ -16,10 +16,15 @@ if(process.platform!=='linux')throw Error('The source launcher is qualified for 
 const paths=await ecosystemPaths('h3-workbench'),installation=await readInstallation('h3-workbench');
 const number=z.coerce.number().int().min(1).max(65535),port=number.parse(values.port);
 const root=resolve(fileURLToPath(new URL('../..',import.meta.url))),data=resolve(values.data||process.env.H3_WORKBENCH_STATE||paths.appRoot);
-let savedWorkerPort:number|undefined;
-try{const saved=JSON.parse(await readFile(join(data,'source-workers.json'),'utf8'));savedWorkerPort=number.parse(saved.local.target.port);}
+const targetSchema=z.discriminatedUnion('kind',[
+ z.object({kind:z.literal('local'),port:number}).strict(),
+ z.object({kind:z.literal('ssh'),host:z.string().regex(/^(?:[a-zA-Z0-9_][a-zA-Z0-9_.-]*@)?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/),port:number,sshPort:number.optional()}).strict(),
+]);
+const workersSchema=z.object({local:z.object({target:targetSchema}).strict()}).strict();
+let savedWorkers:z.infer<typeof workersSchema>|undefined;
+try{savedWorkers=workersSchema.parse(JSON.parse(await readFile(join(data,'source-workers.json'),'utf8')));}
 catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
-const workerPort=number.parse(values['worker-port']||savedWorkerPort||installation?.executorPort||process.env.AKATZ_EXECUTOR_PORT||8841);
+const workerPort=number.parse(values['worker-port']||savedWorkers?.local.target.port||installation?.executorPort||process.env.AKATZ_EXECUTOR_PORT||8841);
 const python=resolve(values.python||join(root,'.venv/bin/python'));
 const children:ChildProcess[]=[];
 const revision=createHash('sha256').update(await readFile(join(root,'dist/web/index.html'))).update(await readFile(join(root,'dist/runtime/app-host.js'))).digest('hex');
@@ -27,7 +32,8 @@ const {captureProcessIdentity}=await import(pathToFileURL(join(root,'node_module
 const parent=captureProcessIdentity(process.pid);
 if(!parent)throw Error('Cannot establish source launcher process identity');
 await mkdir(data,{recursive:true});
-const workers={local:{target:{kind:'local',port:workerPort}}},workersFile=join(data,'source-workers.json');
+const workerTarget=targetSchema.parse({...savedWorkers?.local.target,kind:savedWorkers?.local.target.kind||'local',port:workerPort});
+const workers={local:{target:workerTarget}},workersFile=join(data,'source-workers.json');
 try{await writeFile(workersFile,JSON.stringify(workers),{flag:'wx',mode:0o600});}
 catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;
  if(JSON.stringify(JSON.parse(await readFile(workersFile,'utf8')))!==JSON.stringify(workers))throw Error('Saved worker differs; use its original port or review source-workers.json before changing it');}
@@ -69,11 +75,11 @@ try{
   const address=media.server.address();if(!address||typeof address==='string')throw Error('Library did not bind');
   mediaUrl='http://127.0.0.1:'+address.port;
  }else mediaUrl=(await ensureSharedMedia()).url;
- const env:NodeJS.ProcessEnv={H3_WORKBENCH_PORTABLE:'1',H3_WORKBENCH_STATE:data,H3_WORKBENCH_MEDIA:join(data,'media'),
+ const env:NodeJS.ProcessEnv={H3_GUIDE_PROVIDER:process.env.H3_GUIDE_PROVIDER||'local-openai',H3_WORKBENCH_PORTABLE:'1',H3_WORKBENCH_STATE:data,H3_WORKBENCH_MEDIA:join(data,'media'),
   H3_WORKBENCH_MODELS_ROOT:process.env.H3_WORKBENCH_MODELS_ROOT||installation?.modelsRoot||paths.modelsRoot,
   H3_WORKBENCH_BASE_PATH:'',H3_WORKBENCH_PACKAGE_REVISION:revision,H3_WORKBENCH_NODE:process.execPath,H3_WORKBENCH_PYTHON:python,
   H3_WORKBENCH_WEB:join(root,'dist/web'),PYTHONPATH:root,PYTHONDONTWRITEBYTECODE:'1',PYTHONNOUSERSITE:'1',AKATZ_APP_PARENT:JSON.stringify(parent),
-  H3_WORKBENCH_WORKERS:workersFile,H3_WORKBENCH_REGISTRY_TARGET:JSON.stringify({kind:'local',port:workerPort,name:'Local source worker'}),AKATZ_MEDIA_URL:mediaUrl};
+  H3_WORKBENCH_WORKERS:workersFile,H3_WORKBENCH_REGISTRY_TARGET:JSON.stringify({...workerTarget,name:workerTarget.kind==='ssh'?workerTarget.host:'Local source worker'}),AKATZ_MEDIA_URL:mediaUrl};
  const origin=await start(python,[join(root,'node_modules/@akatz/app-kit/desktop/python/owned_domain.py'),
   '--module','h3workbench.app:app','--app-id','h3-workbench','--data-root',data,'--state-env','H3_WORKBENCH_STATE'],env);
  const health=z.object({appId:z.literal('h3-workbench'),instanceId:z.string(),revision:z.literal(revision)}).parse(await fetch(new URL('/api/health',origin)).then(r=>r.json()));

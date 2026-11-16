@@ -22,7 +22,7 @@ interface H3Configuration {
   modelNames?: string[];
   operationModels?: Partial<Record<H3Operation, string[]>>;
 }
-export type H3Operation = 'sam-frame' | 'sam-track' | 'sam-recover' | 'h3-render' | 'h3-render-segments-v1';
+export type H3Operation = 'sam-anchor-v1' | 'qwen-anchor-v1' | 'sam-frame' | 'sam-track' | 'sam-recover' | 'h3-render' | 'h3-render-segments-v1' | 'h3-ripple-v1' | 'h3-swap-pika-v1' | 'h3-swap-remake-v1';
 interface H3Input {
   version: 1;
   operation: H3Operation;
@@ -48,13 +48,18 @@ interface AdapterContext {
 }
 const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms));
 const terminal = (message: string, cancelled = false): Error => Object.assign(new Error(message), {terminal: true, cancelled});
-const operations: H3Operation[] = ['sam-frame','sam-track','sam-recover','h3-render','h3-render-segments-v1'];
+const operations: H3Operation[] = ['sam-anchor-v1','qwen-anchor-v1','sam-frame','sam-track','sam-recover','h3-render','h3-render-segments-v1','h3-ripple-v1','h3-swap-pika-v1','h3-swap-remake-v1'];
 const roots: Record<H3Operation, string[]> = {
+  'h3-swap-remake-v1': ['H3RemakeConditioning','LoraLoaderBypassModelOnly','H3RemakeKeyframeUntil','ManualSigmas','H3RemakeNoise','BasicGuider','SamplerCustomAdvanced','SaveVideo'],
+  'sam-anchor-v1': ['SAM3_Detect','H3RelaySaveMask'],
+  'qwen-anchor-v1': ['TextEncodeQwenImage21','LoraLoaderModelOnly','KSampler','SaveImage'],
   'sam-frame': ['H3RelayRefineMask','H3RelaySaveMask'],
   'sam-track': ['SAM3_VideoTrack','H3RelaySaveMask'],
   'sam-recover': ['H3RelaySaveMask'],
   'h3-render': ['H3RelayFinishWindows','H3RelayWindowPlan'],
-  'h3-render-segments-v1': ['H3RelayFinishWindows','H3RelayWindowPlan'],
+  'h3-render-segments-v1': ['H3RelayFinishWindows'],
+  'h3-swap-pika-v1': ['EmptyMiniMaxH3LatentAV','BasicGuider','SamplerCustomAdvanced','SaveVideo'],
+  'h3-ripple-v1': ['EmptyMiniMaxH3LatentAV','MiniMaxH3AddGuide','BasicGuider','SamplerCustomAdvanced','SaveVideo'],
 };
 function absolute(value: unknown, label: string): string {
   const path = text(value, label);
@@ -146,7 +151,8 @@ export function validateGraph(value: unknown, input: H3Input, allowedNodes: stri
   if (input.operation.startsWith('h3-render')) for (const required of ['StartLoop','EndLoop','SamplerCustomAdvanced','SaveVideo']) {
     if (!classes.includes(required)) throw new Error('H3 operation is missing its native generation graph: ' + required);
   }
-  if(input.operation === 'h3-render-segments-v1' && !Object.values(graph).some(n => record(n).class_type === 'H3RelayWindowPlan' && record(record(n).inputs).schedule === 'segment')) throw new Error('Segment operation requires an explicit single-pass shot');
+  if(input.operation === 'h3-render-segments-v1' && !Object.values(graph).some(n => record(n).class_type === 'H3WorkbenchSegmentPlan' ||
+    (record(n).class_type === 'H3RelayWindowPlan' && record(record(n).inputs).schedule === 'segment'))) throw new Error('Segment operation requires an explicit single-pass shot');
   return graph;
 }
 /** Give each accepted SDK stage its own input names, including multi-stage jobs.
