@@ -216,6 +216,7 @@
     "scripts/check_source.py",
     "scripts/dev_container.mjs",
     "scripts/ecosystem_paths.mjs",
+    "scripts/export_pika_workflows.py",
     "scripts/export_source.py",
     "scripts/setup_source_worker.py",
     "scripts/start_source_worker.mjs",
@@ -250,6 +251,7 @@
     "tests/test_local_openai.py",
     "tests/test_media_probe.py",
     "tests/test_openai_transcription.py",
+    "tests/test_pika_workflows.py",
     "tests/test_portable_model_validation.py",
     "tests/test_portable_runtime.py",
     "tests/test_project_characters.py",
@@ -308,6 +310,12 @@
     "workflows/H3 Character Swap.api.json",
     "workflows/H3 Character Swap.json",
     "workflows/README.md",
-    "workflows/VALIDATION.md"
+    "workflows/VALIDATION.md",
+    "workflows/pika/Pika Character Swap.api.json",
+    "workflows/pika/Pika Character Swap.json",
+    "workflows/pika/Pika Guided Character Swap.api.json",
+    "workflows/pika/Pika Guided Character Swap.json",
+    "workflows/pika/README.md",
+    "workflows/pika/VALIDATION.md"
   ]
 }

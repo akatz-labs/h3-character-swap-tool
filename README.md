@@ -55,10 +55,10 @@ characters and media are preserved. Existing frozen job records remain readable.
 The active [model catalog](docker/resource-catalog.json) has pinned revisions,
 sizes and checksums. Previously downloaded files are reused, not deleted.
 
-The [standalone workflow guide](workflows/README.md) and
-[0.2.0 validation record](release/toolkit-v2-validation.md) describe the earlier
-Relay experiments and their results; they are historical references, not the
-current editor's selectable workflow.
+Want to use ComfyUI directly? Download the **[Pika + Character Swap V1.5
+workflows](workflows/pika/README.md)**, with character-reference and timed-guide
+variants. They run without the editor. The [workflow inventory](workflows/README.md)
+also retains the older Ref2VA/Turbo Relay examples.
 
 ## Run from source
 

@@ -50,7 +50,7 @@ def test_local_catalog_provisions_exact_workflow():
     from h3workbench.config import ROOT
     catalog = json.loads((ROOT / 'docker/resource-catalog.json').read_text())
     features = {item['id']: item for item in catalog['features']}
-    assert set(features) == {'sam-frame', 'sam-track', 'sam-recover', 'h3-swap-remake-v1', 'h3-swap-pika-v1'}
+    assert set(features) == {'sam-frame', 'sam-track', 'sam-recover', 'h3-swap-remake-v1', 'h3-swap-pika-v1', 'h3-image-edit-v1'}
     models = {item['id']: item for item in catalog['models']}
     render = features['h3-swap-remake-v1']
     assert not render['optional']

@@ -1,6 +1,12 @@
 # ComfyUI workflows and app recipes
 
-## Included standalone workflows
+## Current standalone Pika workflows
+
+See **[Pika + Character Swap V1.5](pika/README.md)** for two drag-and-drop
+ComfyUI canvases: character-reference swap and character-reference + timed guide.
+They use the current six-step Pika recipe and require no editor UI.
+
+## Historical standalone workflows
 
 - **H3 Character Swap.json** is an importable ComfyUI canvas for the historical
   Ref2VA + FL2V Turbo 8-step + Character Swap recipe, with SAM and Relay.
@@ -20,8 +26,8 @@ The setup and qualification notes below describe that older snapshot.
 
 The Pika JSON is an app recipe descriptor, **not a drag-and-drop ComfyUI canvas**.
 The editor builds executable graphs from the selected segment, references,
-mask and guide inputs. A standalone Pika canvas and standalone H3 Image Edit
-canvas have not yet been included in this public source distribution.
+mask and guide inputs. The [standalone Pika canvases](pika/README.md) expose the same sampling stack
+for single-window swaps. A standalone H3 Image Edit canvas is not yet included.
 
 ## Historical Ref2VA/Turbo workflow
 
