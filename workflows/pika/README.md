@@ -69,8 +69,10 @@ in **Character Swap V1.5**. It is the same weight file.
    **Add guide**. Index 0 is the first output frame, at the prepared **24 fps**.
 5. Run. **Save result** previews and saves an MP4 under `output/h3-pika/`.
 
-The model stack is **H3 FL2VA INT8 + Pika Flex 1.0 + Character Swap V1.5 0.8**.
-Sampling uses **6 steps, LCM, simple, CFG 1**. Both LoRA strengths remain editable.
+The model stack is **H3 FL2VA INT8 + Pika Flex 1.0 + Character Swap V1.5 1.0**.
+Sampling uses **6 steps, LCM, ManualSigmas, CFG 1**. Both LoRA strengths remain editable.
+The Pika schedule is `1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0`. Use these exact values, rather than a generic
+six-step scheduler, as specified in the [official Pika workflow](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/video_pika_h3_flex_fl2va.json).
 The memory helpers are enabled; use dynamic VRAM/model offloading on 24 GB GPUs.
 Actual capacity depends on the clip length, dimensions and reference sizes.
 

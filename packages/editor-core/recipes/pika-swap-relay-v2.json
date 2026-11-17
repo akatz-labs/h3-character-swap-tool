@@ -5,11 +5,12 @@
   "model": "minimax_h3_fl2va_int8_convrot.safetensors",
   "pika": "pika_h3_flex_fl2va_v1_bf16.safetensors",
   "pika_strength": 1,
-  "swap_strength": 0.8,
+  "swap_strength": 1,
   "steps": 6,
   "sampler": "lcm",
-  "scheduler": "simple",
+  "scheduler": "manual",
   "min_frames": 5,
   "max_frames": 362,
-  "history_frames": 18
+  "history_frames": 18,
+  "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 }

@@ -31,10 +31,10 @@
         0
       ],
       "lora_name": "h3-v2-challenge-eval-20261013/v2-1000.safetensors",
-      "strength_model": 0.8
+      "strength_model": 1
     },
     "_meta": {
-      "title": "Character Swap V1.5 \u00b7 strength 0.8"
+      "title": "Character Swap V1.5 \u00b7 strength 1.0"
     }
   },
   "4": {
@@ -145,18 +145,12 @@
     }
   },
   "10": {
-    "class_type": "BasicScheduler",
+    "class_type": "ManualSigmas",
     "inputs": {
-      "model": [
-        "3",
-        0
-      ],
-      "scheduler": "simple",
-      "steps": 6,
-      "denoise": 1.0
+      "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
     },
     "_meta": {
-      "title": "BasicScheduler"
+      "title": "ManualSigmas"
     }
   },
   "11": {

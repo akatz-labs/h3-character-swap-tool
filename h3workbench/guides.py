@@ -42,7 +42,7 @@ def signature(clip, shot, segment):
     from . import segments, cast, masks
     swap = segment.get('render_mode') == 'swap_pika'
     pending = [t['id'] for t in cast.resolve(clip, shot, segment)['mask_tracks'] if masks.pending_frames(t['state'])] if swap and segments.render_shot(shot, segment).get('use_mask', True) else []
-    return segments.digest({**({'pending_masks': pending} if pending else {}), 'mode': ('viggle-remake-swap-v1' if segment.get('lora_id') == 'viggle-remake-swap' else 'swap-pika-v1.5-strength08-v4') if swap else 'ripple-v1', 'source': source(clip), 'shot_start': shot['start'],
+    return segments.digest({**({'pending_masks': pending} if pending else {}), 'mode': ('viggle-remake-swap-v1' if segment.get('lora_id') == 'viggle-remake-swap' else 'swap-pika-v1.5-manual-sigmas-v5') if swap else 'ripple-v1', 'source': source(clip), 'shot_start': shot['start'],
         'range': [segment['start'], segment['end']], 'history_frames': segments.effective_history(segment), 'guides': selected(clip, shot, segment),
         'dimensions': media.render_spec(clip, shot)['dimensions'], 'seed': segment['seed'],
         'prompt': segments.prompt(clip, shot, segment),

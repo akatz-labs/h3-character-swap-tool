@@ -42,7 +42,7 @@ def standalone(guided=False):
     titles = {'source': 'Source video', 'prepare': 'Prepare source · size / duration',
               'reference_0': 'Character reference · Picture 1', 'instructions': 'Swap instructions',
               'image_0': 'Edited guide frame', 'guide_0': 'Add guide · frame index',
-              'pika': 'Pika Flex · strength 1.0', 'swap': 'Character Swap V1.5 · strength 0.8',
+              'pika': 'Pika Flex · strength 1.0', 'swap': 'Character Swap V1.5 · strength 1.0',
               'text': 'H3 reference conditioning · source Video 1',
               'trim': 'Remove model padding', 'save': 'Save result · original soundtrack'}
     # Numeric IDs import consistently in both the API and the canvas frontend.

@@ -4,7 +4,9 @@ A local video workbench for preparing performances, correcting masks and
 rendering character swaps. Build and run the browser UI and GPU worker directly from source on a Linux
 x86-64 NVIDIA machine. Source installation is the supported path; Docker packaging is still experimental.
 
-https://github.com/user-attachments/assets/e9ed875e-bfe9-42b9-8667-c895ae79f9bc
+[![Watch the updated H3 Character Swap demo](docs/media/h3-character-swap-v2.jpg)](https://github.com/akatz-labs/h3-character-swap-tool/raw/refs/heads/main/docs/media/h3-character-swap-v2.mp4)
+
+[Watch the demo (38 seconds)](https://github.com/akatz-labs/h3-character-swap-tool/raw/refs/heads/main/docs/media/h3-character-swap-v2.mp4)
 
 ## Shared editor and local controls
 

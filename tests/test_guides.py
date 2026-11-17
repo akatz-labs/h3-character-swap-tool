@@ -654,9 +654,9 @@ def test_pika_recipe_accepts_new_jobs_and_retains_exact_sampling(scene, offload)
     graph = guide_render.graph(['source.mkv','guide.png'],96,64,90,chosen,shot['start'],3,seg['guide_prompt'],'p',mode='swap_pika',offload=offload)
     loras = [n['inputs'] for n in graph.values() if n['class_type'] == 'LoraLoaderModelOnly']
     assert [n['lora_name'] for n in loras] == ['pika_h3_flex_fl2va_v1_bf16.safetensors', 'h3-v2-challenge-eval-20261013/v2-1000.safetensors']
-    assert [n['strength_model'] for n in loras] == [1.0, 0.8]
+    assert [n['strength_model'] for n in loras] == [1.0, 1.0]
     assert graph['swap']['inputs']['model'] == ['pika',0]
-    assert graph['schedule']['inputs'] == {'model':['swap',0], 'scheduler':'simple', 'steps':6, 'denoise':1.0}
+    assert graph['schedule'] == {'class_type': 'ManualSigmas', 'inputs': {'sigmas': '1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0'}}
     assert graph['guide_0']['inputs']['frame_idx'] == 22
     assert 'source_guide' not in graph
     assert graph['text']['inputs']['ref_videos.ref_video_0']==['frames',0]

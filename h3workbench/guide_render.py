@@ -43,7 +43,7 @@ def graph(names, width, height, length, selected, start, seed, prompt, prefix, *
         'latent': n('EmptyMiniMaxH3LatentAV', width=width, height=height, length=length),
         'noise': n('RandomNoise', noise_seed=seed),
         'sampler': n('KSamplerSelect', sampler_name=PIKA_PRESET['sampler']),
-        'schedule': n('BasicScheduler', model=[edit_node, 0], scheduler=PIKA_PRESET['scheduler'], steps=PIKA_PRESET['steps'], denoise=1.),
+        'schedule': n('ManualSigmas', sigmas=PIKA_PRESET['sigmas']),
         'source': n('LoadVideo', file=names[0]),
         'frames': n('GetVideoComponents', video=['source', 0]),
     }
@@ -195,7 +195,7 @@ def execute(job, directory, *, attach=True):
         'settings': {k: copy.deepcopy(segment[k]) for k in segments.EDITABLE if k in segment},
         'render_mode': mode, 'guide_inputs_snapshot': {'source': guides.source(clip), 'shot_start': shot['start'], 'guides': chosen},
         'lora': copy.deepcopy(render_models.LORAS[segment.get('lora_id', 'v2-1000')]) if mode == 'swap_pika' else {'id': 'ripple-v1', 'label': 'H3 Ripple V1'},
-        'recipe': copy.deepcopy(remake_render.PRESET) if remake else {'model': captured['model']['inputs']['unet_name'], 'pika_strength': captured['pika']['inputs']['strength_model'], 'edit_strength': captured['swap' if mode == 'swap_pika' else 'ripple']['inputs']['strength_model'], 'steps': captured['schedule']['inputs']['steps'], 'sampler': captured['sampler']['inputs']['sampler_name'], 'scheduler': captured['schedule']['inputs']['scheduler'], 'source_video_guide': mode == 'guides', 'source_video_reference': mode == 'swap_pika'},
+        'recipe': copy.deepcopy(remake_render.PRESET) if remake else {'model': captured['model']['inputs']['unet_name'], 'pika_strength': captured['pika']['inputs']['strength_model'], 'edit_strength': captured['swap' if mode == 'swap_pika' else 'ripple']['inputs']['strength_model'], 'steps': len(captured['schedule']['inputs']['sigmas'].split(',')) - 1, 'sampler': captured['sampler']['inputs']['sampler_name'], 'scheduler': 'manual', 'sigmas': captured['schedule']['inputs']['sigmas'], 'source_video_guide': mode == 'guides', 'source_video_reference': mode == 'swap_pika'},
         **({'cast_inputs_snapshot': cast.generation_inputs(clip, shot, segment)} if mode == 'swap_pika' else {}),
         'history_frames': h, 'window_frames': length,
         'model_offloading': offload,

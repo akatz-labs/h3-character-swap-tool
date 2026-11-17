@@ -13,9 +13,8 @@ def test_standalone_pika_recipe_and_routing(guided):
     def node(kind):
         return next((key, value['inputs']) for key, value in graph.items() if value['class_type'] == kind)
     loras = [n['inputs'] for n in graph.values() if n['class_type'] == 'LoraLoaderModelOnly']
-    assert [n['strength_model'] for n in loras] == [1.0, 0.8]
-    assert node('BasicScheduler')[1]['steps'] == 6
-    assert node('BasicScheduler')[1]['scheduler'] == 'simple'
+    assert [n['strength_model'] for n in loras] == [1.0, 1.0]
+    assert node('ManualSigmas')[1]['sigmas'] == '1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0'
     assert node('KSamplerSelect')[1]['sampler_name'] == 'lcm'
     prepare, _ = node('H3RelayPrepareSource')
     text = node('MiniMaxH3ReferenceToVideo')[1]

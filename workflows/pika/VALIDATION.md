@@ -1,3 +1,11 @@
+# Schedule update — 2026-11-17
+
+Promoted the corrected Pika schedule with both LoRAs at 1.0. Both canvases
+were reloaded and serialized through the real ComfyUI frontend; their exported
+inputs match the API graphs, including the exact six-step ManualSigmas values.
+55 focused Python tests passed. The shared core builds successfully. This update
+does not include a new GPU quality comparison.
+
 # Standalone Pika validation — 2026-11-16
 
 Both workflows use the editor's `h3workbench.guide_render.graph` model/sampler

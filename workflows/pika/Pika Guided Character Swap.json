@@ -73,7 +73,7 @@
         160
       ],
       "flags": {},
-      "order": 14,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -136,7 +136,7 @@
         160
       ],
       "flags": {},
-      "order": 17,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -170,22 +170,21 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            16,
             36
           ]
         }
       ],
-      "title": "Character Swap V1.5 · strength 0.8",
+      "title": "Character Swap V1.5 · strength 1.0",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
         "h3-v2-challenge-eval-20261013/v2-1000.safetensors",
-        0.8
+        1
       ],
       "widgets_values_named": {
         "lora_name": "h3-v2-challenge-eval-20261013/v2-1000.safetensors",
-        "strength_model": 0.8
+        "strength_model": 1
       }
     },
     {
@@ -314,10 +313,10 @@
       ],
       "size": [
         410,
-        390
+        444
       ],
       "flags": {},
-      "order": 19,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -355,6 +354,20 @@
           "link": null
         },
         {
+          "localized_name": "ref_image_2",
+          "name": "ref_images.ref_image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "ref_image_3",
+          "name": "ref_images.ref_image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "localized_name": "ref_video_0",
           "name": "ref_videos.ref_video_0",
           "shape": 7,
@@ -364,6 +377,13 @@
         {
           "localized_name": "ref_video_1",
           "name": "ref_videos.ref_video_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "ref_video_2",
+          "name": "ref_videos.ref_video_2",
           "shape": 7,
           "type": "IMAGE",
           "link": null
@@ -482,7 +502,7 @@
         170
       ],
       "flags": {},
-      "order": 20,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
@@ -634,7 +654,7 @@
     },
     {
       "id": 10,
-      "type": "BasicScheduler",
+      "type": "ManualSigmas",
       "pos": [
         2000,
         460
@@ -644,39 +664,15 @@
         180
       ],
       "flags": {},
-      "order": 21,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "model",
-          "name": "model",
-          "type": "MODEL",
-          "link": 16
-        },
-        {
-          "localized_name": "scheduler",
-          "name": "scheduler",
-          "type": "COMBO",
+          "localized_name": "sigmas",
+          "name": "sigmas",
+          "type": "STRING",
           "widget": {
-            "name": "scheduler"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "steps",
-          "name": "steps",
-          "type": "INT",
-          "widget": {
-            "name": "steps"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "denoise",
-          "name": "denoise",
-          "type": "FLOAT",
-          "widget": {
-            "name": "denoise"
+            "name": "sigmas"
           },
           "link": null
         }
@@ -691,18 +687,15 @@
           ]
         }
       ],
+      "title": "Pika · exact six-step sigmas",
       "properties": {
-        "Node name for S&R": "BasicScheduler"
+        "Node name for S&R": "ManualSigmas"
       },
       "widgets_values": [
-        "simple",
-        6,
-        1
+        "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
       ],
       "widgets_values_named": {
-        "scheduler": "simple",
-        "steps": 6,
-        "denoise": 1
+        "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
       }
     },
     {
@@ -717,7 +710,7 @@
         350
       ],
       "flags": {},
-      "order": 5,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -774,7 +767,7 @@
         370
       ],
       "flags": {},
-      "order": 6,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -837,7 +830,7 @@
         110
       ],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -883,7 +876,7 @@
         350
       ],
       "flags": {},
-      "order": 8,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -1429,7 +1422,7 @@
         110
       ],
       "flags": {},
-      "order": 15,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -1530,7 +1523,7 @@
         266
       ],
       "flags": {},
-      "order": 16,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -1672,7 +1665,7 @@
         230
       ],
       "flags": {},
-      "order": 9,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -1718,7 +1711,7 @@
         240
       ],
       "flags": {},
-      "order": 18,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -1866,17 +1859,17 @@
         390
       ],
       "flags": {},
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [],
       "outputs": [],
       "title": "Start here",
       "properties": {},
       "widgets_values": [
-        "# Pika + Character Swap V1.5 · guided\n\n1. Upload a source video and a character reference.\n2. Edit Swap instructions: source is <Video 1>, character is <Picture 1>.\n3. Upload an edited scene frame and choose its frame index in Add guide. It is a timed guide, never an extra Picture reference.\n4. Run. Output keeps source audio and removes model padding.\n\nDefault: first 5 seconds, up to 0.5 MP, 24 fps; six steps, LCM/simple. Pika 1.0 + V1.5 0.8."
+        "# Pika + Character Swap V1.5 · guided\n\n1. Upload a source video and a character reference.\n2. Edit Swap instructions: source is <Video 1>, character is <Picture 1>.\n3. Upload an edited scene frame and choose its frame index in Add guide. It is a timed guide, never an extra Picture reference.\n4. Run. Output keeps source audio and removes model padding.\n\nDefault: first 5 seconds, up to 0.5 MP, 24 fps; six steps, LCM/ManualSigmas. Pika 1.0 + V1.5 1.0."
       ],
       "widgets_values_named": {
-        "text": "# Pika + Character Swap V1.5 · guided\n\n1. Upload a source video and a character reference.\n2. Edit Swap instructions: source is <Video 1>, character is <Picture 1>.\n3. Upload an edited scene frame and choose its frame index in Add guide. It is a timed guide, never an extra Picture reference.\n4. Run. Output keeps source audio and removes model padding.\n\nDefault: first 5 seconds, up to 0.5 MP, 24 fps; six steps, LCM/simple. Pika 1.0 + V1.5 0.8."
+        "text": "# Pika + Character Swap V1.5 · guided\n\n1. Upload a source video and a character reference.\n2. Edit Swap instructions: source is <Video 1>, character is <Picture 1>.\n3. Upload an edited scene frame and choose its frame index in Add guide. It is a timed guide, never an extra Picture reference.\n4. Run. Output keeps source audio and removes model padding.\n\nDefault: first 5 seconds, up to 0.5 MP, 24 fps; six steps, LCM/ManualSigmas. Pika 1.0 + V1.5 1.0."
       },
       "color": "#222",
       "bgcolor": "#243b3d"
@@ -1893,7 +1886,7 @@
         1110
       ],
       "flags": {},
-      "order": 11,
+      "order": 12,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1920,7 +1913,7 @@
         700
       ],
       "flags": {},
-      "order": 12,
+      "order": 13,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1947,7 +1940,7 @@
         280
       ],
       "flags": {},
-      "order": 13,
+      "order": 14,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1981,86 +1974,6 @@
       "MODEL"
     ],
     [
-      3,
-      22,
-      0,
-      6,
-      0,
-      "CLIP"
-    ],
-    [
-      4,
-      5,
-      0,
-      6,
-      1,
-      "VAE"
-    ],
-    [
-      11,
-      13,
-      0,
-      6,
-      2,
-      "VAE"
-    ],
-    [
-      10,
-      12,
-      0,
-      6,
-      3,
-      "IMAGE"
-    ],
-    [
-      9,
-      24,
-      0,
-      6,
-      5,
-      "IMAGE"
-    ],
-    [
-      12,
-      24,
-      1,
-      6,
-      7,
-      "AUDIO"
-    ],
-    [
-      5,
-      25,
-      0,
-      6,
-      10,
-      "STRING"
-    ],
-    [
-      6,
-      24,
-      2,
-      6,
-      11,
-      "INT"
-    ],
-    [
-      7,
-      24,
-      3,
-      6,
-      12,
-      "INT"
-    ],
-    [
-      8,
-      24,
-      4,
-      6,
-      13,
-      "INT"
-    ],
-    [
       13,
       24,
       2,
@@ -2083,14 +1996,6 @@
       7,
       2,
       "INT"
-    ],
-    [
-      16,
-      3,
-      0,
-      10,
-      0,
-      "MODEL"
     ],
     [
       17,
@@ -2229,14 +2134,6 @@
       "AUDIO"
     ],
     [
-      34,
-      20,
-      0,
-      21,
-      0,
-      "VIDEO"
-    ],
-    [
       35,
       4,
       0,
@@ -2314,6 +2211,94 @@
       5,
       27,
       2,
+      "INT"
+    ],
+    [
+      34,
+      20,
+      0,
+      21,
+      0,
+      "VIDEO"
+    ],
+    [
+      3,
+      22,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      5,
+      0,
+      6,
+      1,
+      "VAE"
+    ],
+    [
+      11,
+      13,
+      0,
+      6,
+      2,
+      "VAE"
+    ],
+    [
+      10,
+      12,
+      0,
+      6,
+      3,
+      "IMAGE"
+    ],
+    [
+      9,
+      24,
+      0,
+      6,
+      7,
+      "IMAGE"
+    ],
+    [
+      12,
+      24,
+      1,
+      6,
+      10,
+      "AUDIO"
+    ],
+    [
+      5,
+      25,
+      0,
+      6,
+      13,
+      "STRING"
+    ],
+    [
+      6,
+      24,
+      2,
+      6,
+      14,
+      "INT"
+    ],
+    [
+      7,
+      24,
+      3,
+      6,
+      15,
+      "INT"
+    ],
+    [
+      8,
+      24,
+      4,
+      6,
+      16,
       "INT"
     ]
   ],
@@ -2406,10 +2391,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.65,
+      "scale": 0.34,
       "offset": [
-        1000,
-        530
+        1030,
+        620
       ]
     }
   },
