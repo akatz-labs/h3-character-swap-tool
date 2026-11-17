@@ -56,7 +56,7 @@ async function openOutput(row,c=clip(),s=shot(),previewParent=null){
     inspector+='<h3>Assembly</h3>'+H3UI.parameters((data.segment_takes||[]).map((v,i)=>[`Segment ${i+1}`,v.label||(()=>{const seg=(s.segments||[]).find(s=>s.id===v.segment_id),index=seg?.takes.findIndex(t=>t.id===v.take_id);return index>=0?'Take '+(index+1):'Saved take';})()]));
   }else{
     inspector+='<h3>Generation parameters</h3>'+H3UI.parameters([
-      ['Method',mode==='guides'?'Guided edit · Ripple':mode==='swap_pika'?'Character swap · Pika':'Character swap'],
+      ['Method','Character swap'],
       ['Model',data?.recipe?.model],['LoRA',mode==='guides'?'H3 Ripple V1':row.job&&mode==='swap_pika'?'Pika · Character swap V1.5':data?renderLoRALabel(data):null],['Seed',data?.seed],
       ['Resolution',data?.dimensions?.join(' × ')],['Frames',data?.end!==undefined?data.end-data.start:null],['Steps',data?.recipe?.steps],['Sampler',data?.recipe?.sampler],
       ['LoRA strength',data?.recipe?.edit_strength],['History frames',data?.history_frames],
