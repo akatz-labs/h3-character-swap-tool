@@ -6,7 +6,7 @@ x86-64 NVIDIA machine. Source installation is the supported path; Docker packagi
 
 [![Watch the updated H3 Character Swap demo](docs/media/h3-character-swap-v2.jpg)](https://github.com/akatz-labs/h3-character-swap-tool/raw/refs/heads/main/docs/media/h3-character-swap-v2.mp4)
 
-[Watch the demo (38 seconds)](https://github.com/akatz-labs/h3-character-swap-tool/raw/refs/heads/main/docs/media/h3-character-swap-v2.mp4)
+[Watch the demo (38 seconds · 9.5 MB)](https://github.com/akatz-labs/h3-character-swap-tool/raw/refs/heads/main/docs/media/h3-character-swap-v2.mp4)
 
 ## Shared editor and local controls
 
