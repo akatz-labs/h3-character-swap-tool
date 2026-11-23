@@ -30,6 +30,7 @@
 .h3-legacy .unified-shot-layout .cast-mask-selector{display:flex;align-items:center;flex-wrap:nowrap;gap:2px;margin:0 auto;padding:0 5px;border-inline:1px solid var(--ak-border)}
 .h3-legacy .unified-shot-layout .cast-mask-selector select{width:180px;flex:0 0 180px;min-width:0;max-width:180px;font-size:11px;padding:7px 26px 7px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .h3-legacy .mask-color-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.h3-legacy .unified-shot-layout .cast-mask-selector .mask-include{display:flex;align-items:center;gap:4px;margin:0 4px;font-size:11px;white-space:nowrap;cursor:pointer}
 .h3-legacy #mask-coverage{display:none}
 .h3-legacy #mask-settings-popover{inset:auto;margin:0;top:140px;left:min(400px,20vw,max(12px,calc(100vw - 442px)));width:min(430px,calc(100vw - 24px));max-height:65dvh;overflow:auto;padding:18px;border:1px solid var(--ak-border);border-radius:8px;background:var(--ak-surface);color:var(--ak-text);box-shadow:0 12px 32px #0008}
 .h3-legacy #mask-settings-popover::backdrop{background:transparent}

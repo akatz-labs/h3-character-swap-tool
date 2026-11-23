@@ -251,14 +251,17 @@ function updateMaskEditorStatus() {
     ? "Saved settings changed elsewhere. Your local edits are kept."
     : !busy && last && ["failed", "interrupted"].includes(last.state)
       ? `${last.state === "failed" ? "Mask update failed" : "Mask update needs inspection"}: ${last.data.error || last.data.phase}`
-      : "");
+      : segmentSelected()?.cast_inputs?.mask_tracks.includes(e.trackId) && maskMissesSegment(s, segmentSelected())
+        ? "This mask doesn’t cover the whole segment. Track segment to extend it, or turn off Use in render."
+        : "");
   $("#mask-edit-status").textContent = text;
   $("#mask-edit-status").hidden = !text;
   const coverage = $("#mask-coverage");
   if (coverage) {
     const seg=shot().segment_masks_version===1?segmentSelected():null;
     const begin=seg?.start??0,end=seg?.end??s.end-s.start;
-    const total=end-begin,covered=total-(s.mask_empty_frames||[]).filter(f=>f>=begin&&f<end).length;
+    const range=trackedMaskFrames(s),from=Math.max(begin,range?.[0]??begin),to=Math.min(end,range?.[1]??end);
+    const total=end-begin,covered=Math.max(0,to-from)-(s.mask_empty_frames||[]).filter(f=>f>=from&&f<to).length;
     coverage.textContent = s.mask ? `${covered} / ${total} frames` : "No mask yet";
     coverage.dataset.ready = String(!!s.mask && covered === total);
   }

@@ -61,7 +61,7 @@ async function openOutput(row,c=clip(),s=shot(),previewParent=null){
       ['Resolution',data?.dimensions?.join(' × ')],['Frames',data?.end!==undefined?data.end-data.start:null],['Steps',data?.recipe?.steps],['Sampler',data?.recipe?.sampler],
       ['LoRA strength',data?.recipe?.edit_strength],['History frames',data?.history_frames],
       ['Source audio',data?.use_source_audio===undefined?'Not recorded':data.use_source_audio?'On':'Off'],
-      ['Mask',mode==='guides'?'None':data?.cast_inputs_snapshot?data.cast_inputs_snapshot.mask_tracks?.length?'Assigned':'None':data?.use_mask===undefined?'Not recorded':data.use_mask?'On':'Off'],
+      ['Mask',mode==='guides'?'None':data?.cast_inputs_snapshot?(n=>n?`${n} mask${n===1?'':'s'}`:'None')(data.cast_inputs_snapshot.mask_tracks?.length||0):data?.use_mask===undefined?'Not recorded':data.use_mask?'On':'Off'],
       ['Model offloading',data?.model_offloading===undefined?'Not recorded':data.model_offloading?'On':'Off']]);
     inspector+=outputImages(chars.map(v=>({asset:v.reference,label:v.name})),'Characters');
     if(data?.prompt)inspector+=`<h3>Prompt</h3><pre>${esc(data.prompt)}</pre>`;

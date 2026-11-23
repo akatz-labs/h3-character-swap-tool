@@ -84,6 +84,6 @@ export {
 } from "./segments.js";
 export type { Environment } from "./common.js";
 
-export {characterMasks,applyCharacterMasks,validateSelection as validateCastSelection} from "./cast.js";
+export {characterMasks,applyCharacterMasks,maskCovers,validateSelection as validateCastSelection} from "./cast.js";
 
 export { activateGeneratedGuide } from "./guides.js";

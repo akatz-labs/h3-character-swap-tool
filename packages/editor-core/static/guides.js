@@ -34,15 +34,7 @@ function guideRenderReason(){
   const seg=segmentSelected(),chosen=guidesForSegment();
   if(seg.end-seg.start<5||seg.end-seg.start>362)return 'Split this segment to use 5–362 frames per guided render.';
   if(chosen.some(g=>!guideIsCurrent(g)))return 'A guide belongs to an older source. Disable it and add a new guide.';
-  if(seg.render_mode==='swap_pika'){
-    if(seg.use_mask??shot().use_mask??true){
-      const selected=shot().cast_setup.mask_tracks.filter(t=>seg.cast_inputs.mask_tracks.includes(t.id));
-      if(!selected.length)return 'Choose a mask on a character or select No mask.';
-      if(selected.some(t=>!t.state.mask))return 'Track the selected masks or choose No mask on the character cards.';
-      if(selected.some(t=>maskPending(t.state.mask_points||[],t.state).some(f=>f>=seg.start&&f<seg.end)))return 'Apply pending corrections on each selected mask.';
-    }
-    return '';
-  }
+  if(seg.render_mode==='swap_pika')return maskRenderReason(seg);
   return chosen.length?'':'Approve at least one guide inside this segment.';
 }
 function renderGuideStrip(){

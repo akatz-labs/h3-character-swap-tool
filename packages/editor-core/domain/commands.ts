@@ -194,15 +194,11 @@ export function edit(
             entry.id === curr.id || !selected.characters.includes(entry.id),
             "Character already assigned",
           );
-          const assignments = cast.characterMasks(selected);
-          if (curr.id !== entry.id) {
-            assignments[entry.id] = assignments[curr.id] || [];
-            delete assignments[curr.id];
-          }
+          // Masks belong to the segment, not to a character.
           selected.characters = selected.characters.map((id: string) =>
             id === curr.id ? entry.id : id,
           );
-          cast.applyCharacterMasks(selected, assignments);
+          selected.mask_assignments = {};
         } else Object.assign(curr, shotRecord(replacement, curr.id));
       } else {
         s.cast_setup.characters = library.filter((c: R) => c !== curr);
@@ -211,14 +207,11 @@ export function edit(
         for (const seg of s.segments) {
           const selected = seg.cast_inputs;
           if (!selected.characters.includes(curr.id)) continue;
-          const assignments = cast.characterMasks(selected);
+          // Removing a character keeps the segment's edit region.
           selected.characters = selected.characters.filter(
             (id: string) => id !== curr.id,
           );
-          delete assignments[curr.id];
-          cast.applyCharacterMasks(selected, assignments);
-          if (s.segment_masks_version === 1)
-            seg.use_mask = !!selected.mask_tracks.length;
+          selected.mask_assignments = {};
         }
       }
     } else throw Error("Unsupported character assignment command");
@@ -261,6 +254,7 @@ export function edit(
     )
       v.mask = null;
     Object.assign(v, edits, { mask_approved: false });
+    if (!v.mask) delete v.mask_frames;
     t.state = pick(v, MASK_FIELDS);
     c.result = null;
   } else if (parts[0] === "cast" && parts[1] === "masks") {
@@ -294,8 +288,10 @@ export function edit(
         },
       };
       tracks.push(r);
-      // Editing a mask does not opt a character into using it.
-      seg.use_mask = !!seg.cast_inputs.mask_tracks.length;
+      // A new mask joins the segment's edit region until it is turned off.
+      seg.cast_inputs.mask_tracks.push(r.id);
+      seg.cast_inputs.mask_assignments = {};
+      seg.use_mask = true;
       c.result = null;
     } else if (["PATCH", "DELETE"].includes(method) && parts.length === 3) {
       const t = cast.track(s, parts[2]);
@@ -309,16 +305,8 @@ export function edit(
         for (const seg of s.segments) {
           const sel = seg.cast_inputs;
           if (!sel.mask_tracks.includes(t.id)) continue;
-          const assignments = cast.characterMasks(sel);
-          cast.applyCharacterMasks(
-            sel,
-            Object.fromEntries(
-              Object.entries(assignments).map(([id, masks]) => [
-                id,
-                masks.filter((k) => k !== t.id),
-              ]),
-            ),
-          );
+          sel.mask_tracks = sel.mask_tracks.filter((k: string) => k !== t.id);
+          sel.mask_assignments = {};
           seg.use_mask = !!sel.mask_tracks.length;
         }
         c.result = null;
@@ -601,10 +589,15 @@ export function renderPlan(c: R, s: R, b: R) {
   const chosen = guides.selected(c, s, seg, true, false);
   const config = renderShot(s, seg);
   const selectedMasks = cast.generationInputs(c, s, seg).mask_tracks;
-  requireValue(
-    selectedMasks.every((m: R) => m.mask),
-    "Track selected masks before generating",
-  );
+  const tracks = cast.resolve(c, config, seg).mask_tracks;
+  for (const m of selectedMasks) {
+    const name = cast.maskName(s, seg, m.id);
+    requireValue(m.mask, `Track ${name} for this segment, or turn it off`);
+    requireValue(
+      cast.maskCovers(tracks.find((t: R) => t.id === m.id), seg),
+      `${name} doesn’t cover this whole segment. Track it again, or turn it off`,
+    );
+  }
   requireValue(!cast.pendingMasks(c, s, seg).length, "Apply pending corrections on selected masks before generating");
   const history = segments
     .predecessors(items, items.indexOf(seg))

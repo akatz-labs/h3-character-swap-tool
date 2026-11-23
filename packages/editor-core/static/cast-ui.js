@@ -78,7 +78,7 @@ function closeCastCharacterMenu(focus=false){
 }
 function removeShotCharacter(id){
   const c=shot().cast_setup.characters.find(c=>c.id===id);
-  dialog('Remove character from shot',`<p>Remove ${esc(c.name)} and its mask assignments from this shot?</p><p class="note">The character stays in Project Assets. Existing takes are kept.</p><div class="row"><button id="cast-remove-cancel">Cancel</button><button id="cast-remove-confirm" class="danger">Remove from shot</button></div>`);
+  dialog('Remove character from shot',`<p>Remove ${esc(c.name)} from this shot?</p><p class="note">Masks stay on their segments. The character stays in Project Assets. Existing takes are kept.</p><div class="row"><button id="cast-remove-cancel">Cancel</button><button id="cast-remove-confirm" class="danger">Remove from shot</button></div>`);
   $('#cast-remove-cancel').onclick=()=>$('#dialog').close();
   $('#cast-remove-confirm').onclick=guarded(async()=>{const button=$('#cast-remove-confirm');button.disabled=true;try{await castWrite(`characters/${id}`,'DELETE');$('#dialog').close();}finally{if(button.isConnected)button.disabled=false;}});
 }
@@ -151,6 +151,25 @@ async function captureShotFrame(){
 }
 const MASK_COLORS=['#83d9c4','#db8bce','#e9ac68','#79b8ef','#d8ce73','#b3a0ef'];
 function maskLabel(track,index){return track.name||`Mask ${index+1}`;}
+// Older hosted masks record their tracked frames only on the job that produced them.
+function trackedMaskFrames(state){
+  if(state?.mask_frames)return state.mask_frames;
+  const plan=state?.mask?S.data.jobs.find(j=>j.kind==='mask_edit'&&j.data?.result?.asset===state.mask)?.data?.platform?.maskPlan:null;
+  return plan?[plan.start,plan.end]:null;
+}
+// Tracks keep their mask when a segment is split or resized; renders use the segment's slice.
+function maskMissesSegment(state,seg){const range=trackedMaskFrames(state);return !!(state?.mask&&range&&(range[0]>seg.start||range[1]<seg.end));}
+function maskRenderReason(seg){
+  const s=shot();if(!s?.cast_setup||!(seg.use_mask??s.use_mask??true))return '';
+  const tracks=s.segment_masks_version===1?s.cast_setup.mask_tracks.filter(t=>t.segment_id===seg.id):s.cast_setup.mask_tracks;
+  const name=t=>maskLabel(t,tracks.indexOf(t)),selected=tracks.filter(t=>seg.cast_inputs.mask_tracks.includes(t.id));
+  const untracked=selected.find(t=>!t.state.mask);
+  if(untracked)return `Track ${name(untracked)} for this segment, or turn off Use in render.`;
+  const partial=selected.find(t=>maskMissesSegment(t.state,seg));
+  if(partial)return `${name(partial)} doesn’t cover this whole segment. Track it again, or turn off Use in render.`;
+  if(selected.some(t=>maskPending(t.state.mask_points||[],t.state).some(f=>f>=seg.start&&f<seg.end)))return 'Apply pending corrections on each mask used in the render.';
+  return '';
+}
 function selectedMaskColor(){const tracks=segmentMaskTracks(),index=tracks.findIndex(t=>t.id===maskTrackId());return tracks[index]?.color||MASK_COLORS[Math.max(0,index)%MASK_COLORS.length];}
 async function selectMaskTrack(id){
   await flushShotAutosave();await saveMaskEdits();const frame=maskEditState?.frame??0;
@@ -159,13 +178,18 @@ async function selectMaskTrack(id){
 }
 function bindCastMaskSelector(){
   const row=$('#cast-mask-selector');if(!row||!shot().cast_setup)return;
-  const tracks=segmentMaskTracks(),current=maskTrackId();
-  const key=JSON.stringify([tracks.map(t=>[t.id,t.name,t.color]),current]);if(row.dataset.key===key)return;row.dataset.key=key;
-  row.innerHTML=`<span class="mask-color-dot" style="background:${selectedMaskColor()}" aria-hidden="true"></span><select id="mask-track-select" aria-label="Active mask"><button type="button"><selectedcontent></selectedcontent></button>${tracks.length?'':'<option value="">Mask 1 · add points</option>'}${tracks.map((t,i)=>`<option value="${esc(t.id)}" ${t.id===current?'selected':''}>${esc(maskLabel(t,i))}</option>`).join('')}<option value="new">＋ Add new mask</option></select><button id="mask-edit" class="h3-icon-button quiet" popovertarget="mask-settings-popover" aria-label="Edit mask" title="Edit mask" ${current?'':'disabled'}>${uiIcon('edit')}</button><button id="mask-remove" class="h3-icon-button quiet" aria-label="Delete mask" title="Delete mask" ${current?'':'disabled'}>${uiIcon('trash')}</button>`;
+  const tracks=segmentMaskTracks(),current=maskTrackId(),included=new Set(segmentSelected()?.cast_inputs?.mask_tracks||[]);
+  const key=JSON.stringify([tracks.map(t=>[t.id,t.name,t.color,included.has(t.id)]),current]);if(row.dataset.key===key)return;row.dataset.key=key;
+  row.innerHTML=`<span class="mask-color-dot" style="background:${selectedMaskColor()}" aria-hidden="true"></span><select id="mask-track-select" aria-label="Mask to edit"><button type="button"><selectedcontent></selectedcontent></button>${tracks.length?'':'<option value="">Mask 1 · add points</option>'}${tracks.map((t,i)=>`<option value="${esc(t.id)}" ${t.id===current?'selected':''}>${esc(maskLabel(t,i))}${included.has(t.id)?'':' · Off'}</option>`).join('')}<option value="new">＋ Add new mask</option></select><label class="mask-include" title="Masks used in the render combine into one edit region. Character references choose who appears."><input type="checkbox" id="mask-include" ${included.has(current)?'checked':''} ${current?'':'disabled'}>Use in render</label><button id="mask-edit" class="h3-icon-button quiet" popovertarget="mask-settings-popover" aria-label="Edit mask" title="Edit mask" ${current?'':'disabled'}>${uiIcon('edit')}</button><button id="mask-remove" class="h3-icon-button quiet" aria-label="Delete mask" title="Delete mask" ${current?'':'disabled'}>${uiIcon('trash')}</button>`;
   $('#mask-track-select').onchange=guarded(async event=>{
     const value=event.target.value;
     if(value==='new'){const c=await castWrite('masks','POST',{segment_id:segmentSelected().id});await selectMaskTrack(c.shots.find(s=>s.id===S.shot).cast_setup.mask_tracks.at(-1).id);}
     else await selectMaskTrack(value);
+  });
+  $('#mask-include').onchange=guarded(async event=>{
+    const include=event.target.checked;
+    try{await setSegmentCastInputs(null,{trackId:current,include});}
+    finally{row.dataset.key='';bindCastMaskSelector();updateMaskEditorStatus();}
   });
   const form=$('#mask-name-form'),field=$('#mask-name'),save=$('#mask-name-save');
   const track=tracks.find(t=>t.id===current),savedName=track?maskLabel(track,tracks.indexOf(track)):'';
@@ -196,20 +220,19 @@ function bindCastMaskSelector(){
 }
 function segmentCastHtml(seg,state){
   if(!shot().cast_setup)return '';
-  const lib=shot().cast_setup,chosen=seg.cast_inputs,assignments=characterMasks(chosen),tracks=segmentMaskTracks();
-  return `<section class="segment-inputs"><div class="segment-cast-section"><div class="row spread"><strong>Characters</strong><button id="segment-add-character" class="quiet">${uiIcon('plus')}Add</button></div><div class="segment-character-list" aria-label="Character references" tabindex="0">${chosen.characters.map(id=>lib.characters.find(c=>c.id===id)).map(c=>{return `<div class="segment-character-row"><div class="segment-character-reference">${c.reference?`<img src="${imageAsset(c.reference,256)}" alt="">`:''}<span>${esc(c.name)}</span></div><button class="h3-icon-button quiet" data-character-change="${esc(c.id)}" aria-label="Change ${esc(c.name)}" title="Change character">${uiIcon('swap')}</button><button class="h3-icon-button quiet" data-character-remove="${esc(c.id)}" aria-label="Remove ${esc(c.name)} from segment" title="Remove character">${uiIcon('trash')}</button><label class="character-mask-field"><span>Mask</span><select data-character-mask="${esc(c.id)}" aria-label="Mask for ${esc(c.name)}" title="Selected masks combine into one edit region; they do not target individual characters."><option value="">No mask</option>${(assignments[c.id]||[]).length>1?`<option value="__retained__" selected>Saved region (${assignments[c.id].length} masks)</option>`:''}${tracks.map((t,i)=>`<option value="${esc(t.id)}" ${(assignments[c.id]||[]).length===1&&assignments[c.id][0]===t.id?'selected':''}>${esc(maskLabel(t,i))}${t.state.mask?'':' · Not tracked'}</option>`).join('')}</select></label></div>`;}).join('')||'<p class="note">No characters assigned to this segment.</p>'}</div></div>
+  const lib=shot().cast_setup,chosen=seg.cast_inputs;
+  return `<section class="segment-inputs"><div class="segment-cast-section"><div class="row spread"><strong>Characters</strong><button id="segment-add-character" class="quiet">${uiIcon('plus')}Add</button></div><div class="segment-character-list" aria-label="Character references" tabindex="0">${chosen.characters.map(id=>lib.characters.find(c=>c.id===id)).map(c=>{return `<div class="segment-character-row"><div class="segment-character-reference">${c.reference?`<img src="${imageAsset(c.reference,256)}" alt="">`:''}<span>${esc(c.name)}</span></div><button class="h3-icon-button quiet" data-character-change="${esc(c.id)}" aria-label="Change ${esc(c.name)}" title="Change character">${uiIcon('swap')}</button><button class="h3-icon-button quiet" data-character-remove="${esc(c.id)}" aria-label="Remove ${esc(c.name)} from segment" title="Remove character">${uiIcon('trash')}</button></div>`;}).join('')||'<p class="note">No characters assigned to this segment.</p>'}</div></div>
     ${state.prompt_needs_update?'<div class="cast-review" role="status">References changed. Review the prompt.<div class="row"><button id="cast-review-prompt" class="quiet">Review prompt</button><button id="cast-confirm-prompt" class="quiet">Keep current prompt</button></div></div>':''}
 </section>`;
 }
 async function setSegmentCastInputs(value,maskChange=null){
   const seg=segmentSelected(),previous=structuredClone(seg.cast_inputs),id=seg.id,path=segmentPath(),cid=S.clip,sid=S.shot;await flushShotAutosave();
   const task=writeQueue.then(async()=>{const c=S.data.clips.find(v=>v.id===cid),current=c.shots.find(v=>v.id===sid).segments.find(v=>v.id===id);if(maskChange){
-      // Apply only this character's choice after earlier point/selection writes.
+      // Apply only this mask's choice after earlier point/selection writes.
       value=structuredClone(current.cast_inputs);
-      if(!value.characters.includes(maskChange.characterId))throw Error('This character is no longer in the segment.');
-      const assignments=characterMasks(value);
-      assignments[maskChange.characterId]=maskChange.id?[maskChange.id]:[];
-      applyCharacterMasks(value,assignments);
+      const others=value.mask_tracks.filter(id=>id!==maskChange.trackId);
+      value.mask_tracks=maskChange.include?[...others,maskChange.trackId]:others;
+      value.mask_assignments={};
     }else if(!sameSettings(current?.cast_inputs,previous))throw Error('Segment inputs changed elsewhere; refresh before editing.');
     mergeSegmentClip(await api(`${path}/${id}`,'PATCH',{revision:c.revision,changes:{cast_inputs:value,use_mask:value.mask_tracks.length>0}}));});writeQueue=task.catch(()=>{});await task;await loadSegmentPlan(true);
 }
@@ -218,14 +241,9 @@ function bindSegmentCast(){
   $$('[data-character-change]').forEach(b=>b.onclick=guarded(()=>castPicker(b.dataset.characterChange)));
   $$('[data-character-remove]').forEach(b=>b.onclick=guarded(async()=>{
     const id=b.dataset.characterRemove,value=structuredClone(segmentSelected().cast_inputs);
-    const assignments=characterMasks(value);delete assignments[id];
     value.characters=value.characters.filter(key=>key!==id);
-    applyCharacterMasks(value,assignments);
+    value.mask_assignments={};
     await setSegmentCastInputs(value);
-  }));
-  $$('[data-character-mask]').forEach(field=>field.onchange=guarded(async()=>{
-    if(field.value==='__retained__')return;
-    await setSegmentCastInputs(null,{characterId:field.dataset.characterMask,id:field.value});
   }));
   syncAnchorGeneration();
   $$('[data-saved-anchor]').forEach(field=>field.onchange=guarded(async()=>{const value=structuredClone(segmentSelected().cast_inputs);value.scene_anchors=$$('[data-saved-anchor]:checked').map(v=>v.dataset.savedAnchor);await setSegmentCastInputs(value);}));

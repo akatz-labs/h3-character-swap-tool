@@ -113,6 +113,7 @@ export const MASK_FIELDS = [
   "mask_versions",
   "mask_points",
   "mask_applied_points",
+  "mask_frames",
   "mask_coverage",
   "mask_empty_frames",
   "mask_approved",

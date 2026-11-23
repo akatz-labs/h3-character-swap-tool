@@ -506,28 +506,15 @@ export function layout(s: R, op: R, env: Environment) {
         !!seg.prompt || PROMPT_FIELDS.some((k) => seg[k] != null);
     }
     if (s.cast_setup) {
-      const sources =
-        ["merge", "boundary"].includes(op.operation) ||
-        (overlaps.length && a === overlaps[0].start)
-          ? overlaps
-          : [];
+      // Every piece keeps the characters and masks of the segments it came
+      // from; a mask's tracked frames are sliced to each piece at render time.
       seg.cast_inputs = Object.fromEntries(
         COLLECTIONS.map((k) => [
           k,
-          [...new Set(sources.flatMap((v) => v.cast_inputs[k]))],
+          [...new Set(overlaps.flatMap((v) => v.cast_inputs[k]))],
         ]),
       );
-      if (sources.some((item) => "mask_assignments" in item.cast_inputs)) {
-        const assignments: Record<string, string[]> = {};
-        for (const item of sources)
-          for (const [id, masks] of Object.entries(
-            cast.characterMasks(item.cast_inputs),
-          ))
-            assignments[id] = [
-              ...new Set([...(assignments[id] || []), ...masks]),
-            ];
-        cast.applyCharacterMasks(seg.cast_inputs, assignments);
-      }
+      seg.cast_inputs.mask_assignments = {};
       seg.cast_prompt_signature = null;
       seg.needs_review = true;
     }

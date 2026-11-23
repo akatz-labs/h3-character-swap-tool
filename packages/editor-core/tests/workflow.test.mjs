@@ -35,7 +35,10 @@ test('masked hosted plan freezes selected segment masks and rejects untracked se
  const seg=shot.segments[0];seg.use_mask=true;seg.cast_inputs.mask_tracks=['m'];
  shot.cast_setup.mask_tracks=[{id:'m',segment_id:seg.id,character_id:null,state:{mask:'mask-video',mask_base:null,mask_points:[],mask_applied_points:[],expansion:24}}];
  const result=plan(input,env);assert.equal(result.guided.masks[0].mask,'mask-video');assert.equal(result.guided.masks[0].expansion,24);assert(!result.guided.references.includes('mask-video'));
- shot.cast_setup.mask_tracks[0].state.mask=null;assert.throws(()=>plan(input,env),/Track selected masks/);
+ shot.cast_setup.mask_tracks[0].state.mask_frames=[seg.start,seg.end];assert.equal(plan(input,env).guided.masks.length,1);
+ shot.cast_setup.mask_tracks[0].state.mask_frames=[seg.start+1,seg.end];assert.throws(()=>plan(input,env),/Mask 1 doesn’t cover this whole segment/);
+ delete shot.cast_setup.mask_tracks[0].state.mask_frames;
+ shot.cast_setup.mask_tracks[0].state.mask=null;assert.throws(()=>plan(input,env),/Track Mask 1 for this segment, or turn it off/);
 });
 
  test('a character swap freezes references without requiring any guide image',()=>{

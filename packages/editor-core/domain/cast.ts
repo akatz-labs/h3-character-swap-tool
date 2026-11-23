@@ -21,8 +21,9 @@ import {
   hashText,
   anchor,
 } from "./common.js";
-/** UI associations only: generation still uses one union of edit masks.
- * Arrays retain an older combined region (or a merged segment) without dropping inputs.
+/** Retired UI associations: generation uses one union of edit masks, and
+ * `mask_tracks` is now the segment's only mask selection. Writers reset
+ * `mask_assignments` to `{}`; these helpers remain for older saved projects.
  */
 export function characterMasks(selection: R): Record<string, string[]> {
   const result: Record<string, string[]> = {};
@@ -232,6 +233,18 @@ export function validateCatalog(shot: R, value: R) {
       integer(exp) && exp >= 0 && exp <= 256,
       "Mask expansion must be a whole number from 0 to 256",
     );
+    const range = t.state.mask_frames;
+    requireValue(
+      range == null ||
+        (Array.isArray(range) &&
+          range.length === 2 &&
+          integer(range[0]) &&
+          integer(range[1]) &&
+          range[0] >= 0 &&
+          range[0] < range[1] &&
+          range[1] <= frames),
+      "Invalid tracked mask frame range",
+    );
   }
   for (const a of value.scene_anchors) {
     fields(
@@ -286,6 +299,25 @@ export function pendingMasks(c: R, s: R, seg: R): string[] {
   return resolve(c, s, seg).mask_tracks.filter((t: R) =>
     digest(points(t.state.mask_points || [])) !== digest(points(t.state.mask_applied_points || []))
   ).map((t: R) => t.id);
+}
+/**
+ * Whether a track's mask holds every frame of the segment. Tracks keep their
+ * mask when a segment is split or resized, so `mask_frames` (shot frames the
+ * tracked asset covers) can be wider or narrower than the segment. Masks
+ * without a recorded range are assumed to match their segment.
+ */
+export function maskCovers(t: R, seg: R) {
+  const range = t.state?.mask_frames;
+  return !range || (range[0] <= seg.start && range[1] >= seg.end);
+}
+/** The label the editor shows for a mask in this segment's toolbar. */
+export function maskName(s: R, seg: R, id: string) {
+  const tracks = (s.cast_setup?.mask_tracks || []).filter(
+    (t: R) => s.segment_masks_version !== 1 || t.segment_id === seg.id,
+  );
+  const index = tracks.findIndex((t: R) => t.id === id);
+  if (index < 0) return "A selected mask";
+  return tracks[index].name || `Mask ${index + 1}`;
 }
 export function generationInputs(c: R, s: R, seg: R, strict = true) {
   s = renderShot(s, seg);
@@ -392,7 +424,6 @@ export function rebindLayout(s: R, items: R[], env: Environment) {
       items.some((seg) => seg.id === t.segment_id),
     );
   for (const seg of items) {
-    const assignments = characterMasks(seg.cast_inputs), remap: Record<string, string> = {};
     seg.cast_inputs.mask_tracks = seg.cast_inputs.mask_tracks.map(
       (id: string) => {
         let t = tracks.find((v: R) => v.id === id);
@@ -400,11 +431,10 @@ export function rebindLayout(s: R, items: R[], env: Environment) {
           t = cloneTrack(t, seg, env);
           retained.push(t);
         }
-        remap[id] = t.id;
         return t.id;
       },
     );
-    applyCharacterMasks(seg.cast_inputs, Object.fromEntries(Object.entries(assignments).map(([id, masks]) => [id, masks.map(k => remap[k])])));
+    seg.cast_inputs.mask_assignments = {};
     seg.use_mask = !!seg.cast_inputs.mask_tracks.length;
   }
   s.mask_track_history ??= [];
@@ -414,7 +444,7 @@ export function rebindLayout(s: R, items: R[], env: Environment) {
   s.cast_setup.mask_tracks = retained;
 }
 export function restoreTake(s: R, seg: R, take: R, env: Environment) {
-  const selected: string[] = [], remap: Record<string, string> = {}, assignments = characterMasks(seg.cast_inputs),
+  const selected: string[] = [],
     tracks = s.cast_setup.mask_tracks;
   for (const e of take.cast_inputs_snapshot?.mask_tracks || []) {
     let t = tracks.find(
@@ -443,13 +473,12 @@ export function restoreTake(s: R, seg: R, take: R, env: Environment) {
     t.state.subject_index ??= 0;
     delete t.state.mask_coverage;
     delete t.state.mask_empty_frames;
+    delete t.state.mask_frames;
     preserve(t.state, env);
     selected.push(t.id);
-    remap[e.id] = t.id;
   }
   seg.cast_inputs.mask_tracks = selected;
-  seg.cast_inputs.mask_assignments = Object.fromEntries(Object.entries(assignments).map(([id, masks]) => [id, masks.map(k => remap[k]).filter(Boolean)]));
-  seg.cast_inputs.mask_assignments = characterMasks(seg.cast_inputs);
+  seg.cast_inputs.mask_assignments = {};
   seg.use_mask = !!selected.length;
 }
 

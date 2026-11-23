@@ -731,9 +731,6 @@
 .h3-legacy .segment-prompt-mode { margin:0 0 10px;font-size:11px; }
 
 /* Character references and optional edit regions share one compact card. */
-.h3-legacy .character-mask-field { grid-column:1 / -1;display:flex;align-items:center;gap:10px;min-width:0;margin:4px 0 0; }
-.h3-legacy .character-mask-field > span { color:var(--ak-muted);font-size:12px;user-select:none; }
-.h3-legacy .character-mask-field select { flex:1;min-width:0;width:0;max-width:100%;font-size:12px;text-overflow:ellipsis; }
 
 /* Timeline state reflects the reusable continuation chain, not merely saved output. */
 .h3-legacy .segment-dot.state-empty { background:#dba86d; }
