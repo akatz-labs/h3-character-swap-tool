@@ -158,37 +158,45 @@ function maskSchedulePadding() {
   e.paddingTimer=setTimeout(()=>saveMaskPadding(e).catch(()=>{}),350);
   updateMaskEditorStatus();
 }
-async function saveMaskPadding(e=maskEditState) {
-  if (!e || (shot()?.segment_masks_version===1&&!e.trackId)) return;
+// Autosave timers, segment and mask switches and layout edits all flush mask
+// edits. Each editor runs one flush that callers share; two independent ones
+// could each send the same draft against one saved base, and the second would
+// report a false conflict.
+function saveMaskPadding(e=maskEditState) {
+  if (!e || (shot()?.segment_masks_version===1&&!e.trackId)) return Promise.resolve();
   clearTimeout(e.paddingTimer);
-  if (e.paddingSave) {await e.paddingSave; if(e.padding!==e.basePadding)return saveMaskPadding(e); return;}
-  if(e.padding===e.basePadding)return;
-  const value=e.padding, before=e.basePadding;
-  e.paddingError=null;
-  e.paddingSave=maskPatch({expansion:value},'shot',{expansion:before},{clipId:e.key.split(':')[0],shotId:e.key.split(':')[1],trackId:e.trackId}).then(()=>{
-    e.basePadding=value;
-  }).catch(error=>{e.paddingError=error.message;throw error;}).finally(()=>{
-    e.paddingSave=null;
-    if(e===maskEditState && e.key===`${S.clip}:${S.shot}` && $('#mask-save-status'))maskKeepDraft();
-  });
-  updateMaskEditorStatus();
-  await e.paddingSave;
-  if(e.padding!==e.basePadding)return saveMaskPadding(e);
+  // Cleared in .finally, which always runs after this assignment.
+  return e.paddingFlush ??= (async()=>{
+    while(e.padding!==e.basePadding){
+        const value=e.padding, before=e.basePadding;
+        e.paddingError=null;
+        e.paddingSave=maskPatch({expansion:value},'shot',{expansion:before},{clipId:e.key.split(':')[0],shotId:e.key.split(':')[1],trackId:e.trackId}).then(()=>{
+          e.basePadding=value;
+        }).catch(error=>{e.paddingError=error.message;throw error;}).finally(()=>{
+          e.paddingSave=null;
+          if(e===maskEditState && e.key===`${S.clip}:${S.shot}` && $('#mask-save-status'))maskKeepDraft();
+        });
+      updateMaskEditorStatus();
+      await e.paddingSave;
+    }
+  })().finally(()=>{e.paddingFlush=null;});
 }
-async function saveMaskEdits(e=maskEditState) {
-  if(!e)return;
+function saveMaskEdits(e=maskEditState) {
+  if(!e)return Promise.resolve();
   clearTimeout(e.pointsTimer);
-  if(e.creating)await e.creating;
-  if(e.pointSave){await e.pointSave;return saveMaskEdits(e);}
-  if(!e.trackId)return;
-  await saveMaskPadding(e);
-  if(!maskPointDraft(e))return;
-  const points=maskCopy(e.points),before=maskCopy(e.basePoints);
-  e.pointSave=maskPatch({mask_points:points},'shot',{mask_points:before},{clipId:e.key.split(':')[0],shotId:e.key.split(':')[1],trackId:e.trackId}).then(()=>{
-    e.basePoints=points;e.conflict=false;e.saveError=null;
-  }).catch(error=>{e.saveError=error.message;throw error;}).finally(()=>{e.pointSave=null;if(e===maskEditState)maskKeepDraft();});
-  await e.pointSave;
-  if(maskPointDraft(e))return saveMaskEdits(e);
+  return e.pointFlush ??= (async()=>{
+    for(;;){
+      if(e.creating)await e.creating;
+      if(!e.trackId)return;
+      await saveMaskPadding(e);
+      if(!maskPointDraft(e))return;
+      const points=maskCopy(e.points),before=maskCopy(e.basePoints);
+      e.pointSave=maskPatch({mask_points:points},'shot',{mask_points:before},{clipId:e.key.split(':')[0],shotId:e.key.split(':')[1],trackId:e.trackId}).then(()=>{
+        e.basePoints=points;e.conflict=false;e.saveError=null;
+      }).catch(error=>{e.saveError=error.message;throw error;}).finally(()=>{e.pointSave=null;if(e===maskEditState)maskKeepDraft();});
+      await e.pointSave;
+    }
+  })().finally(()=>{e.pointFlush=null;});
 }
 // Create the server track without remounting the preview or dropping rapid clicks.
 function createPointMask(e,segmentId) {

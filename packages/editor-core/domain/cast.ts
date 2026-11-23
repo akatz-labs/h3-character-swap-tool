@@ -418,22 +418,49 @@ export function cloneTrack(t: R, seg: R, env: Environment) {
     );
   return r;
 }
-export function rebindLayout(s: R, items: R[], env: Environment) {
+/**
+ * Give each new piece of a layout its own copies of the masks it inherits.
+ * `sources` names the earlier segments a piece came from: masks turned off for
+ * the render stay with the piece too, when it holds their tracked mask or points.
+ */
+export function rebindLayout(
+  s: R,
+  items: R[],
+  env: Environment,
+  sources: (seg: R) => string[] = () => [],
+) {
   const tracks = s.cast_setup.mask_tracks,
     retained = tracks.filter((t: R) =>
       items.some((seg) => seg.id === t.segment_id),
     );
   for (const seg of items) {
-    seg.cast_inputs.mask_tracks = seg.cast_inputs.mask_tracks.map(
-      (id: string) => {
-        let t = tracks.find((v: R) => v.id === id);
-        if (t.segment_id !== seg.id) {
-          t = cloneTrack(t, seg, env);
-          retained.push(t);
+    const clones = new Map<string, R>(),
+      bind = (t: R) => {
+        if (t.segment_id === seg.id) return t;
+        let r = clones.get(t.id);
+        if (!r) {
+          r = cloneTrack(t, seg, env);
+          clones.set(t.id, r);
+          retained.push(r);
         }
-        return t.id;
-      },
+        return r;
+      };
+    seg.cast_inputs.mask_tracks = seg.cast_inputs.mask_tracks.map(
+      (id: string) => bind(tracks.find((v: R) => v.id === id)).id,
     );
+    for (const t of tracks) {
+      if (
+        t.segment_id === seg.id ||
+        clones.has(t.id) ||
+        !sources(seg).includes(t.segment_id)
+      )
+        continue;
+      const r = cloneTrack(t, seg, env);
+      if (r.state.mask || r.state.mask_points?.length) {
+        clones.set(t.id, r);
+        retained.push(r);
+      }
+    }
     seg.cast_inputs.mask_assignments = {};
     seg.use_mask = !!seg.cast_inputs.mask_tracks.length;
   }

@@ -420,6 +420,8 @@ export function view(c: R, s: R) {
     history_choices: HISTORY,
   };
 }
+// The earlier segments each new layout piece came from, for carrying masks.
+const pieceSources = new WeakMap<R, string[]>();
 export function layout(s: R, op: R, env: Environment) {
   const old = current(s),
     end = s.end - s.start;
@@ -473,6 +475,10 @@ export function layout(s: R, op: R, env: Environment) {
     let overlaps = old.filter((s) => s.end > a && s.start < b);
     if (op.operation === "boundary") overlaps = [old[i]];
     const seg = fresh(s, a, b, i, env);
+    pieceSources.set(
+      seg,
+      overlaps.map((v) => v.id),
+    );
     if (overlaps.length) {
       const f = overlaps[0];
       Object.assign(
@@ -541,7 +547,8 @@ export function applyLayout(c: R, s: R, op: R, env: Environment) {
     segments: current(s),
     selected_render: s.selected_render ?? null,
   });
-  if (s.segment_masks_version === 1) cast.rebindLayout(s, items, env);
+  if (s.segment_masks_version === 1)
+    cast.rebindLayout(s, items, env, (seg) => pieceSources.get(seg) ?? []);
   s.segments = items;
   s.selected_render = null;
   c.result = null;

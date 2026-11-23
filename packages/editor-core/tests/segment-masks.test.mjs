@@ -49,6 +49,42 @@ test("both halves of a split keep the characters and the tracked mask", () => {
   assert.notEqual(masksOf(clip, left)[0].id, masksOf(clip, right)[0].id);
 });
 
+const ownTracks = (clip, seg) => clip.shots[0].cast_setup.mask_tracks.filter((t) => t.segment_id === seg.id);
+// A mask kept in the segment but not used in its render.
+function excluded(state) {
+  const clip = tracked(),
+    seg = clip.shots[0].segments[0];
+  Object.assign(seg, { use_mask: false });
+  seg.cast_inputs.mask_tracks = [];
+  if (state) clip.shots[0].cast_setup.mask_tracks[0].state = state;
+  return clip;
+}
+
+test("a split keeps a tracked mask that is not used in the render on both halves", () => {
+  const clip = edit(excluded(), layout({ operation: "split", frame: 24 }));
+  for (const seg of clip.shots[0].segments) {
+    assert.deepEqual(seg.cast_inputs.mask_tracks, []);
+    assert.equal(seg.use_mask, false);
+    const [mask, ...extra] = ownTracks(clip, seg);
+    assert.equal(extra.length, 0);
+    assert.equal(mask.name, "Fox");
+    assert.equal(mask.state.mask, "mask-video");
+    assert.deepEqual(mask.state.mask_frames, [0, 48]);
+  }
+});
+
+test("a split gives an untracked mask that is not used in the render only to halves holding its points", () => {
+  const point = { id: "p", frame: 4, x: 0.5, y: 0.5, label: 1 },
+    clip = edit(
+      excluded({ mask: null, expansion: 64, mask_points: [point], mask_applied_points: [] }),
+      layout({ operation: "split", frame: 24 }),
+    ),
+    [left, right] = clip.shots[0].segments;
+  const [mask] = ownTracks(clip, left);
+  assert.deepEqual(mask.state.mask_points, [point]);
+  assert.deepEqual(ownTracks(clip, right), []);
+});
+
 test("extending a segment past its mask's tracked frames needs tracking", () => {
   const split = edit(tracked(), layout({ operation: "split", frame: 24 })),
     shot = split.shots[0];
