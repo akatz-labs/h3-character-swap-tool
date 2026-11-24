@@ -31,6 +31,7 @@ const request = z.discriminatedUnion("operation", [
     operation: z.enum([
       "segments",
       "render-plan",
+      "segment-layout-preview",
       "workspace",
       "guides",
       "edit",
@@ -58,6 +59,11 @@ export function plan(input: unknown, env: Environment = environment): unknown {
   switch (r.operation) {
     case "segments":
       return segments.view(c, s);
+    case "segment-layout-preview":
+      return {
+        revision: c.revision,
+        segments: segments.layout(s, record.parse(r.command?.body?.operation), env),
+      };
     case "render-plan":
       return windowPlan({ ...s, ...r.settings });
     case "workspace":
