@@ -79,25 +79,14 @@ def migrate_store():
         store.set_setting('segment_masks_schema', 1)
 
 
-def rebind_layout(shot, items):
-    """Carried selections get new records; fresh segments stay empty."""
+def rebind_layout(shot, items, confirmed=()):
+    retained_ids = {item['id'] for item in items}
     tracks = shot['cast_setup']['mask_tracks']
-    retained = [t for t in tracks if any(s['id'] == t.get('segment_id') for s in items)]
-    for segment in items:
-        assignments = cast.character_masks(segment['cast_inputs'])
-        remap = {}
-        selected = []
-        for key in segment['cast_inputs']['mask_tracks']:
-            track = next(t for t in tracks if t['id'] == key)
-            if track.get('segment_id') != segment['id']:
-                track = clone(track, segment)
-                retained.append(track)
-            selected.append(track['id'])
-            remap[key] = track['id']
-        cast.apply_character_masks(segment['cast_inputs'], {key: [remap[v] for v in values] for key, values in assignments.items()})
-        segment['use_mask'] = bool(selected)
-    shot.setdefault('mask_track_history', []).extend(copy.deepcopy(t) for t in tracks if t not in retained)
-    shot['cast_setup']['mask_tracks'] = retained
+    removed = [track for track in tracks if track.get('segment_id') not in retained_ids]
+    if sorted(confirmed) != sorted(track['id'] for track in removed):
+        raise store.Conflict('Review the masks removed by this layout change')
+    shot.setdefault('mask_track_history', []).extend(copy.deepcopy(removed))
+    shot['cast_setup']['mask_tracks'] = [track for track in tracks if track.get('segment_id') in retained_ids]
 
 
 def restore_take(shot, segment, take):

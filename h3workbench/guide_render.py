@@ -145,6 +145,7 @@ def execute(job, directory, *, attach=True):
     reference_names = [f'character-{i}.png' for i in range(len(references))]
     files = dict(zip(names, inputs)) | {name: store.path(ref['asset']) for name, ref in zip(reference_names, references)}
     use_mask = mode == 'swap_pika' and segments.render_shot(shot, segment).get('use_mask', True)
+    use_mask = use_mask and bool(cast.resolve(clip, shot, segment)['mask_tracks'])
     mask_file = None
     if use_mask:
         mask_file = 'segment-mask.npz'

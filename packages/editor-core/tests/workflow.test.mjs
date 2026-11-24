@@ -30,7 +30,7 @@ test('current workflow freezes video, character references and timed guides sepa
  assert.ok(result.guided.guides.every(g=>!result.guided.references.includes(g.asset)));
 });
 
-test('masked hosted plan freezes selected segment masks and rejects untracked selections',()=>{
+test('masked hosted plan freezes selected segment masks and ignores untracked drafts',()=>{
  const input=structuredClone(cases.find(c=>c.name==='guided input').input),shot=input.clip.shots.find(s=>s.id===input.shotId);adoptWorkflow(shot,env);input.command.body.options={};
  const seg=shot.segments[0];seg.use_mask=true;seg.cast_inputs.mask_tracks=['m'];
  shot.cast_setup.mask_tracks=[{id:'m',segment_id:seg.id,character_id:null,state:{mask:'mask-video',mask_base:null,mask_points:[],mask_applied_points:[],expansion:24}}];
@@ -38,7 +38,7 @@ test('masked hosted plan freezes selected segment masks and rejects untracked se
  shot.cast_setup.mask_tracks[0].state.mask_frames=[seg.start,seg.end];assert.equal(plan(input,env).guided.masks.length,1);
  shot.cast_setup.mask_tracks[0].state.mask_frames=[seg.start+1,seg.end];assert.throws(()=>plan(input,env),/Mask 1 doesn’t cover this whole segment/);
  delete shot.cast_setup.mask_tracks[0].state.mask_frames;
- shot.cast_setup.mask_tracks[0].state.mask=null;assert.throws(()=>plan(input,env),/Track Mask 1 for this segment, or turn it off/);
+ shot.cast_setup.mask_tracks[0].state.mask=null;assert.equal(plan(input,env).guided.masks?.length||0,0);
 });
 
  test('a character swap freezes references without requiring any guide image',()=>{

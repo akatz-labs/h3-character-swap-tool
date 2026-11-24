@@ -97,6 +97,18 @@ def preserve(s):
         )
 
 
+def tracked(state):
+    if not state.get("mask"):
+        return False
+    has_track = False
+    for version in state.get("mask_versions", []):
+        if not version.get("label", "").lower().startswith("edited frame"):
+            has_track = True
+        if version["asset"] == state["mask"]:
+            return version.get("tracked", has_track)
+    return True  # Imported masks predate version metadata.
+
+
 def install(s, result, label, points, current=True):
     preserve(s)
     s.setdefault("mask_base", s.get("mask"))
@@ -106,6 +118,7 @@ def install(s, result, label, points, current=True):
             {
                 "asset": result["asset"],
                 "label": label,
+                "tracked": not label.startswith("Edited frame") or tracked(s),
                 "points": points,
                 "created": store.now(),
                 "job": result.get("job"),

@@ -9,6 +9,8 @@ import re
 from . import media, render_models, store
 from worker_nodes.h3_workbench_runtime.segment_planning import plan_segment
 
+MIN_SEGMENT_FRAMES = 24  # Source video is normalized to 24 fps.
+
 PROMPT_FIELDS = {'performance_prompt', 'dialogue', 'speaker'}
 RENDER_FIELDS = {'lora_id', 'use_mask', 'use_source_audio'}
 EDITABLE = {'prompt', 'seed', 'connection', 'history_frames', 'anchor_mode', 'anchor', 'cast_inputs', 'render_mode', 'guide_prompt'} | PROMPT_FIELDS | RENDER_FIELDS
@@ -322,7 +324,11 @@ def layout(shot, operation):
         frames = operation.get('frames')
         if type(frames) is not int or frames < 1:
             raise ValueError('Choose a positive whole-frame segment length')
+        if frames < min(MIN_SEGMENT_FRAMES, end):
+            raise ValueError('Each segment needs at least 1 second (24 frames).')
         bounds = [*range(0, end, frames), end]
+        if len(bounds) > 2 and end - bounds[-2] < MIN_SEGMENT_FRAMES:
+            bounds.pop(-2)
     elif op == 'split':
         frame = operation.get('frame')
         if type(frame) is not int or not 0 < frame < end or frame in bounds:
@@ -346,6 +352,8 @@ def layout(shot, operation):
         exact = next((s for s in old if (s['start'],s['end']) == (a,b)), None)
         if exact:
             result.append(copy.deepcopy(exact)); continue
+        if b - a < min(MIN_SEGMENT_FRAMES, end):
+            raise ValueError('Each segment needs at least 1 second (24 frames).')
         overlaps = [s for s in old if s['end'] > a and s['start'] < b]
         # Moving a boundary changes duration, not either segment's cast or prompt.
         if op == 'boundary':
@@ -369,9 +377,12 @@ def layout(shot, operation):
             seg['needs_review'] = bool(seg['prompt']) or any(seg[k] is not None for k in PROMPT_FIELDS)
         if 'cast_setup' in shot:
             from . import cast
-            cast_sources = overlaps if op in {'merge', 'boundary'} or (overlaps and a == overlaps[0]['start']) else []
+            cast_sources = overlaps if shot.get('segment_masks_version') == 1 or op in {'merge', 'boundary'} or (overlaps and a == overlaps[0]['start']) else []
             seg['cast_inputs'] = {key: list(dict.fromkeys(v for old_seg in cast_sources for v in old_seg['cast_inputs'][key])) for key in cast.COLLECTIONS}
-            if any('mask_assignments' in item['cast_inputs'] for item in cast_sources):
+            if shot.get('segment_masks_version') == 1:
+                seg['cast_inputs'].update(mask_tracks=[], mask_assignments={})
+                seg['use_mask'] = False
+            elif any('mask_assignments' in item['cast_inputs'] for item in cast_sources):
                 assignments = {}
                 for old_seg in cast_sources:
                     for character, masks in cast.character_masks(old_seg['cast_inputs']).items():
@@ -403,7 +414,7 @@ def apply_layout(clip_id, shot_id, revision, operation):
             'segments':current(shot), 'selected_render':shot.get('selected_render')})
         if shot.get('segment_masks_version') == 1:
             from . import segment_masks
-            segment_masks.rebind_layout(shot, items)
+            segment_masks.rebind_layout(shot, items, operation.get('remove_mask_ids', []))
         shot['segments'] = items
         shot['selected_render'] = None
         c['result'] = None
@@ -422,9 +433,9 @@ def edit(clip_id, shot_id, segment_id, revision, changes):
                 and ('cast_setup' not in shot or prompt_mode(seg) == 'manual')):
             # Preserve edited text while changing dialogue metadata.
             seg['performance_prompt'] = prompt(c, shot, seg)
-        seg.update(changes); seg['needs_review'] = False
         if shot.get('segment_masks_version') == 1:
-            seg['use_mask'] = bool(seg['cast_inputs']['mask_tracks'])
+            seg.setdefault('use_mask', bool(seg['cast_inputs']['mask_tracks']))
+        seg.update(changes); seg['needs_review'] = False
         if 'performance_prompt' in changes:
             seg['prompt_mode'] = 'manual'
         if 'cast_setup' in shot:

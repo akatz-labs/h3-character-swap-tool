@@ -265,6 +265,15 @@ export function validateCatalog(shot: R, value: R) {
   }
   return value;
 }
+export function hasTrackedMask(state: R) {
+  if (!state.mask) return false;
+  let tracked = false;
+  for (const version of state.mask_versions || []) {
+    if (!/^(edited frame|frame update)/i.test(version.label || "")) tracked = true;
+    if (version.asset === state.mask) return version.tracked ?? tracked;
+  }
+  return true;
+}
 export function resolve(clip: R, shot: R, segment: R) {
   const lib = validateCatalog(
       shot,
@@ -279,6 +288,8 @@ export function resolve(clip: R, shot: R, segment: R) {
     result[k] = sel[k].map((id: string) =>
       copy(lib[k].find((r: R) => r.id === id)),
     );
+  if (shot.segment_masks_version === 1)
+    result.mask_tracks = lib.mask_tracks.filter((t: R) => t.segment_id === segment.id && hasTrackedMask(t.state)).map((t: R) => copy(t));
   // Associations never become character targeting in the current workflow.
   for (const t of result.mask_tracks) t.character_id = null;
   return result;
@@ -301,8 +312,7 @@ export function pendingMasks(c: R, s: R, seg: R): string[] {
   ).map((t: R) => t.id);
 }
 /**
- * Whether a track's mask holds every frame of the segment. Tracks keep their
- * mask when a segment is split or resized, so `mask_frames` (shot frames the
+ * Older layouts retained masks on split or resize, so `mask_frames` (shot frames the
  * tracked asset covers) can be wider or narrower than the segment. Masks
  * without a recorded range are assumed to match their segment.
  */
@@ -404,71 +414,16 @@ export function preserve(state: R, env: Environment) {
       created: env.now(),
     });
 }
-export function cloneTrack(t: R, seg: R, env: Environment) {
-  const r = copy(t);
-  Object.assign(r, {
-    id: env.uid("mask-"),
-    segment_id: seg.id,
-    character_id: null,
-    legacy_id: t.legacy_id ?? t.id,
-  });
-  for (const k of ["mask_points", "mask_applied_points"])
-    r.state[k] = (r.state[k] || []).filter(
-      (p: R) => p.frame >= seg.start && p.frame < seg.end,
-    );
-  return r;
-}
-/**
- * Give each new piece of a layout its own copies of the masks it inherits.
- * `sources` names the earlier segments a piece came from: masks turned off for
- * the render stay with the piece too, when it holds their tracked mask or points.
- */
-export function rebindLayout(
-  s: R,
-  items: R[],
-  env: Environment,
-  sources: (seg: R) => string[] = () => [],
-) {
-  const tracks = s.cast_setup.mask_tracks,
-    retained = tracks.filter((t: R) =>
-      items.some((seg) => seg.id === t.segment_id),
-    );
-  for (const seg of items) {
-    const clones = new Map<string, R>(),
-      bind = (t: R) => {
-        if (t.segment_id === seg.id) return t;
-        let r = clones.get(t.id);
-        if (!r) {
-          r = cloneTrack(t, seg, env);
-          clones.set(t.id, r);
-          retained.push(r);
-        }
-        return r;
-      };
-    seg.cast_inputs.mask_tracks = seg.cast_inputs.mask_tracks.map(
-      (id: string) => bind(tracks.find((v: R) => v.id === id)).id,
-    );
-    for (const t of tracks) {
-      if (
-        t.segment_id === seg.id ||
-        clones.has(t.id) ||
-        !sources(seg).includes(t.segment_id)
-      )
-        continue;
-      const r = cloneTrack(t, seg, env);
-      if (r.state.mask || r.state.mask_points?.length) {
-        clones.set(t.id, r);
-        retained.push(r);
-      }
-    }
-    seg.cast_inputs.mask_assignments = {};
-    seg.use_mask = !!seg.cast_inputs.mask_tracks.length;
-  }
+export function rebindLayout(s: R, items: R[], confirmed: string[]) {
+  const retained = new Set(items.filter(seg => s.segments.some((old: R) =>
+    old.id === seg.id && old.start === seg.start && old.end === seg.end)).map(seg => seg.id));
+  const tracks: R[] = s.cast_setup.mask_tracks;
+  const removed = tracks.filter(t => !retained.has(t.segment_id));
+  requireValue(Array.isArray(confirmed) && digest([...confirmed].sort()) === digest(removed.map(t => t.id).sort()),
+    "Review the masks removed by this layout change");
   s.mask_track_history ??= [];
-  s.mask_track_history.push(
-    ...copy(tracks.filter((t: R) => !retained.includes(t))),
-  );
-  s.cast_setup.mask_tracks = retained;
+  s.mask_track_history.push(...copy(removed));
+  s.cast_setup.mask_tracks = tracks.filter(t => retained.has(t.segment_id));
 }
 export function restoreTake(s: R, seg: R, take: R, env: Environment) {
   const selected: string[] = [],

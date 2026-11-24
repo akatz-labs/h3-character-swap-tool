@@ -291,7 +291,7 @@ export function edit(
       // A new mask joins the segment's edit region until it is turned off.
       seg.cast_inputs.mask_tracks.push(r.id);
       seg.cast_inputs.mask_assignments = {};
-      seg.use_mask = true;
+      if (!local.length) seg.use_mask = true;
       c.result = null;
     } else if (["PATCH", "DELETE"].includes(method) && parts.length === 3) {
       const t = cast.track(s, parts[2]);
@@ -304,10 +304,10 @@ export function edit(
         s.cast_setup.mask_tracks = tracks.filter((v: R) => v !== t);
         for (const seg of s.segments) {
           const sel = seg.cast_inputs;
-          if (!sel.mask_tracks.includes(t.id)) continue;
+          if (seg.id !== t.segment_id) continue;
           sel.mask_tracks = sel.mask_tracks.filter((k: string) => k !== t.id);
           sel.mask_assignments = {};
-          seg.use_mask = !!sel.mask_tracks.length;
+          if (!s.cast_setup.mask_tracks.some((track: R) => track.segment_id === seg.id)) seg.use_mask = false;
         }
         c.result = null;
       }

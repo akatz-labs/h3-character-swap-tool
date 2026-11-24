@@ -34,7 +34,7 @@ app=app.replace('S.worker = e.target.value;', 'S.worker = e.target.value; option
 app=app.replace('S.data = next;', 'S.data = next; options.onState?.(next);');
 app=app.replace('function draw() {','function draw() {\n  normalizeShotPage();\n  syncClipHeader();\n  if(S.batch)options.onLocation?.({projectId:S.batch,page:S.tab});');
 app=app.replace('function syncWorkspace() {','function syncWorkspace() {\n  options.onState?.({...S.data, jobs:[...S.data.jobs]});\n  syncClipHeader();');
-const prefix=`import {plan as planEditorRequest,WORKFLOW,MODEL_PRESETS} from '../../domain/index.ts';
+const prefix=`import {plan as planEditorRequest,hasTrackedMask,WORKFLOW,MODEL_PRESETS} from '../../domain/index.ts';
 import {createImageWipe} from '../../static/vendor/report-media.js';
 import {bindFileDrop} from '../src/file-drop.ts';
 import {prepareImageUpload} from '../src/image-upload.ts';

@@ -168,6 +168,7 @@ def graph(clip, shot, items, index, job, directory):
     if 'cast_setup' in shot:
         from . import cast
         chosen = cast.resolve(clip, shot, seg)
+        virtual['use_mask'] = virtual.get('use_mask', True) and bool(chosen['mask_tracks'])
         virtual['reference'] = chosen['characters'][0]['reference']
         virtual['anchor'] = None
         virtual['use_anchor'] = False

@@ -267,6 +267,9 @@ def resolve(clip, shot, segment):
     for collection in COLLECTIONS:
         by_id = {row['id']: row for row in library[collection]}
         result[collection] = [copy.deepcopy(by_id[key]) for key in chosen[collection]]
+    if shot.get('segment_masks_version') == 1:
+        result['mask_tracks'] = [copy.deepcopy(t) for t in library['mask_tracks']
+                                 if t.get('segment_id') == segment['id'] and masks.tracked(t['state'])]
     for track in result['mask_tracks']:
         track['character_id'] = None
     return result
@@ -401,7 +404,7 @@ def validate_masks(clip, shot, segment):
     """Masks describe the edit region, independently of character references."""
     chosen = resolve(clip, shot, segment)
     if segments.render_shot(shot, segment).get('use_mask', True):
-        if not chosen['mask_tracks']:
+        if not chosen['mask_tracks'] and shot.get('segment_masks_version') != 1:
             raise ValueError('Select at least one mask track or disable masks')
         begin = max(0, segment['start'] - segments.effective_history(segment))
         for t in chosen['mask_tracks']:

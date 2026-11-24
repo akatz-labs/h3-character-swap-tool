@@ -625,3 +625,22 @@ def test_concurrent_clicks_only_admit_one_segment_job(scene):
     with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(lambda _:submit(),range(2)))
     assert results.count('conflict')==1
     assert len(store.pending_jobs())==1
+
+
+def test_minimum_applies_only_to_changed_ranges(scene):
+    _, shot, _ = scene
+    shot['end'] = shot['start'] + 107
+    shot['segments'] = segments.layout(shot, {'operation': 'partition', 'frames': 48})
+    assert [(s['start'], s['end']) for s in shot['segments']] == [(0, 48), (48, 107)]
+    for op in ({'operation': 'split', 'frame': 23},
+               {'operation': 'boundary', 'index': 1, 'frame': 84},
+               {'operation': 'partition', 'frames': 23}):
+        with pytest.raises(ValueError, match='at least 1 second'):
+            segments.layout(shot, op)
+    assert segments.layout(shot, {'operation': 'split', 'frame': 24})[1]['end'] == 48
+    shot['segments'][0]['end'] = shot['segments'][1]['start'] = 1
+    repaired = segments.layout(shot, {'operation':'boundary', 'index':1, 'frame':24})
+    assert repaired[0]['end'] == 24
+    shot['segments'] = None
+    shot['end'] = shot['start'] + 12
+    assert len(segments.layout(shot, {'operation':'partition', 'frames':24})) == 1

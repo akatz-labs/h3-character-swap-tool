@@ -25,6 +25,6 @@ test('rendering keeps references separate and emits two edit masks without chara
  applyCharacterMasks(seg.cast_inputs,{[a.id]:['x'],[b.id]:['y']});seg.use_mask=true;
  let output=plan(input,env);assert.deepEqual(output.guided.masks.map(m=>m.mask),['video-x','video-y']);assert.deepEqual(output.guided.references,[a.reference,'second-image']);assert.equal(output.guided.guides.length,0);
  assert(output.guided.masks.every(t=>!t.character_id));
- applyCharacterMasks(seg.cast_inputs,{[a.id]:['x'],[b.id]:['x']});output=plan(input,env);assert.equal(output.guided.masks.length,1);
+ applyCharacterMasks(seg.cast_inputs,{[a.id]:['x'],[b.id]:['x']});output=plan(input,env);assert.equal(output.guided.masks.length,2);
  applyCharacterMasks(seg.cast_inputs,{});seg.use_mask=false;output=plan(input,env);assert.equal(output.guided.masks?.length||0,0);
 });

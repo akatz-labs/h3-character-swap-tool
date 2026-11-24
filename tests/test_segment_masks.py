@@ -46,12 +46,12 @@ def test_lazy_mask_creation_delete_recreate_stays_optional(project):
     assert result.status_code==200,result.text
     c=result.json();sh=c['shots'][0];track=sh['cast_setup']['mask_tracks'][-1]
     assert track['name']=='Mask 1' and track['segment_id']==b['id']
-    assert not sh['segments'][1]['use_mask'] and sh['segments'][1]['cast_inputs']['mask_tracks']==[]
+    assert sh['segments'][1]['use_mask'] and sh['segments'][1]['cast_inputs']['mask_tracks']==[track['id']]
     assert sh['segments'][0]==before and sh['cast_setup']['mask_tracks'][0]==first_track
     bad=client.patch(base+'?track_id='+track['id'],json={'revision':c['revision'],'changes':{'mask_points':[{'id':'bad','frame':2,'x':.5,'y':.4,'label':1}]}})
     assert bad.status_code==400
     chosen=copy.deepcopy(sh['segments'][1]['cast_inputs']);chosen['mask_tracks']=[]
-    result=client.patch(base+'/segments/'+b['id'],json={'revision':c['revision'],'changes':{'cast_inputs':chosen}})
+    result=client.patch(base+'/segments/'+b['id'],json={'revision':c['revision'],'changes':{'cast_inputs':chosen,'use_mask':False}})
     assert result.status_code==200,result.text
     saved=store.clip_get(cid)['shots'][0]
     assert not saved['segments'][1]['use_mask'] and saved['segments'][0]==before
@@ -85,11 +85,13 @@ def test_new_layout_cannot_share_mutable_mask_records(scene):
     c,old=scene;s=cast.prepare_upgrade(c,old);segment_masks.migrate_shot(c,s)
     items=segments.layout(s,{'operation':'split','frame':60})
     old_first=copy.deepcopy(s['cast_setup']['mask_tracks'][0])
-    segment_masks.rebind_layout(s,items);s['segments']=items
+    with pytest.raises(store.Conflict):
+        segment_masks.rebind_layout(s,items)
+    segment_masks.rebind_layout(s,items,[old_first['id']]);s['segments']=items
     segments.validate(s,items);cast.validate_catalog(s,s['cast_setup'])
     assert items[1]['cast_inputs']['mask_tracks']==[] and not items[1]['use_mask']
-    first=cast.track(s,items[0]['cast_inputs']['mask_tracks'][0])
-    assert first['id']!=old_first['id'] and first['segment_id']==items[0]['id']
+    assert items[0]['cast_inputs']['mask_tracks']==[]
+    assert [t['segment_id'] for t in s['cast_setup']['mask_tracks']]==[items[2]['id']]
     assert any(t['id']==old_first['id'] for t in s['mask_track_history'])
 
 
@@ -166,7 +168,7 @@ def test_shared_character_mask_survives_character_removal_and_mask_delete(projec
     response=client.request('DELETE',base+'/cast/characters/'+a,json={'revision':c['revision']})
     assert response.status_code==200,response.text
     c=response.json();chosen=c['shots'][0]['segments'][0]['cast_inputs']
-    assert chosen['mask_tracks']==[mask] and chosen['mask_assignments']=={b:[mask]}
+    assert chosen['mask_tracks']==[mask] and chosen['mask_assignments']=={}
     # The deleted character may also be removed from another segment, but deleting
     # this segment's mask must leave the resulting other segment untouched.
     other=copy.deepcopy(c['shots'][0]['segments'][1])

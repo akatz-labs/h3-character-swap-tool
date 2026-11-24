@@ -26,6 +26,7 @@ Approved design: `docs/design/shot-outputs-20261109` (card A, viewer, failure, a
 | Shared sidebar geometry — [web/src/project-sidebar.css](../packages/editor-core/web/src/project-sidebar.css) | `.h3-project-sidebar`, navigation header, divider and footer | Same padding, typography and footer anchor across both views; validate bounding boxes when switching tabs |
 | `ProjectNavigation` — [web/src/ProjectNavigation.tsx](../packages/editor-core/web/src/ProjectNavigation.tsx) | Editor and Assets project headers | Shots / Assets; shared project chooser, per-project pencil and rename/delete dialog, with confirmation before permanent deletion |
 | `Icon`, `Dialog`, `SelectMenu`, `WorkerStatusIcon` — `@akatz/app-kit/react` | React shell, worker picker, Assets | Use pinned app-kit implementations; do not fork icon paths or generic shell controls |
+| `maskRemovalDialog` — `static/app.js` | Delete a mask or change masked segment boundaries | Compact confirmation lists the affected masks by segment and focuses Cancel. |
 | `dialog`, `videoPreview` — `static/app.js`, `static/media-previews.js` | Legacy modal lifecycle and cached playback | Existing cancellation, focus and cleanup; never instantiate a second media loader |
 | `static/ui-components.css`, `static/select.css`, `web/src/theme.css` | Shared visual tokens, card/inspector surfaces, native selects | Keep slate/mint branding; focus, pointer, disabled and narrow states |
 

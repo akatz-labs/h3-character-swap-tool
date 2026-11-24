@@ -420,8 +420,8 @@ export function view(c: R, s: R) {
     history_choices: HISTORY,
   };
 }
-// The earlier segments each new layout piece came from, for carrying masks.
-const pieceSources = new WeakMap<R, string[]>();
+const MIN_SEGMENT_FRAMES = 24; // Source video is normalized to 24 fps.
+
 export function layout(s: R, op: R, env: Environment) {
   const old = current(s),
     end = s.end - s.start;
@@ -431,11 +431,13 @@ export function layout(s: R, op: R, env: Environment) {
       integer(op.frames) && op.frames >= 1,
       "Choose a positive whole-frame segment length",
     );
+    requireValue(op.frames >= Math.min(MIN_SEGMENT_FRAMES, end), "Each segment needs at least 1 second (24 frames).");
     bounds = [];
     for (let n = 0; n < end; n += op.frames) {
       requireValue(bounds.length < 1000, "Choose between 1 and 1000 segments");
       bounds.push(n);
     }
+    if (bounds.length > 1 && end - bounds[bounds.length - 1] < MIN_SEGMENT_FRAMES) bounds.pop();
     bounds.push(end);
   } else if (op.operation === "split") {
     requireValue(
@@ -472,13 +474,11 @@ export function layout(s: R, op: R, env: Environment) {
       result.push(copy(exact));
       continue;
     }
+    requireValue(b - a >= Math.min(MIN_SEGMENT_FRAMES, end), "Each segment needs at least 1 second (24 frames).");
     let overlaps = old.filter((s) => s.end > a && s.start < b);
     if (op.operation === "boundary") overlaps = [old[i]];
     const seg = fresh(s, a, b, i, env);
-    pieceSources.set(
-      seg,
-      overlaps.map((v) => v.id),
-    );
+
     if (overlaps.length) {
       const f = overlaps[0];
       Object.assign(
@@ -512,14 +512,17 @@ export function layout(s: R, op: R, env: Environment) {
         !!seg.prompt || PROMPT_FIELDS.some((k) => seg[k] != null);
     }
     if (s.cast_setup) {
-      // Every piece keeps the characters and masks of the segments it came
-      // from; a mask's tracked frames are sliced to each piece at render time.
+
       seg.cast_inputs = Object.fromEntries(
         COLLECTIONS.map((k) => [
           k,
           [...new Set(overlaps.flatMap((v) => v.cast_inputs[k]))],
         ]),
       );
+      if (s.segment_masks_version === 1) {
+        seg.cast_inputs.mask_tracks = [];
+        seg.use_mask = false;
+      }
       seg.cast_inputs.mask_assignments = {};
       seg.cast_prompt_signature = null;
       seg.needs_review = true;
@@ -548,7 +551,7 @@ export function applyLayout(c: R, s: R, op: R, env: Environment) {
     selected_render: s.selected_render ?? null,
   });
   if (s.segment_masks_version === 1)
-    cast.rebindLayout(s, items, env, (seg) => pieceSources.get(seg) ?? []);
+    cast.rebindLayout(s, items, op.remove_mask_ids ?? []);
   s.segments = items;
   s.selected_render = null;
   c.result = null;
@@ -564,9 +567,10 @@ export function edit(c: R, s: R, id: string, changes: unknown) {
     (!s.cast_setup || promptMode(seg) === "manual")
   )
     seg.performance_prompt = prompt(c, s, seg);
-  Object.assign(seg, changes, { needs_review: false });
-  if (s.segment_masks_version === 1)
+  if (s.segment_masks_version === 1 && !("use_mask" in seg))
     seg.use_mask = !!seg.cast_inputs.mask_tracks.length;
+  Object.assign(seg, changes, { needs_review: false });
+
   if ("performance_prompt" in changes) {
     seg.prompt_mode = "manual";
     if (s.cast_setup)

@@ -80,6 +80,10 @@ def change_character(clip_id: str, shot_id: str, character_id: str, body: dict):
                 s['cast_setup']['characters'].append(entry)
             if entry['id'] != character_id and entry['id'] in chosen['characters']:
                 raise ValueError('Character is already assigned to this segment')
+            if s.get('segment_masks_version') == 1:
+                chosen['characters'] = [entry['id'] if key == character_id else key for key in chosen['characters']]
+                chosen['mask_assignments'] = {}
+                return
             assignments = cast.character_masks(chosen)
             if entry['id'] != character_id:
                 assignments[entry['id']] = assignments.pop(character_id, [])
@@ -127,6 +131,10 @@ def remove_character(clip_id: str, shot_id: str, character_id: str, body: dict):
         for segment in s['segments']:
             chosen = segment['cast_inputs']
             if character_id not in chosen['characters']: continue
+            if s.get('segment_masks_version') == 1:
+                chosen['characters'].remove(character_id)
+                chosen['mask_assignments'] = {}
+                continue
             if 'mask_assignments' not in chosen:
                 chosen['characters'] = [key for key in chosen['characters'] if key != character_id]
                 chosen['mask_tracks'] = [key for key in chosen['mask_tracks'] if key not in tracks]
@@ -157,7 +165,10 @@ def add_mask(clip_id: str, shot_id: str, body: dict):
                       'mask_points': body.get('points', []), 'mask_applied_points': []}}
         if segment:
             record['segment_id'] = segment['id']
-            segment['use_mask'] = bool(segment['cast_inputs']['mask_tracks'])
+            segment['cast_inputs']['mask_tracks'].append(record['id'])
+            segment['cast_inputs']['mask_assignments'] = {}
+            if not local:
+                segment['use_mask'] = True
         tracks.append(record)
     return change(clip_id, shot_id, body['revision'], add)
 
@@ -183,6 +194,13 @@ def remove_mask(clip_id: str, shot_id: str, track_id: str, body: dict):
         s['cast_setup']['mask_tracks'].remove(track)
         for segment in s['segments']:
             chosen = segment['cast_inputs']
+            if s.get('segment_masks_version') == 1:
+                if segment['id'] == track['segment_id']:
+                    chosen['mask_tracks'] = [k for k in chosen['mask_tracks'] if k != track_id]
+                    chosen['mask_assignments'] = {}
+                    if not any(t.get('segment_id') == segment['id'] for t in s['cast_setup']['mask_tracks']):
+                        segment['use_mask'] = False
+                continue
             if track_id not in chosen['mask_tracks']: continue
             assignments = cast.character_masks(chosen)
             cast.apply_character_masks(chosen, {key: [v for v in values if v != track_id] for key, values in assignments.items()})

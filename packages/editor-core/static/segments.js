@@ -104,6 +104,13 @@ function syncSegmentPlayhead(frame=maskEditState?.frame??0){
   const surface=$('#segment-timeline-surface');if(!surface)return;
   const frames=shot().end-shot().start,seg=segmentSelected();
   surface.style.setProperty('--playhead',`${100*(frame+.5)/frames}%`);
+  const containing=segmentEditor?.plan?.segments.find(s=>s.start<=frame&&frame<s.end);
+  const canSplit=containing&&frame-containing.start>=MIN_SEGMENT_FRAMES&&containing.end-frame>=MIN_SEGMENT_FRAMES;
+  const split=$('#segment-split');
+  if(split){
+    split.disabled=!canSplit;
+    split.title=canSplit?'Split at playhead':'Leave at least 1 second on each side of the split.';
+  }
   $('#mask-frame').setAttribute('aria-valuetext',`Frame ${frame}, ${segmentTime(frame)}`);
   }
 function renderSegmentStrip(){
@@ -149,6 +156,8 @@ function renderSegmentStrip(){
   $$('[data-boundary]').forEach(handle=>{
     let drag=null;
     const boundary=Number(handle.dataset.boundary);
+    const limits=boundaryLimits(e.plan.segments,boundary);
+    handle.disabled=limits.min>limits.max||(limits.min===limits.max&&e.plan.segments[boundary].start===limits.min);
     handle.style.left=`${100*e.plan.segments[boundary].start/frames}%`;
     handle.title=`Drag to adjust boundary after segment ${boundary}; Enter for exact frame`;
     handle.onclick=guarded(async event=>{if(event.detail===0)await segmentBoundary(Number(handle.dataset.boundary));});
@@ -156,7 +165,7 @@ function renderSegmentStrip(){
       if(event.button!==0||!e.plan)return;
       event.preventDefault();event.stopPropagation();maskPause();
       const index=Number(handle.dataset.boundary),items=e.plan.segments;
-      drag={id:event.pointerId,index,frame:items[index].start,original:items[index].start,min:items[index-1].start+1,max:items[index].end-1,plan:e.plan.plan_revision};
+      drag={id:event.pointerId,index,frame:items[index].start,original:items[index].start,...limits,plan:e.plan.plan_revision};
       e.boundaryDrag=drag;handle.setPointerCapture(event.pointerId);handle.focus({preventScroll:true});
     };
     handle.onpointermove=event=>{
@@ -169,10 +178,12 @@ function renderSegmentStrip(){
     handle.onlostpointercapture=()=>{if(drag)cancel();};
     handle.onpointerup=guarded(async event=>{
       if(!drag||event.pointerId!==drag.id)return;
-      const value=drag;drag=null;e.boundaryDrag=null;handle.releasePointerCapture(event.pointerId);renderSegmentStrip();
+      const value=drag;drag=null;handle.releasePointerCapture(event.pointerId);
+      try{
       if(value.frame===value.original)return;
       if(e.plan.plan_revision!==value.plan)throw Error('Segment layout changed while dragging. Review the current boundaries.');
       await changeSegmentLayout({operation:'boundary',index:value.index,frame:value.frame});
+      }finally{e.boundaryDrag=null;if(e===segmentEditor)renderSegmentStrip();}
     });
   });
   syncSegmentPlayhead();
@@ -233,27 +244,47 @@ function renderSegmentControls(){
 async function openSegmentReference(){
   await addGuideAtPlayhead();
 }
-// Segments bill each started second, and slivers are usually accidental.
-const SHORT_SEGMENT_FRAMES=24;
-async function changeSegmentLayout(operation){
-  const items=segmentEditor.plan.segments,frame=operation.frame;
-  const around=operation.operation==='split'?items.find(s=>s.start<frame&&s.end>frame):operation.operation==='boundary'?{start:items[operation.index-1]?.start,end:items[operation.index]?.end}:null;
-  const short=around?.start===undefined||around?.end===undefined?[]:[frame-around.start,around.end-frame].filter(n=>n>0&&n<SHORT_SEGMENT_FRAMES);
-  if(!short.length)return applySegmentLayout(operation);
-  const frames=Math.min(...short),seconds=(frames/24).toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
-  dialog('Keep a short segment?',`<p>This leaves a ${seconds} s segment (${frames} frame${frames===1?'':'s'}).</p><p class="note">Segments under 1 second are usually accidental, and each one is billed as at least 1 second. Keep it for a real cut, such as an early camera change.</p><div class="row"><button id="segment-short-cancel">Cancel</button><button id="segment-short-keep" class="primary">Keep short segment</button></div>`);
-  $('#segment-short-cancel').onclick=()=>$('#dialog').close();
-  $('#segment-short-keep').onclick=guarded(async()=>{$('#dialog').close();await applySegmentLayout(operation);});
+const MIN_SEGMENT_FRAMES=24;
+function boundaryLimits(items,index){
+  return {min:items[index-1].start+MIN_SEGMENT_FRAMES,max:items[index].end-MIN_SEGMENT_FRAMES};
 }
-async function applySegmentLayout(operation){
-  const e=segmentEditor,path=segmentPath(),cid=S.clip,frame=maskEditState?.frame??0,layout=JSON.stringify(e.plan?.segments.map(s=>[s.id,s.start,s.end]));
+async function changeSegmentLayout(operation){
+  const editor=segmentEditor,path=segmentPath();
+  await flushShotAutosave();await saveMaskEdits();await writeQueue;
+  if(editor!==segmentEditor)return;
+  const revision=clip().revision,items=segmentEditor.plan.segments;
+  const preview=await api(path+'/preview','POST',{revision,operation});
+  if(editor!==segmentEditor)return;
+  const retained=new Set(preview.segments.map(s=>s.id));
+  const changed=items.filter(s=>!retained.has(s.id));
+  if(!changed.length)return;
+  const masks=(shot().cast_setup?.mask_tracks||[]).filter(t=>changed.some(s=>s.id===t.segment_id));
+  if(masks.length){
+    const rows=changed.map(seg=>[
+      `Segment ${items.indexOf(seg)+1}`,
+      masks.filter(t=>t.segment_id===seg.id).map(maskLabel),
+    ]).filter(([,names])=>names.length);
+    const action={split:'Split segment',merge:'Merge segments',boundary:'Move boundary',partition:'Apply layout'}[operation.operation];
+    maskRemovalDialog({title:action+'?',description:`This removes ${masks.length===1?'the mask below and its':'the masks below and their'} points and tracking. Existing takes stay available.`,
+      rows,action,confirmId:'segment-layout-confirm'});
+    const accepted=await new Promise(resolve=>{
+      const modal=$('#dialog');
+      const closed=()=>{if(!modal.open){modal.removeEventListener('close',closed);resolve(false);}};
+      modal.addEventListener('close',closed);
+      $('#segment-layout-confirm').onclick=()=>{modal.removeEventListener('close',closed);modal.close();resolve(true);};
+    });
+    if(!accepted||editor!==segmentEditor)return;
+  }
+  await applySegmentLayout({...operation,remove_mask_ids:masks.map(t=>t.id)},revision);
+}
+async function applySegmentLayout(operation,revision){
+  const e=segmentEditor,path=segmentPath(),frame=maskEditState?.frame??0,layout=JSON.stringify(e.plan?.segments.map(s=>[s.id,s.start,s.end]));
   await flushShotAutosave();await saveMaskEdits();
   if(e!==segmentEditor||!segmentActive())return;
   $('.segment-arrange').open=false;
   const task=writeQueue.then(async()=>{
     if(e!==segmentEditor||JSON.stringify(e.plan?.segments.map(s=>[s.id,s.start,s.end]))!==layout)throw Error('Segment layout changed. Try the action again.');
-    const c=S.data.clips.find(c=>c.id===cid);
-    const result=await api(path+'/layout','POST',{revision:c.revision,operation});mergeSegmentClip(result);return result;
+    const result=await api(path+'/layout','POST',{revision,operation});mergeSegmentClip(result);return result;
   });writeQueue=task.catch(()=>{});
   autosaveStatus('Saving…');
   try{
@@ -266,8 +297,9 @@ async function applySegmentLayout(operation){
 async function segmentBoundary(boundaryIndex=null){
   await flushShotAutosave();const e=segmentEditor,seg=segmentSelected(),i=boundaryIndex===null?Math.min(e.plan.segments.indexOf(seg),e.plan.segments.length-2):boundaryIndex-1;
   if(i<0||i>=e.plan.segments.length-1)throw Error('Split the shot before adjusting a boundary.');
-  const current=e.plan.segments[i],next=e.plan.segments[i+1];
-  dialog(`Move boundary after segment ${i+1}`,`<label class="label" for="segment-boundary-frame">Source frame within this shot</label><input id="segment-boundary-frame" type="number" min="${current.start+1}" max="${next.end-1}" value="${current.end}"><p class="note">Both segments keep the same combined duration.</p><button id="segment-boundary-save" class="primary">Move boundary</button>`);
+  const current=e.plan.segments[i],{min,max}=boundaryLimits(e.plan.segments,i+1);
+  if(min>max||(min===max&&current.end===min))throw Error('Both segments need at least 1 second. Merge them to remove this boundary.');
+  dialog(`Move boundary after segment ${i+1}`,`<label class="label" for="segment-boundary-frame">Source frame within this shot</label><input id="segment-boundary-frame" type="number" min="${min}" max="${max}" value="${Math.max(min,Math.min(max,current.end))}"><p class="note">Choose frame ${min}–${max} to keep at least 1 second on each side.</p><button id="segment-boundary-save" class="primary">Move boundary</button>`);
   $('#segment-boundary-save').onclick=guarded(async()=>{const field=$('#segment-boundary-frame');if(!field.reportValidity())return;$('#dialog').close();await changeSegmentLayout({operation:'boundary',index:i+1,frame:Number(field.value)});});
 }
 function segmentPreviousLayouts(){
@@ -479,11 +511,11 @@ function drawRender(c,s){
   };
   $('#segment-from').onclick=guarded(async()=>{closeSegmentGenerateMenu();await generateSegments('from');});
   $('#segment-all').onclick=guarded(async()=>{closeSegmentGenerateMenu();await generateSegments('all');});
-  $('#segment-single').onclick=guarded(()=>applySegmentLayout({operation:'partition',frames:shot().end-shot().start}));
-  $$('[data-segment-partition]').forEach(b=>b.onclick=guarded(()=>applySegmentLayout({operation:'partition',frames:Number(b.dataset.segmentPartition)})));
+  $('#segment-single').onclick=guarded(()=>changeSegmentLayout({operation:'partition',frames:shot().end-shot().start}));
+  $$('[data-segment-partition]').forEach(b=>b.onclick=guarded(()=>changeSegmentLayout({operation:'partition',frames:Number(b.dataset.segmentPartition)})));
   $('#segment-split').onclick=guarded(()=>changeSegmentLayout({operation:'split',frame:maskEditState?.frame??0}));
   $('#segment-boundary').onclick=guarded(()=>segmentBoundary());
-  $('#segment-merge').onclick=guarded(()=>applySegmentLayout({operation:'merge',index:segmentEditor.plan.segments.indexOf(segmentSelected())+1}));
+  $('#segment-merge').onclick=guarded(()=>changeSegmentLayout({operation:'merge',index:segmentEditor.plan.segments.indexOf(segmentSelected())+1}));
   $('#segment-previous').onclick=segmentPreviousLayouts;
   const audio=$('#render-use-source-audio');audio.removeAttribute('aria-describedby');audio.closest('label').title='Guide performance with source audio. Turn off for music or singing; exports keep the original soundtrack.';
   $('#render-use-mask').closest('label').title='Limit changes to the assigned masks. Turn off to regenerate the entire frame.';

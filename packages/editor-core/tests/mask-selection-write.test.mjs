@@ -11,9 +11,9 @@ test('mask toggles apply only their intent after earlier writes and retain other
  vm.createContext(env);vm.runInContext(text.slice(text.indexOf('async function setSegmentCastInputs'),text.indexOf('function bindSegmentCast')),env);
  await Promise.all([env.setSegmentCastInputs(stale.cast_inputs,{trackId:'a',include:false}),env.setSegmentCastInputs(stale.cast_inputs,{trackId:'c',include:true})]);
  assert.deepEqual(Array.from(current.cast_inputs.characters),['first','second','new']);
- assert.deepEqual(Array.from(current.cast_inputs.mask_tracks),['b','c']);
- assert.deepEqual({...current.cast_inputs.mask_assignments},{});
- assert.equal(writes[0].revision,2);assert.equal(writes[0].changes.use_mask,true);
+ assert.deepEqual(Array.from(current.cast_inputs.mask_tracks),['a','b']);
+ assert.deepEqual(Object.keys(writes[0].changes),['use_mask']);
+ assert.equal(writes[0].revision,2);assert.equal(writes[0].changes.use_mask,false);
  await env.setSegmentCastInputs(stale.cast_inputs,{trackId:'b',include:false});
  await env.setSegmentCastInputs(stale.cast_inputs,{trackId:'c',include:false});
  assert.equal(writes.at(-1).changes.use_mask,false);

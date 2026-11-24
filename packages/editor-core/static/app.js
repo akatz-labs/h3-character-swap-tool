@@ -134,7 +134,18 @@ function shot() {
   const c = clip();
   return c?.shots.find((s) => s.id === S.shot) || c?.shots.at(-1);
 }
+function maskRemovalDialog({title, description, rows, action, confirmId}) {
+  const list=rows.map(([segment,names])=>`<li><span>${esc(segment)}</span><strong>${esc(names.join(', '))}</strong></li>`).join('');
+  dialog(title,`<div class="mask-removal"><p id="mask-removal-description">${esc(description)}</p><ul>${list}</ul><div class="mask-removal-actions"><button type="button" id="mask-removal-cancel">Cancel</button><button type="button" class="mask-destructive" id="${confirmId}">${esc(action)}</button></div></div>`);
+  const modal=$('#dialog');
+  modal.setAttribute('aria-describedby','mask-removal-description');
+  const cancel=$('#mask-removal-cancel');
+  cancel.onclick=()=>modal.close();
+  cancel.focus();
+}
 function dialog(title, html) {
+  $('#dialog').setAttribute('aria-labelledby','dialog-title');
+  $('#dialog').removeAttribute('aria-describedby');
   guideSession?.dropLifetime?.abort();guideSession=null;$('#guide-draft-status')?.remove();$('#dialog-body').onclick=null;
   $('#dialog-close').innerHTML=uiIcon('close');$('#dialog-close').setAttribute('aria-label','Close dialog');
   anchorDialogVersion++;
